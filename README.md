@@ -5,7 +5,7 @@ is placed on simplicity, code quality, and good documentation.
 
 ## About
 
-### Flagships Applications
+### Applications
 
 - Jaeck Russell (Erlang)
 
