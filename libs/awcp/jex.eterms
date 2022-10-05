@@ -1,0 +1,5 @@
+{type, library}.
+{realm, local}.
+{name, awcp}.
+{version, "0.1.0"}.
+{deps, []}.
