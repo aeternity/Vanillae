@@ -1,0 +1,4 @@
+*.swp
+*.swo
+erl_crash.dump
+*.beam
