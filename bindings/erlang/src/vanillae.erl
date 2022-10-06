@@ -771,7 +771,7 @@ contract_call(CallerID, Nonce, ACI, ConID, Fun, Args) ->
          Gas      :: pos_integer(),
          GasPrice :: pos_integer(),
          Fee      :: non_neg_integer(),
-         Amount   :: pos_integer(),
+         Amount   :: non_neg_integer(),
          AACI     :: map(),
          ConID    :: binary(),
          Fun      :: string(),
