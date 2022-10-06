@@ -527,6 +527,9 @@ next_nonce(AccountID) ->
 %% {ok, Hash} = vanillae:kb_current_hash(),
 %% vanilla:dry_run(TX, Hash),
 %% '''
+%% NOTE:
+%%  For this function to work the Aeternity node you are sending the request
+%%  to must have its configuration set to `http: endpoints: dry-run: true'
 
 dry_run(TX) ->
     case kb_current_hash() of
@@ -733,14 +736,14 @@ read_aci(Path) ->
     end.
 
 
--spec contract_call(CallerID, Nonce, ACI, ConID, Fun, Args) -> CallTX
+-spec contract_call(CallerID, Nonce, AACI, ConID, Fun, Args) -> CallTX
     when CallerID :: binary(),
          Nonce    :: pos_integer(),
-         ACI      :: binary(),
+         AACI     :: map(),
          ConID    :: binary(),
          Fun      :: string(),
          Args     :: [string()],
-         CallTX   :: string().
+         CallTX   :: binary().
 %% @doc
 %% Form a contract call using hardcoded default values for `Gas', `GasPrice', `Fee',
 %% and `Amount' to simplify the call (10 args is a bit much for normal calls!).
@@ -753,7 +756,7 @@ read_aci(Path) ->
 contract_call(CallerID, Nonce, ACI, ConID, Fun, Args) ->
     Gas = 20000,
     GasPrice = min_gas_price(),
-    Fee = 20000,
+    Fee = 200000000000000,
     Amount = 0,
     contract_call(CallerID, Nonce,
                   Gas, GasPrice, Fee, Amount,
@@ -762,18 +765,18 @@ contract_call(CallerID, Nonce, ACI, ConID, Fun, Args) ->
 
 -spec contract_call(CallerID, Nonce,
                     Gas, GasPrice, Fee, Amount,
-                    ACI, ConID, Fun, Args) -> CallTX
+                    AACI, ConID, Fun, Args) -> CallTX
     when CallerID :: binary(),
          Nonce    :: pos_integer(),
          Gas      :: pos_integer(),
          GasPrice :: pos_integer(),
          Fee      :: non_neg_integer(),
          Amount   :: pos_integer(),
-         ACI      :: binary(),
+         AACI     :: map(),
          ConID    :: binary(),
          Fun      :: string(),
          Args     :: [string()],
-         CallTX   :: string().
+         CallTX   :: binary().
 %% @doc
 %% Form a contract call using the supplied values.
 %%
@@ -885,7 +888,7 @@ contract_call(CallerID, Nonce, ACI, ConID, Fun, Args) ->
 contract_call(CallerID, Nonce, Gas, GasPrice, Fee, Amount, ACI, ConID, Fun, Args) ->
     {ok, CallData} = encode_call_data(ACI, Fun, Args),
     ABI = 3,
-    TTL = 100,
+    TTL = 0,
     CallVersion = 1,
     Type = contract_call_tx,
     {account_pubkey, PK}  = aeser_api_encoder:decode(CallerID),
