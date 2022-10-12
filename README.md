@@ -90,3 +90,5 @@ this project.
 -   [base64 versus base58 explainer](./docs/baseN/)
 
     These are two numerical notations used in the Aeternity project.
+
+-   [NPM guide](./docs/npm-misc/)
