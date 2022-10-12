@@ -39,9 +39,11 @@ help() ->
 % TODO: tarball signatures
 
 help_screen() ->
-    ["welcome to hell\n"
+    ["Jex: simple JavaScript packaging system\n"
      "\n"
      "COMMANDS:\n"
+     "  dwim-           init, pull, build\n"
+     "  dwim+           init, pull, build, mindist, push\n"
      "  cfgbarf         barf out the jex.eterms file (mostly to make sure it parses correctly)\n"
      "  echo home       echo $HOME\n"
      "  echo jexdir     echo $HOME/.jex\n"
@@ -58,12 +60,14 @@ help_screen() ->
      "      -f, --force     use cp -rf instead of cp -r\n"
      "  push            rsync -a jex_mindist/ PKGDIR\n"
      "  ls              ls $HOME/.jex/dev\n"
-     "  jextree         tree $HOME/.jex/\n"
+     "  tree            tree $HOME/.jex/\n"
      "  rmpkg PKG       rm -r $HOME/.jex/dev/PKG\n"
      "  pull            pull each dependency into src/jx_include\n"
     ].
 
 
+dispatch(["dwim-"])           -> dwim(minus);
+dispatch(["dwim+"])           -> dwim(plus);
 dispatch(["cfgbarf"])         -> cfgbarf();
 dispatch(["echo", "home"])    -> echo(home);
 dispatch(["echo", "jexdir"])  -> echo(jexdir);
@@ -84,6 +88,18 @@ dispatch(_)                   -> help().
 
 
 
+%%-----------------------------------------------------------------------------
+%% jex dwim
+%%-----------------------------------------------------------------------------
+
+dwim(minus) ->
+    init(),
+    pull(),
+    build([]);
+dwim(plus) ->
+    dwim(minus),
+    mindist([]),
+    push().
 
 
 %%-----------------------------------------------------------------------------
@@ -228,8 +244,8 @@ mindist(Opts) ->
     ok.
 
 mindist_cp(dont_force) ->
-    _ = cmd("cp -rv src  jex_mindist"),
-    _ = cmd("cp -rv dist jex_mindist"),
+    _ = cmd("rsync -avv --exclude=\"*.swp\" src  jex_mindist"),
+    _ = cmd("cp -rv                         dist jex_mindist"),
     ok;
 mindist_cp(force) ->
     _ = cmd("cp -rvf src  jex_mindist"),
