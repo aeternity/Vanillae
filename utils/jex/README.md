@@ -29,6 +29,7 @@ business context, which is the focus of the Vanillae project.
 Jex: simple JavaScript packaging system
 
 COMMANDS:
+  man             show the manual
   dwim-           init, pull, build
   dwim+           init, pull, build, mindist, push
   cfgbarf         barf out the jex.eterms file (mostly to make sure it parses correctly)
@@ -38,7 +39,7 @@ COMMANDS:
   echo pkgname    name of current package
   echo pkgdir     echo $HOME/.jex/dev/realm-name-X.Y.Z
   echo deps       list dependencies of current package
-  echo pathof PKG list the path to PKG or
+  echo pathof PKG list the path to PKG or 
   init            mkdir -p $HOME/.jex/dev
   build           tsc && cp -r ./src/jex_include ./dist/
       -w, --weak      continue building even if tsc fails

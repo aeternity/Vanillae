@@ -10,8 +10,8 @@
 
 -module(jex).
 -vsn("0.1.0").
--license("MIT").
 -export([start/1]).
+-compile(export_all).
 
 -include("$zx_include/zx_logger.hrl").
 
@@ -22,6 +22,7 @@
 start(ArgV) ->
     ok = log(info, "ArgV: ~tp", [ArgV]),
     ok = dispatch(ArgV),
+    %ok.
     zx:silent_stop().
 
 help() ->
@@ -42,6 +43,7 @@ help_screen() ->
     ["Jex: simple JavaScript packaging system\n"
      "\n"
      "COMMANDS:\n"
+     "  man             show the manual\n"
      "  dwim-           init, pull, build\n"
      "  dwim+           init, pull, build, mindist, push\n"
      "  cfgbarf         barf out the jex.eterms file (mostly to make sure it parses correctly)\n"
@@ -66,6 +68,7 @@ help_screen() ->
     ].
 
 
+dispatch(["man"])             -> man();
 dispatch(["dwim-"])           -> dwim(minus);
 dispatch(["dwim+"])           -> dwim(plus);
 dispatch(["cfgbarf"])         -> cfgbarf();
@@ -86,6 +89,17 @@ dispatch(["pull"])            -> pull();
 dispatch(_)                   -> help().
 
 
+
+%%-----------------------------------------------------------------------------
+%% jex man
+%%-----------------------------------------------------------------------------
+
+man() ->
+    ManFile = filename:join([zx:get_home(), "priv", "MANUAL.txt"]),
+    {ok, ManBytes} = file:read_file(ManFile),
+    io:format("~ts~n", [string:chomp(ManBytes)]).
+    %os:cmd(io_lib:format("less ~ts", [ManFile])),
+    %ok.
 
 
 %%-----------------------------------------------------------------------------
