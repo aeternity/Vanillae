@@ -736,14 +736,16 @@ read_aci(Path) ->
     end.
 
 
--spec contract_call(CallerID, Nonce, AACI, ConID, Fun, Args) -> CallTX
+-spec contract_call(CallerID, Nonce, AACI, ConID, Fun, Args) -> Result
     when CallerID :: binary(),
          Nonce    :: pos_integer(),
          AACI     :: map(),
          ConID    :: binary(),
          Fun      :: string(),
          Args     :: [string()],
-         CallTX   :: binary().
+         Result   :: {ok, CallTX} | {error, Reason},
+         CallTX   :: binary(),
+         Reason   :: term().
 %% @doc
 %% Form a contract call using hardcoded default values for `Gas', `GasPrice', `Fee',
 %% and `Amount' to simplify the call (10 args is a bit much for normal calls!).
@@ -753,19 +755,19 @@ read_aci(Path) ->
 %% For details on the meaning of these and other argument values see the doc comment
 %% for contract_call/10.
 
-contract_call(CallerID, Nonce, ACI, ConID, Fun, Args) ->
+contract_call(CallerID, Nonce, AACI, ConID, Fun, Args) ->
     Gas = 20000,
     GasPrice = min_gas_price(),
     Fee = 200000000000000,
     Amount = 0,
     contract_call(CallerID, Nonce,
                   Gas, GasPrice, Fee, Amount,
-                  ACI, ConID, Fun, Args).
+                  AACI, ConID, Fun, Args).
 
 
 -spec contract_call(CallerID, Nonce,
                     Gas, GasPrice, Fee, Amount,
-                    AACI, ConID, Fun, Args) -> CallTX
+                    AACI, ConID, Fun, Args) -> Result
     when CallerID :: binary(),
          Nonce    :: pos_integer(),
          Gas      :: pos_integer(),
@@ -776,7 +778,9 @@ contract_call(CallerID, Nonce, ACI, ConID, Fun, Args) ->
          ConID    :: binary(),
          Fun      :: string(),
          Args     :: [string()],
-         CallTX   :: binary().
+         Result   :: {ok, CallTX} | {error, Reason},
+         CallTX   :: binary(),
+         Reason   :: term().
 %% @doc
 %% Form a contract call using the supplied values.
 %%
@@ -885,14 +889,33 @@ contract_call(CallerID, Nonce, ACI, ConID, Fun, Args) ->
 %% if you do not already have a copy, and can check the spec of a function before
 %% trying to form a contract call.
 
-contract_call(CallerID, Nonce, Gas, GasPrice, Fee, Amount, ACI, ConID, Fun, Args) ->
-    {ok, CallData} = encode_call_data(ACI, Fun, Args),
+contract_call(CallerID, Nonce, Gas, GP, Fee, Amount, AACI, ConID, Fun, Args) ->
+    case encode_call_data(AACI, Fun, Args) of
+        {ok, CD} -> contract_call2(CallerID, Nonce, Gas, GP, Fee, Amount, ConID, CD);
+        Error    -> Error
+    end.
+
+contract_call2(CallerID, Nonce, Gas, GasPrice, Fee, Amount, ConID, CallData) ->
+    try
+        {account_pubkey, PK}  = aeser_api_encoder:decode(CallerID),
+        contract_call3(PK, Nonce, Gas, GasPrice, Fee, Amount, ConID, CallData)
+    catch
+        Error:Reason -> {Error, Reason}
+    end.
+
+contract_call3(PK, Nonce, Gas, GasPrice, Fee, Amount, ConID, CallData) ->
+    try
+        {contract_pubkey, CK} = aeser_api_encoder:decode(ConID),
+        contract_call4(PK, Nonce, Gas, GasPrice, Fee, Amount, CK, CallData)
+    catch
+        Error:Reason -> {Error, Reason}
+    end.
+
+contract_call4(PK, Nonce, Gas, GasPrice, Fee, Amount, CK, CallData) ->
     ABI = 3,
     TTL = 0,
     CallVersion = 1,
     Type = contract_call_tx,
-    {account_pubkey, PK}  = aeser_api_encoder:decode(CallerID),
-    {contract_pubkey, CK} = aeser_api_encoder:decode(ConID),
     Fields =
         [{caller_id,   {id, account, PK}},
          {nonce,       Nonce},
@@ -916,7 +939,11 @@ contract_call(CallerID, Nonce, Gas, GasPrice, Fee, Amount, ACI, ConID, Fun, Args
          {gas_price,   int},
          {call_data,   binary}],
     TXB = aeser_chain_objects:serialize(Type, CallVersion, Template, Fields),
-    aeser_api_encoder:encode(transaction, TXB).
+    try
+        {ok, aeser_api_encoder:encode(transaction, TXB)}
+    catch
+        error:Reason -> {error, Reason}
+    end.
 
 
 -spec prepare_contract(File) -> {ok, AACI} | {error, Reason}
@@ -929,7 +956,7 @@ contract_call(CallerID, Nonce, Gas, GasPrice, Fee, Amount, ACI, ConID, Fun, Args
 
 prepare_contract(File) ->
     case aeso_compiler:file(File, [{aci, json}]) of
-        {ok, #{aci := ACI}} -> prepare_aaci(ACI);
+        {ok, #{aci := ACI}} -> {ok, prepare_aaci(ACI)};
         Error               -> Error
     end.
 
@@ -963,17 +990,39 @@ type(Name)                  -> binary_to_list(Name).
 %type(#{<<"map">> := {K, V}} -> {map, type(K), type(V)};
 %type(<<"string">>)          -> string;
 
-coerce({integer,  S}) ->
-    list_to_integer(S);
-coerce({address,  S}) ->
-    {account_pubkey, Key} = aeser_api_encoder:decode(S),
-    {address, Key};
-coerce({contract, S}) ->
-    aeser_api_encoder:decode(S);
-coerce({bool,     S}) ->
-    S;
-coerce({_,        S}) ->
-    S.
+coerce({{ArgName, integer},  S}, {Good, Broken}) ->
+    try
+        N = list_to_integer(S),
+        {[N | Good], Broken}
+    catch
+        error:Reason -> {Good, [{ArgName, Reason} | Broken]}
+    end;
+coerce({{ArgName, address},  S}, {Good, Broken}) ->
+    try
+        case aeser_api_encoder:decode(S) of
+            {account_pubkey, Key} -> {[{address, Key} | Good], Broken};
+            _                     -> {Good, [{ArgName, bad_pubkey} | Broken]}
+        end
+    catch
+        error:Reason -> {Good, [{ArgName, Reason} | Broken]}
+    end;
+coerce({{ArgName, contract}, S}, {Good, Broken}) ->
+    try
+        case aeser_api_encoder:decode(S) of
+            R = {contract_bytearray, _} -> {[R | Good], Broken};
+            _                           -> {Good, [{ArgName, bad_contract} | Broken]}
+        end
+    catch
+        error:Reason -> {Good, [{ArgName, Reason} | Broken]}
+    end;
+coerce({{_, bool}, true}, {Good, Broken}) ->
+    {[true | Good], Broken};
+coerce({{_, bool}, false}, {Good, Broken}) ->
+    {[false | Good], Broken};
+coerce({{ArgName, bool},  _}, {Good, Broken}) ->
+    {Good, [{ArgName, not_bool} | Broken]};
+coerce({_, S}, {Good, Broken}) ->
+    {[S | Good], Broken}.
 
 
 -spec min_gas_price() -> integer().
@@ -993,11 +1042,30 @@ min_gas_price() ->
     1000000000.
 
 
-encode_call_data({aaci, _Name, FunDefs}, Fun, Args) ->
-    ArgDef = maps:get(Fun, FunDefs),
-    Binding = lists:zip([element(2, D) || D <- ArgDef], Args),
-    Coerced = lists:map(fun coerce/1, Binding),
-    aeb_fate_abi:create_calldata(Fun, Coerced).
+encode_call_data({aaci, _, FunDefs}, Fun, Args) ->
+    case maps:find(Fun, FunDefs) of
+        {ok, ArgDef} -> encode_call_data2(ArgDef, Fun, Args);
+        error        -> {error, bad_fun_name}
+    end.
+
+encode_call_data2(ArgDef, Fun, Args) ->
+    DefLength = length(ArgDef),
+    ArgLength = length(Args),
+    if
+        DefLength =:= ArgLength -> encode_call_data3(ArgDef, Fun, Args);
+        DefLength >   ArgLength -> {error, too_few_args};
+        DefLength   < ArgLength -> {error, too_many_args}
+    end.
+
+encode_call_data3(ArgDef, Fun, Args) ->
+    Binding = lists:zip(ArgDef, Args),
+    case lists:foldl(fun coerce/2, {[], []}, Binding) of
+        {Coerced, []} ->
+            Reversed = lists:reverse(Coerced),
+            aeb_fate_abi:create_calldata(Fun, Reversed);
+        {_, Errors} ->
+            {error, {args, lists:reverse(Errors)}}
+    end.
 
 
 
