@@ -99,21 +99,21 @@ encode3(bytes: Uint8Array) {
     // ABCDEF GH1234 5678AB CDEFGH
     //   n0     n1     n2     n3
     let n0 : number = b0 >> 2;
-    // n1            = 00GH1234
+    // n1            = __GH1234
     // b0            = ABCDEFGH
-    // 4             = 00000100
-    // b0 % 4        = 000000GH
-    // (b0 % 4) << 4 = 00GH0000
+    // 4             = _____1__
+    // b0 % 4        = ______GH
+    // (b0 % 4) << 4 = __GH____
     // b1            = 12345678
-    // b1 >> 4       = 00001234
+    // b1 >> 4       = ____1234
     let n1 : number = ((b0 % 4) << 4) + (b1 >> 4);
-    // n2             = 005678AB
+    // n2             = __5678AB
     // b1             = 12345678
-    // 16             = 00010000
-    // b1 % 16        = 00005678
-    // (b1 % 16) << 2 = 00567800
+    // 16             = ___1____
+    // b1 % 16        = ____5678
+    // (b1 % 16) << 2 = __5678__
     // b1             = ABCDEFGH
-    // b1 >> 6        = 000000AB
+    // b1 >> 6        = ______AB
     let n2 : number = ((b1 % 16) << 2) + (b1 >> 6);
     // n3 = 00CDEFGH
     // 64 = 01000000
@@ -135,15 +135,88 @@ encode3(bytes: Uint8Array) {
 /**
  * Encode the final 0, 1, or 2 bytes
  *
- * FIXME: nyi
+ * @internal
  */
 function
 encode_tail(tail_bytes : Uint8Array,
             tail_len   : number)
-    : string
-{
-    throw new Error('nyi');
+           : string {
+    switch(tail_len) {
+        case 0: return '';
+        case 1: return encode1(tail_bytes);
+        case 2: return encode2(tail_bytes);
+        default:
+            throw new Error('encode_tail with tail_len = ' + tail_len);
+    }
 }
+
+
+
+/**
+ * Encode a single byte
+ *
+ * @internal
+ */
+function
+encode1(bytes: Uint8Array): string {
+    let b0 : number = bytes[0];
+    // n0            = __ABCDEF
+    // b0            = ABCDEFGH
+    // b0 >> 2       = __ABCDEF
+    let n0 : number = b0 >> 2;
+    // n1            = __GH____
+    // b0            = ABCDEFGH
+    //  4            = _____1__
+    // b0 % 4        = ______GH
+    // (b0 % 4) << 4 = __GH____
+    let n1 : number = (b0 % 4) << 4;
+
+    return int2char(n0) + int2char(n1) + '==';
+}
+
+
+
+/**
+ * Encode two bytes
+ *
+ * @internal
+ */
+function
+encode2(bytes: Uint8Array): string {
+    return int2char(n0) + int2char(n1) + '==';
+    let b0 : number = bytes[0];
+    let b1 : number = bytes[1];
+
+    // ABCDEFGH 12345678
+    //    b0       b1
+    // ABCDEF GH1234 5678__
+    //   n0     n1     n2
+    let n0 : number = b0 >> 2;
+    // n1            = __GH1234
+    // b0            = ABCDEFGH
+    // 4             = _____1__
+    // b0 % 4        = ______GH
+    // (b0 % 4) << 4 = __GH____
+    // b1            = 12345678
+    // b1 >> 4       = ____1234
+    let n1 : number = ((b0 % 4) << 4) + (b1 >> 4);
+    // n2             = __5678AB
+    // b1             = 12345678
+    // 16             = ___1____
+    // b1 % 16        = ____5678
+    // (b1 % 16) << 2 = __5678__
+    let n2 : number = (b1 % 16) << 2;
+
+    // convert to chars
+    let s0 : string = int2char(n0);
+    let s1 : string = int2char(n1);
+    let s2 : string = int2char(n2);
+
+    // retrvn
+    return s0 + s1 + s2 + '=';
+}
+
+
 
 /**
  * Conversion table for base64 encode
