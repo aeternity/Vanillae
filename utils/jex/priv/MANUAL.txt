@@ -212,7 +212,8 @@ work".  Or, you can drop the whole tree into your existing project
 and have it "just work".  We want the source map to work properly, so
 the TypeScript source is included in the bundle.
 
-Let's switch over to the Sidekick project. Sidekick depends on AWCP.
+For more context, let's switch over to the Sidekick project. Sidekick
+depends on AWCP.
 
     [src/v pharpend/develop] % tree sidekick/src
     sidekick/src
@@ -229,6 +230,9 @@ Let's switch over to the Sidekick project. Sidekick depends on AWCP.
 
     5 directories, 5 files
 
+Jex automates the process of pulling awcp from the local repository
+and including it in a predictable file path in the source tree.
+
 To import AWCP, `sidekick.ts` contains this line
 
     import * as awcp from './jex_include/local-awcp-0.1.0/dist/awcp.js';
@@ -237,3 +241,27 @@ Notice that we're importing the JS file, not the TS file.  TypeScript
 gets its type information from the `dist/awcp.d.ts` file, not from
 the `src/awcp.ts` file.  The `src/awcp.ts` file is only included so
 the source map works properly in the browser's debugger.
+
+The next step is to compile sidekick. To do this, we run `jex dwim-`.
+This is shorthand for `jex init && jex pull && jex build`
+
+    dwim(minus) ->
+        % make the ~/.jex/dev directory
+        init(),
+        % pull the dependencies into src/jex_include
+        pull(),
+        % run tsc
+        build([]);
+    dwim(plus) ->
+        dwim(minus),
+        % make the jex_mindist folder
+        mindist([]),
+        % push to local repo
+        push().
+
+This is the essential flow of using Jex.  Suppose we update AWCP and
+want to see that result reflected in sidekick.
+
+1. In the AWCP repository, we run `jex dwim+`. This makes a new
+   distribution tarball and pushes it to the local repository.
+2. In the sidekick repository, we run `jex dwim-`. This pulls the new 

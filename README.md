@@ -31,7 +31,7 @@ Vanillae is just a knife.
     need in a backend application that uses Aeternity.
 
     These intentionally do not cover obscure or esoteric Aeternity features
-    (e.g. hyperchains).  These only cover common funct
+    (e.g. hyperchains).
 
     - [Erlang](./bindings/erlang/)
 
@@ -45,8 +45,9 @@ out.
 
     Aepp/waellet communication protocol
 
-    This is just type definitions, what data the wallet expects from the Aepp,
-    and what data the aepp expects from the waellet.
+    This is just type definitions and constants (error codes). Type definitions
+    consist of what data the waellet expects from the aepp, and what data the
+    aepp expects from the waellet.
 
 -   [Parasite](./libs/parasite/)
 
