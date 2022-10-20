@@ -3,7 +3,8 @@
  */
 
 export {
-    encode
+    encode,
+    decode
 }
 
 
@@ -216,6 +217,242 @@ encode2(bytes: Uint8Array): string {
 }
 
 
+
+/**
+ * Decode a base64-encoded string
+ */
+function
+decode(base64_str : string): Uint8Array {
+    // length of the string is guaranteed to be a multiple of 4
+    // if the string is empty, return the empty array
+    let len = base64_str.length;
+    // this branching contains the implicit assertion that the length is a
+    // multiple of 4. If this is not true, the bottom branch is triggered.
+    // general case goes first because speeeeeed
+    if (   (4 < len)
+        && (0 === (len % 4)))
+    {
+        // split the head and tail
+        let tail_start_idx0 : number        = len - 4;
+        let head_s          : string        = base64_str.slice(0, tail_start_idx0);
+        let tail_s          : string        = base64_str.slice(tail_start_idx0);
+        // Using arrays because Uint8Arrays don't have a concat operation
+        let head_arr        : Array<number> = decode_head(head_s);
+        let tail_arr        : Array<number> = decode_tail(tail_s);
+        // silly to put these in variables but this is exactly the type of
+        // situation where JS type insanity shows up
+        //
+        // see: i forgot
+        // > [1,2,3] + [4,5,6]
+        // '1,2,34,5,6'
+        //
+        // Originally, I used + like some sort of moron who codes in a sane
+        // language
+        //
+        // seriously what the fuck is this language
+        //
+        // this is some clown shit
+        let total_arr       : Array<number> = head_arr.concat(tail_arr);
+        return new Uint8Array(total_arr);
+    }
+    // special case if the length is exactly 4
+    else if (4 === len)
+    {
+        // it's just a tail
+        return new Uint8Array(decode_tail(base64_str));
+    }
+    // empty string
+    else if (0 === len)
+    {
+        return new Uint8Array([]);
+    }
+    else
+    {
+        throw new Error('base64 decode: invalid string length: ' + len);
+    }
+}
+
+
+
+/**
+ * Decode a string known to not have any padding
+ *
+ * @internal
+ */
+function
+decode_head(s: string): Array<number> {
+    // go 4 characters at a time
+    let max_i0      : number        = s.length - 1;
+    let decoded_acc : Array<number> = [];
+    for(let i0  = 0;
+            i0 <= max_i0;
+            i0 += 4)
+    {
+        let this_slice_s   : string        = s.slice(i0, i0 + 4);
+        let this_slice_arr : Array<number> = decode3(this_slice_s);
+        // update accumulator
+        decoded_acc = decoded_acc.concat(this_slice_arr);
+    }
+    return decoded_acc;
+}
+
+
+
+/**
+ * Decode 4 characters that correspond to either 3 bytes, 2, bytes, or 1 byte
+ *
+ * @internal
+ */
+function
+decode_tail(s: string): Array<number> {
+    // all that matters right now is the last 2 chars
+    // s0, s1, s2, s3
+    // 0 based indexing is so annoying
+    let s2 = s[2];
+    let s3 = s[3];
+
+    // braaaaaaaaaaaaaaaaaench
+    // two equals signs means 1 byte
+    if (('=' === s3) && ('=' === s2)) {
+        return decode1(s);
+    }
+    // one equals sign means 2 bytes
+    else if (('=' === s3)) {
+        return decode2(s);
+    }
+    // 0 equals signs means 3 bytes
+    else {
+        return decode3(s);
+    }
+}
+
+
+
+/**
+ * Decode a 4-character long base64 string corresponding to 3 bytes
+ *
+ * @internal
+ */
+function decode3(s: string): Array<number> {
+    // pull out strings
+    let s0 : string = s[0];
+    let s1 : string = s[1];
+    let s2 : string = s[2];
+    let s3 : string = s[3];
+
+    // convert to numbers
+    let n0 : number = char2int(s0);
+    let n1 : number = char2int(s1);
+    let n2 : number = char2int(s2);
+    let n3 : number = char2int(s3);
+
+    // abcdef gh1234 5678ab cdefgh
+    //   n0     n1    n2      n3
+    // abcdefgh 12345678 abcdefgh
+    //   b0        b1       b2
+
+    // n0      = __abcdef
+    // n1      = __gh1234
+    // n0 << 2 = abcdef__
+    // n1 >> 4 = ______gh
+    // b0      = abcdefgh
+    let b0 : number = (n0 << 2) + (n1 >> 4);
+    // n1             = __gh1234
+    // 16             = ___1____
+    // n1 % 16        = ____1234
+    // (n1 % 16) << 4 = 1234____
+    // n2             = __5678ab
+    // n2 >> 2        = ____5678
+    // b1             = 12345678
+    let b1 : number = ((n1 % 16) << 4) + (n2 >> 2);
+    // n2             = __5678ab
+    // 4              = _____1__
+    // n2 % 4         = ______ab
+    // (n2 % 4) << 6  = ab______
+    // n3             = __cdefgh
+    let b2 : number = ((n2 % 4) << 6) + n3;
+
+    return [b0, b1, b2];
+}
+
+
+
+/**
+ * Decode a 4-character long base64 string corresponding to 2 bytes
+ *
+ * @internal
+ */
+function decode2(s: string): Array<number> {
+    // xyz=
+    // pull out strings
+    let s0 : string = s[0];
+    let s1 : string = s[1];
+    let s2 : string = s[2];
+
+    // convert to numbers
+    let n0 : number = char2int(s0);
+    let n1 : number = char2int(s1);
+    let n2 : number = char2int(s2);
+
+    // abcdef gh1234 5678__
+    //   n0     n1    n2
+    // abcdefgh 12345678
+    //   b0        b1
+
+    // n0      = __abcdef
+    // n1      = __gh1234
+    // n0 << 2 = abcdef__
+    // n1 >> 4 = ______gh
+    // b0      = abcdefgh
+    let b0 : number = (n0 << 2) + (n1 >> 4);
+    // n1             = __gh1234
+    // 16             = ___1____
+    // n1 % 16        = ____1234
+    // (n1 % 16) << 4 = 1234____
+    // n2             = __5678__
+    // n2 >> 2        = ____5678
+    // b1             = 12345678
+    let b1 : number = ((n1 % 16) << 4) + (n2 >> 2);
+
+    return [b0, b1];
+}
+
+
+
+/**
+ * Decode a 4-character long base64 string corresponding to 2 bytes
+ *
+ * @internal
+ */
+function decode1(s: string): Array<number> {
+    // xy==
+    // pull out strings
+    let s0 : string = s[0];
+    let s1 : string = s[1];
+
+    // convert to numbers
+    let n0 : number = char2int(s0);
+    let n1 : number = char2int(s1);
+
+    // abcdef gh____
+    //   n0     n1
+    // abcdefgh
+    //   b0
+
+    // n0      = __abcdef
+    // n1      = __gh____
+    // n0 << 2 = abcdef__
+    // n1 >> 4 = ______gh
+    // b0      = abcdefgh
+    let b0 : number = (n0 << 2) + (n1 >> 4);
+
+    return [b0];
+}
+
+
+
+
+// FIXME: these tables would *probably* be faster if they were made into objects
 
 /**
  * Conversion table for base64 encode
