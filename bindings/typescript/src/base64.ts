@@ -94,30 +94,30 @@ encode3(bytes: Uint8Array) {
     let b1 : number = bytes[1];
     let b2 : number = bytes[2];
 
-    // ABCDEFGH 12345678 ABCDEFGH
+    // ABCDEFGH 12345678 abcdefgh
     //    b0       b1       b2
-    // ABCDEF GH1234 5678AB CDEFGH
+    // ABCDEF GH1234 5678ab cdefgh
     //   n0     n1     n2     n3
     let n0 : number = b0 >> 2;
-    // n1            = __GH1234
     // b0            = ABCDEFGH
     // 4             = _____1__
     // b0 % 4        = ______GH
     // (b0 % 4) << 4 = __GH____
     // b1            = 12345678
     // b1 >> 4       = ____1234
+    // n1            = __GH1234
     let n1 : number = ((b0 % 4) << 4) + (b1 >> 4);
-    // n2             = __5678AB
     // b1             = 12345678
     // 16             = ___1____
     // b1 % 16        = ____5678
     // (b1 % 16) << 2 = __5678__
-    // b1             = ABCDEFGH
-    // b1 >> 6        = ______AB
-    let n2 : number = ((b1 % 16) << 2) + (b1 >> 6);
-    // n3 = 00CDEFGH
-    // 64 = 01000000
-    // b2 = ABCDEFGH
+    // b2             = abcdefgh
+    // b2 >> 6        = ______ab
+    // n2             = __5678ab
+    let n2 : number = ((b1 % 16) << 2) + (b2 >> 6);
+    // b2 = abcdefgh
+    // 64 = _1______
+    // n3 = __cdefgh
     let n3 : number = b2 % 64;
 
     // convert to chars
@@ -183,7 +183,6 @@ encode1(bytes: Uint8Array): string {
  */
 function
 encode2(bytes: Uint8Array): string {
-    return int2char(n0) + int2char(n1) + '==';
     let b0 : number = bytes[0];
     let b1 : number = bytes[1];
 
@@ -192,19 +191,19 @@ encode2(bytes: Uint8Array): string {
     // ABCDEF GH1234 5678__
     //   n0     n1     n2
     let n0 : number = b0 >> 2;
-    // n1            = __GH1234
     // b0            = ABCDEFGH
     // 4             = _____1__
     // b0 % 4        = ______GH
     // (b0 % 4) << 4 = __GH____
     // b1            = 12345678
     // b1 >> 4       = ____1234
+    // n1            = __GH1234
     let n1 : number = ((b0 % 4) << 4) + (b1 >> 4);
-    // n2             = __5678AB
     // b1             = 12345678
     // 16             = ___1____
     // b1 % 16        = ____5678
     // (b1 % 16) << 2 = __5678__
+    // n2             = __5678__
     let n2 : number = (b1 % 16) << 2;
 
     // convert to chars

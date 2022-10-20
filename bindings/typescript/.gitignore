@@ -1,1 +1,6 @@
 dist
+jex_mindist
+jex_include
+*.beam
+*.swp
+*.swo
