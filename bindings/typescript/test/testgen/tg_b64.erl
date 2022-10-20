@@ -1,8 +1,11 @@
 %% base64 test generation
--module(tg_b64).
+%-module(tg_b64).
 
--compile(export_all).
--compile(nowarn_export_all).
+%-compile(export_all).
+%-compile(nowarn_export_all).
+
+main([]) ->
+    io:format("~ts~n", [cases(1000)]).
 
 %% todo: write assertio function
 %% assert input/output pairs
