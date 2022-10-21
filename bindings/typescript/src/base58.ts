@@ -3,8 +3,8 @@
  */
 
 export {
-    encode
-    // decode
+    encode,
+    decode
 }
 
 
@@ -44,6 +44,7 @@ nlz(bytes: Uint8Array): number {
     }
     return n;
 }
+
 
 
 /**
@@ -118,11 +119,117 @@ bignum_to_base58(q: bigint) {
 
 
 //=============================================================================
+// DECODING
+//=============================================================================
+
+/**
+ * Decode a Base58 string into a Uint8Array
+ */
+function
+decode(base58: string): Uint8Array {
+    let num_leading_ones : number        = nlo(base58);
+    let rest             : string        = base58.slice(num_leading_ones);
+    let zeros            : Array<number> = decode_ones(num_leading_ones);
+    let rest_arr         : Array<number> = decode_rest(rest);
+    let pre_result       : Array<number> = zeros.concat(rest_arr);
+    return new Uint8Array(pre_result);
+}
+
+
+
+/**
+ * count the number of leading 1 characters in a uint8array
+ *
+ * @internal
+ */
+function
+nlo(base58: string): number {
+    let n = 0;
+    for (let this_char of base58) {
+        if ('1' === this_char)
+            n++;
+        else
+            break;
+    }
+    return n;
+}
+
+
+
+/**
+ * Generate a bunch of '0's for however many leading ones there are
+ *
+ * @internal
+ */
+function
+decode_ones(how_many : number): Array<number> {
+    let zeros : Array<number> = [];
+    for (let i  = 1;
+             i <= how_many;
+             i++)
+    {
+        zeros.push(0);
+    }
+
+    return zeros;
+}
+
+
+
+/**
+ * Decode a string that has no leading 1s
+ *
+ * @internal
+ */
+function
+decode_rest(base58: string): Array<number> {
+    let result_bignum : bigint        = base58_to_bigint(base58);
+    let result        : Array<number> = bigint_to_base256(result_bignum);
+    return result;
+}
+
+
+
+/**
+ * Convert a base58 string to a bignum
+ *
+ * @internal
+ */
+function
+base58_to_bigint(base58: string): bigint {
+    let acc_bigint : bigint = 0n;
+    for(let this_char of base58) {
+        acc_bigint *= 58n;
+        acc_bigint += char_to_bigint(this_char);
+    }
+    return acc_bigint;
+}
+
+
+/**
+ * convert a bignum into a byte array
+ *
+ * @end
+ */
+function
+bigint_to_base256(q: bigint): Array<number> {
+    let arr_reverse = [];
+    while(q !== 0n) {
+        let r = Number(q % 256n);
+        q /= 256n;
+        arr_reverse.push(r);
+    }
+    arr_reverse.reverse();
+    return arr_reverse;
+}
+
+
+//=============================================================================
 // TRANSLATION TABLES
 //=============================================================================
 
 function
-bigint_to_char(n: bigint) {
+bigint_to_char(n: bigint): string {
     switch(n) {
         case  0n: return '1';
         case  1n: return '2';
@@ -183,6 +290,73 @@ bigint_to_char(n: bigint) {
         case 56n: return 'y';
         case 57n: return 'z';
         default:
-            throw new Error('invalid base58 bigint: ' + n)
+            throw new Error('invalid base58 bigint: ' + n);
+    }
+}
+
+
+function
+char_to_bigint(s: string): bigint {
+    switch(s) {
+        case '1': return  0n;
+        case '2': return  1n;
+        case '3': return  2n;
+        case '4': return  3n;
+        case '5': return  4n;
+        case '6': return  5n;
+        case '7': return  6n;
+        case '8': return  7n;
+        case '9': return  8n;
+        case 'A': return  9n;
+        case 'B': return 10n;
+        case 'C': return 11n;
+        case 'D': return 12n;
+        case 'E': return 13n;
+        case 'F': return 14n;
+        case 'G': return 15n;
+        case 'H': return 16n;
+        case 'J': return 17n;
+        case 'K': return 18n;
+        case 'L': return 19n;
+        case 'M': return 20n;
+        case 'N': return 21n;
+        case 'P': return 22n;
+        case 'Q': return 23n;
+        case 'R': return 24n;
+        case 'S': return 25n;
+        case 'T': return 26n;
+        case 'U': return 27n;
+        case 'V': return 28n;
+        case 'W': return 29n;
+        case 'X': return 30n;
+        case 'Y': return 31n;
+        case 'Z': return 32n;
+        case 'a': return 33n;
+        case 'b': return 34n;
+        case 'c': return 35n;
+        case 'd': return 36n;
+        case 'e': return 37n;
+        case 'f': return 38n;
+        case 'g': return 39n;
+        case 'h': return 40n;
+        case 'i': return 41n;
+        case 'j': return 42n;
+        case 'k': return 43n;
+        case 'm': return 44n;
+        case 'n': return 45n;
+        case 'o': return 46n;
+        case 'p': return 47n;
+        case 'q': return 48n;
+        case 'r': return 49n;
+        case 's': return 50n;
+        case 't': return 51n;
+        case 'u': return 52n;
+        case 'v': return 53n;
+        case 'w': return 54n;
+        case 'x': return 55n;
+        case 'y': return 56n;
+        case 'z': return 57n;
+        default:
+            throw new Error('invalid base58 char: ' + s);
     }
 }
