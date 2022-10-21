@@ -7,9 +7,13 @@
 
 main([]) ->
     {ok, Cases} = file:consult("b58_cases_3.eterms"),
-    test_cases(Cases).
+    DoCase =
+        fun(Case) ->
+            spawn(fun() -> test_case(Case) end)
+        end,
+    lists:foreach(DoCase, Cases).
 
-test_cases([{{encoded, E}, {decoded, D}} | Rest]) ->
+test_case({{encoded, E}, {decoded, D}}) ->
     EncodeOk = E =:= enc(D),
     DecodeOk = D =:= dec(E),
     ok =
@@ -34,8 +38,6 @@ test_cases([{{encoded, E}, {decoded, D}} | Rest]) ->
                                "actual   : ~tw~n~n",
                                [E, D, dec(E)])
         end,
-    test_cases(Rest);
-test_cases([]) ->
     ok.
 
 % this was much clearer: https://www.youtube.com/watch?v=GedV3S9X89c

@@ -10,25 +10,121 @@ import base58 as b
 import random as r
 
 ###########################
+### simple cases (single bytes, two bytes, 10 bytes of same byte)
+###########################
+
+## 1 byte cases
+
+def single_byte_case(byte):
+    '''
+    return the encode/decode pair corresponding to a single byte
+    '''
+    decoded_bytes = bytes([byte])
+    encoded_bytes = b.b58encode(decoded_bytes)
+    return {'db': decoded_bytes, 'eb': encoded_bytes}
+
+
+def single_byte_cases():
+    '''
+    return the encode/decode pairs corresponding to every single byte case for
+    byte between 0 and 255
+    '''
+    # range(0, 256) = [0, 256) intersect Z
+    return [single_byte_case(n) for n in range(0, 256)]
+
+## too many of these
+
+### 2 byte cases
+#
+#def two_bytes(n):
+#    '''
+#    return the two bytes corresponding to <<n // 256, n % 256>>
+#    '''
+#    return bytes([n // 256, n % 256])
+#
+#
+#def two_byte_case(n):
+#    '''
+#    return the encode/decode pair corresponding to <<n // 256, n % 256>>
+#    '''
+#    decoded_bytes = two_bytes(n)
+#    encoded_bytes = b.b58encode(decoded_bytes)
+#    return {'db': decoded_bytes, 'eb': encoded_bytes}
+#
+#
+#def two_byte_cases():
+#    '''
+#    return the encode/decode pairs for each two bytes <<n:8, m:8>>
+#    '''
+#    return [two_byte_case(n) for n in range(0, 256*256)]
+
+
+## 10 byte cases
+
+def ten_bytes(byte):
+    '''
+    return the ten byte string which is byte repeated 10 times
+    '''
+    return bytes([byte for _ in range(10)])
+
+
+def ten_byte_case(n):
+    '''
+    return the encode/decode pair corresponding to <<n>> * 10
+    '''
+    decoded_bytes = ten_bytes(n)
+    encoded_bytes = b.b58encode(decoded_bytes)
+    return {'db': decoded_bytes, 'eb': encoded_bytes}
+
+
+def ten_byte_cases():
+    '''
+    return the encode/decode pairs for each string <<n:8>> * 10
+    '''
+    return [ten_byte_case(n) for n in range(0, 256)]
+
+
+
+## all simple cases in one function
+
+def simple_cases():
+    return single_byte_cases() + ten_byte_cases()
+
+
+###########################
 ### case generation
 ###########################
 
 def random_bytes():
+    '''
+    return between 0 and 999 random bytes
+    '''
+    # randint is between [left, right]
     len = r.randint(0, 999)
     #len = 10
     acc = []
     for _ in range(len):
+        # randint is between [left, right]
         randbyte = r.randint(0, 255)
         acc.append(randbyte)
     return bytes(acc)
 
+
 def case():
+    '''
+    return a random encode/decode pair
+    '''
     decoded_bytes = random_bytes()
     encoded_bytes = b.b58encode(decoded_bytes)
     return {'db': decoded_bytes, 'eb': encoded_bytes}
 
+
 def cases(n):
+    '''
+    return n randomly generated encode/decode pairs
+    '''
     return [case() for _ in range(n)]
+
 
 ###########################
 ### js formatting
@@ -99,7 +195,7 @@ def format_cases_erl(cases):
 ###########################
 
 def main():
-    c = cases(100)
+    c = simple_cases() + cases(100_000)
     #print(format_cases_js(c))
     print(format_cases_erl(c))
 
