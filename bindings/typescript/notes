@@ -1,0 +1,10 @@
+- simple aetto/ae/etc unit converter
+- base64/base58 encoding/decoding
+- rlp
+- pull apart data
+- easy serialization/deserialization
+
+GUI:
+
+- simple testnet explorer
+- contract ide

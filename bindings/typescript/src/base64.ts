@@ -249,9 +249,9 @@ decode(base64_str : string): Uint8Array {
         // Originally, I used + like some sort of moron who codes in a sane
         // language
         //
-        // seriously what the fuck is this language
+        // seriously what is this language
         //
-        // this is some clown shit
+        // this is some clown behavior
         let total_arr       : Array<number> = head_arr.concat(tail_arr);
         return new Uint8Array(total_arr);
     }
