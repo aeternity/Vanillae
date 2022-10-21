@@ -542,7 +542,7 @@ const TIMEOUT_DEF_TX_SIGN_NOPROP_MS = 5*MIN;
  * Example usage:
  *
  * ```typescript
- * let wallet_info = await sk.detect(window, sk.TIMEOUT_DEF_DETECT_MS);
+ * let wallet_info = await sk.detect(sk.TIMEOUT_DEF_DETECT_MS, "wallet timed out", sk.cl());
  * ```
  */
 async function
