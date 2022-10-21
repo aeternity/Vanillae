@@ -151,7 +151,7 @@ def format_case_js(case):
 def format_cases_js(cases):
     s = '['
     for case in cases:
-        s += format_case_erl(case)
+        s += format_case_js(case)
     # each case adds ",\n " so remove that
     # >>> "12345678"[:-3]
     # '12345'
