@@ -195,9 +195,9 @@ def format_cases_erl(cases):
 ###########################
 
 def main():
-    c = simple_cases() + cases(100_000)
-    #print(format_cases_js(c))
-    print(format_cases_erl(c))
+    c = simple_cases() + cases(50)
+    print(format_cases_js(c))
+    #print(format_cases_erl(c))
 
 if __name__ == '__main__':
     main()
