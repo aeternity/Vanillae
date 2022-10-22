@@ -48,7 +48,7 @@
          acc/1, acc_at_height/2, acc_at_block_id/2,
 %        acc_pending_txs/1,
          next_nonce/1,
-         dry_run/1, dry_run/2,
+         dry_run/1, dry_run/2, dry_run/3,
          tx/1, tx_info/1,
          post_tx/1,
          contract/1, contract_code/1,
@@ -63,7 +63,7 @@
 % AE contract call and serialization interface functions
 -export([read_aci/1,
          prepare_contract/1,
-         contract_call/6,
+         contract_call/5,
          contract_call/10]).
 
 % OTP Application Interface
@@ -532,25 +532,40 @@ next_nonce(AccountID) ->
 %%  to must have its configuration set to `http: endpoints: dry-run: true'
 
 dry_run(TX) ->
+    dry_run(TX, []).
+
+
+-spec dry_run(TX, Accounts) -> {ok, Result} | {error, Reason}
+    when TX       :: binary() | string(),
+         Accounts :: [pubkey()],
+         Result   :: term(),  % FIXME
+         Reason   :: term().  % FIXME
+
+dry_run(TX, Accounts) ->
     case kb_current_hash() of
-        {ok, Hash} -> dry_run(TX, Hash);
+        {ok, Hash} -> dry_run(TX, Accounts, Hash);
         Error      -> Error
     end.
 
 
--spec dry_run(TX, KBHash) -> {ok, Result} | {error, Reason}
-    when TX     :: binary() | string(),
-         KBHash :: binary() | string(),
-         Result :: term(),  % FIXME
-         Reason :: term().  % FIXME
+-spec dry_run(TX, Accounts, KBHash) -> {ok, Result} | {error, Reason}
+    when TX       :: binary() | string(),
+         Accounts :: [pubkey()],
+         KBHash   :: binary() | string(),
+         Result   :: term(),  % FIXME
+         Reason   :: term().  % FIXME
 %% @doc
 %% Execute a read-only transaction on the chain at the height indicated by the
 %% hash provided.
 
-dry_run(TX, KBHash) ->
+dry_run(TX, Accounts, KBHash) ->
     KBB = to_binary(KBHash),
     TXB = to_binary(TX),
-    JSON = zj:binary_encode(#{top => KBB, accounts => [], txs => [#{tx => TXB}]}),
+    DryData = #{top       => KBB,
+                accounts  => Accounts,
+                txs       => [#{tx => TXB}],
+                tx_events => true},
+    JSON = zj:binary_encode(DryData),
     request("/v2/dry-run", JSON).
 
 to_binary(S) when is_binary(S) -> S;
@@ -587,7 +602,8 @@ tx_info(ID) ->
 %% Post a transaction to the chain.
 
 post_tx(Data) ->
-    request("/v2/transactions", Data).
+    JSON = zj:binary_encode(#{tx => Data}),
+    request("/v2/transactions", JSON).
 
 
 -spec contract(ID) -> {ok, ContractData} | {error, Reason}
@@ -736,9 +752,8 @@ read_aci(Path) ->
     end.
 
 
--spec contract_call(CallerID, Nonce, AACI, ConID, Fun, Args) -> Result
+-spec contract_call(CallerID, AACI, ConID, Fun, Args) -> Result
     when CallerID :: binary(),
-         Nonce    :: pos_integer(),
          AACI     :: map(),
          ConID    :: binary(),
          Fun      :: string(),
@@ -755,7 +770,8 @@ read_aci(Path) ->
 %% For details on the meaning of these and other argument values see the doc comment
 %% for contract_call/10.
 
-contract_call(CallerID, Nonce, AACI, ConID, Fun, Args) ->
+contract_call(CallerID, AACI, ConID, Fun, Args) ->
+    {ok, Nonce} = next_nonce(CallerID),
     Gas = 20000,
     GasPrice = min_gas_price(),
     Fee = 200000000000000,
