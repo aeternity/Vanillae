@@ -1,8 +1,21 @@
-- simple aetto/ae/etc unit converter
+done:
 - base64/base58 encoding/decoding
+
+tomorrow:
+
 - rlp
 - pull apart data
-- easy serialization/deserialization
+- basic easy serialization/deserialization
+- serialize/deserialize examples
+- (maybe) pull in awcp/sidekick
+- sidekick: sign/propagate and sign/noprop
+
+later:
+
+- general node querying with parasite (think about autogeneration)
+- simple aetto/ae/etc unit converter
+- ghetto sophia ide
+- general "send money to someone" page
 
 GUI:
 
