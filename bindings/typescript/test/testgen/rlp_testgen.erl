@@ -5,7 +5,7 @@
 
 main([]) ->
     % Decoded cases
-    DecodedCases = rand_decode_datas(100),
+    DecodedCases = rand_decode_datas(5000),
     %io:format("~p~n", [DecodedCases]),
     io:format("~s~n", [format_cases_py(DecodedCases)]),
     ok.
