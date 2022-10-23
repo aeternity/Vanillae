@@ -3,7 +3,8 @@
 '''
 generate base58 tests
 
-really checking to see if my code matches the base58 package
+really checking to see if my code matches the python base58 package which has
+159 stars on github
 '''
 
 import base58 as b
