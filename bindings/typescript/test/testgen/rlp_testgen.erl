@@ -2,14 +2,82 @@
 %-compile(export_all).
 
 -mode(compile).
-%-compile(nowarn_unused).
+-compile([nowarn_unused_function]).
 
 main([]) ->
     % Decoded cases
-    DecodedCases = rand_decode_datas(100_000),
+    DecodedCases = rand_decode_datas(10_000),
     %io:format("~p~n", [DecodedCases]),
-    io:format("~s~n", [format_cases_py(DecodedCases)]),
+    io:format("~s~n", [format_cases_js(DecodedCases)]),
     ok.
+
+
+%%%%%%%%%%%%%%%%%%%%%
+%%% JS FORMATTING %%%
+%%%%%%%%%%%%%%%%%%%%%
+
+format_cases_js(Cases) ->
+    format_stringlist_js(lists:map(fun format_case_js/1, Cases)).
+
+% format a list of strings into a python list
+format_stringlist_js(List) ->
+    % stringlist commas are the same in python/js, so reusing python
+    ["import * as rlp from './jex_include/local-vanillae-0.1.0/dist/rlp.js';\n"
+     "\n"
+     "type rlpcases = {decoded: rlp.decoded_data, encoded: Uint8Array};\n"
+     "\n"
+     "// @ts-ignore never mind; jesus christ\n"
+     "export const cases : Array<rlpcases> = [\n", slcommas(List, []), "];"].
+
+% input: decoded_data
+% format a case as
+% {'decoded_data': <js term for rlist>,
+%  'encoded_bytes': new Uint8Array([B1, B2, B3, ...])}
+format_case_js(DecodedData_rlist) ->
+    % EncodedData_bytes = rlp:encode(
+    % DD_js = format_data_js(DecodedData_rlist),
+    EncodedData_bytes = rlp:encode(DecodedData_rlist),
+    EncodedBytes_py   = format_bytes_js(EncodedData_bytes),
+    DecodedData_py    = format_data_js(DecodedData_rlist),
+    ["    {'decoded': ", DecodedData_py, ",\n",
+     "     'encoded': ", EncodedBytes_py, "}"].
+
+
+format_data_js(List) when is_list(List) ->
+    format_list_js(List);
+format_data_js(Bytes) when is_binary(Bytes) ->
+    format_bytes_js(Bytes).
+
+
+format_list_js(List) ->
+    [$[, js_lcommas(List, []), $]].
+
+
+% similar to commas/2 below but for a list
+% cases
+% - list is empty -> special case
+% - exactly one element -> special case
+% - two or more elements -> peel off one at a time until terminal case of exactly one
+% initial input empty, so return empty
+js_lcommas([], []) ->
+    [];
+% one item left, do not add comma
+js_lcommas([Item], Acc) ->
+    [Acc, format_data_js(Item)];
+% two or more items left, add comma
+js_lcommas([Item | Rest], Acc) ->
+    js_lcommas(Rest, [Acc, format_data_js(Item), ", "]).
+
+% format a bytestring as "bytes([Byte1, Byte2, ...])"
+format_bytes_js(Bytes) ->
+    % commas are the same as in python so reusing that
+    Commas = commas(Bytes, []),
+    ["new Uint8Array([", Commas, "])"].
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% PYTHON FORMATTING %%%
+%%%%%%%%%%%%%%%%%%%%%%%%%
 
 format_cases_py(Cases) ->
     format_stringlist_py(lists:map(fun format_case_py/1, Cases)).
@@ -99,6 +167,11 @@ commas(<<B, Rest/binary>>, Acc) ->
     commas(Rest, [Acc, integer_to_list(B), ", "]).
 
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% INVERSE PROPERTY TEST %%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % test that the inverse property is correct
 
 test_inverse() ->
@@ -120,6 +193,12 @@ test_inverse() ->
 check_inverse(DecodedData) ->
     {DeEncodedData, <<>>} = rlp:decode(rlp:encode(DecodedData)),
     DeEncodedData =:= DecodedData.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% RANDOM CASE GENERATION %%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %mkcase(DecodedData) ->
 %    Encoded = rlp:encode(DecodedData),

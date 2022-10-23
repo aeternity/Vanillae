@@ -1,3 +1,7 @@
+import * as rlpcases from './rlpcases.js';
+
+export const rlp = rlpcases.cases;
+
 export const base58 = [
 {encoded: "1",
   decoded: new Uint8Array([0])},
