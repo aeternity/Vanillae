@@ -38,7 +38,7 @@ encode_binary(Bytes) when byte_size(Bytes) =< 55 ->
     <<(128 + Size), Bytes/binary>>;
 % more than 55 bytes long, first byte is 183 + ByteLengthOfLength
 % max byte size is 2^64 - 1
-encode_binary(Bytes) when 55 =< byte_size(Bytes), byte_size(Bytes) < (1 bsl 64) ->
+encode_binary(Bytes) when 55 < byte_size(Bytes), byte_size(Bytes) < (1 bsl 64) ->
     SizeInt       = byte_size(Bytes),
     SizeBytes     = binary:encode_unsigned(SizeInt, big),
     SizeOfSizeInt = byte_size(SizeBytes),
@@ -66,8 +66,7 @@ encode_list(List) ->
         Payload_Size =< 55 ->
             <<(192 + Payload_Size), Payload/binary>>;
         55 < Payload_Size ->
-            SizeInt       = byte_size(Payload),
-            SizeBytes     = binary:encode_unsigned(SizeInt, big),
+            SizeBytes     = binary:encode_unsigned(Payload_Size, big),
             SizeOfSizeInt = byte_size(SizeBytes),
             %% 247 = 192 + 55
             %% SizeOfSizeInt > 0
