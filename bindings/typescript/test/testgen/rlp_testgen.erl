@@ -2,10 +2,11 @@
 %-compile(export_all).
 
 -mode(compile).
+%-compile(nowarn_unused).
 
 main([]) ->
     % Decoded cases
-    DecodedCases = rand_decode_datas(5000),
+    DecodedCases = rand_decode_datas(100_000),
     %io:format("~p~n", [DecodedCases]),
     io:format("~s~n", [format_cases_py(DecodedCases)]),
     ok.
@@ -15,7 +16,7 @@ format_cases_py(Cases) ->
 
 % format a list of strings into a python list
 format_stringlist_py(List) ->
-    [$[, slcommas(List, []), $]].
+    ["cases = [\n", slcommas(List, []), $]].
 
 % similar to commas/2 below but for a list of the dictstrings
 % adding a comma, a newline, and a space
@@ -34,7 +35,7 @@ slcommas([Item], Acc) ->
     [Acc, Item];
 % two or more items left, add comma
 slcommas([Item | Rest], Acc) ->
-    slcommas(Rest, [Acc, Item, ",\n "]).
+    slcommas(Rest, [Acc, Item, ",\n"]).
 
 
 
@@ -48,9 +49,8 @@ format_case_py(DecodedData_rlist) ->
     EncodedData_bytes = rlp:encode(DecodedData_rlist),
     EncodedBytes_py   = format_bytes_py(EncodedData_bytes),
     DecodedData_py    = format_data_py(DecodedData_rlist),
-    % the extra space is intentional because of how we will do list formatting
-    ["{'decoded': ", DecodedData_py, ",\n",
-    "  'encoded': ", EncodedBytes_py, "}"].
+    ["    {'decoded': ", DecodedData_py, ",\n",
+     "     'encoded': ", EncodedBytes_py, "}"].
 
 
 
