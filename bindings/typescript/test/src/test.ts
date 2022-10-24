@@ -168,21 +168,21 @@ function rlp_tests(): void {
         case_n++;
 
         let {encoded, decoded} = this_case;
-        //let my_encoded         = rlp.encode(decoded);
+        let my_encoded         = rlp.encode(decoded);
         let my_decoded         = rlp.decode(encoded).decoded_data;
 
-        //let encodes_correctly = (encoded === my_encoded);
+        let encodes_correctly = uint8arr_eq(encoded, my_encoded);
         let decodes_correctly = deepeq(decoded, my_decoded);
 
-        //if (!encodes_correctly) {
-        //    rlp_pre.innerHTML +=
-        //        '===================================\n' +
-        //        'FAILED CASE: encode\n'                 +
-        //        '===================================\n' +
-        //        'decoded : ' + decoded + '\n'           +
-        //        'expected: ' + encoded + '\n'           +
-        //        'actual  : ' + my_encoded + '\n\n'      ;
-        //}
+        if (!encodes_correctly) {
+            rlp_pre.innerHTML +=
+                '===================================\n' +
+                'FAILED CASE: encode\n'                 +
+                '===================================\n' +
+                'decoded : ' + decoded + '\n'           +
+                'expected: ' + encoded + '\n'           +
+                'actual  : ' + my_encoded + '\n\n'      ;
+        }
 
         if (!decodes_correctly) {
             rlp_pre.innerHTML += 
