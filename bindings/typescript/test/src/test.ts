@@ -1,8 +1,11 @@
-import * as cases from './cases.js';
+// test cases
+import * as cases from './jex_include/local-vanillae_test_cases-0.1.0/dist/cases.js';
 
-import * as b64 from './jex_include/local-vanillae-0.1.0/dist/base64.js';
-import * as b58 from './jex_include/local-vanillae-0.1.0/dist/base58.js';
-import * as rlp from './jex_include/local-vanillae-0.1.0/dist/rlp.js';
+// vanillae libs
+import * as b64   from './jex_include/local-vanillae-0.1.0/dist/b64.js';
+import * as b58   from './jex_include/local-vanillae-0.1.0/dist/b58.js';
+import * as rlp   from './jex_include/local-vanillae-0.1.0/dist/rlp.js';
+import * as ser   from './jex_include/local-vanillae-0.1.0/dist/ser.js';
 
 
 function deepeq(dd1: rlp.decoded_data, dd2: rlp.decoded_data): boolean {
@@ -196,6 +199,14 @@ function rlp_tests(): void {
     }
 }
 
+
+function tx_tests(): void {
+    // @ts-ignore value exists
+    let tx_stuff = document.getElementById('tx-stuff')!.value;
+    console.log(ser.decode_tx(tx_stuff));
+}
+
+
 function main(): void {
     document.getElementById('b64-total-cases')!.innerHTML = '' + cases.base64.length;
     document.getElementById('b64-go')!.onclick            = b64_tests;
@@ -205,5 +216,7 @@ function main(): void {
 
     document.getElementById('rlp-total-cases')!.innerHTML = '' + cases.rlp.length;
     document.getElementById('rlp-go')!.onclick            = rlp_tests;
+
+    document.getElementById('tx-go')!.onclick             = tx_tests;
 }
 main();

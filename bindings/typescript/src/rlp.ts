@@ -156,7 +156,7 @@ bytes_to_number(bytes: Uint8Array): number {
  * @internal
  */
 function
-dr(x : decoded_data, y : Uint8Array) {
+dr(x : decoded_data, y : Uint8Array): decode_result {
     return {decoded_data: x, remainder: y};
 }
 

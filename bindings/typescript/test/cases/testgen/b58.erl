@@ -1,7 +1,7 @@
-%-module(b58).
-%-export([enc/1, dec/1]).
+-module(b58).
+-export([enc/1, dec/1]).
 
--mode(compile).
+%-mode(compile).
 %-spec enc(binary()) -> string().
 %% https://digitalbazaar.github.io/base58-spec/#encode
 

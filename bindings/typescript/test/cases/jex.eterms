@@ -1,0 +1,5 @@
+{type, library}.
+{realm, local}.
+{name, vanillae_test_cases}.
+{version, "0.1.0"}.
+{deps, ["local-vanillae-0.1.0"]}.
