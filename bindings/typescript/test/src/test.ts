@@ -8,6 +8,7 @@ import * as rlp   from './jex_include/local-vanillae-0.1.0/dist/rlp.js';
 import * as ser   from './jex_include/local-vanillae-0.1.0/dist/ser.js';
 
 
+// TODO: move this to rlp library
 function deepeq(dd1: rlp.decoded_data, dd2: rlp.decoded_data): boolean {
     // if both are Uint8Arrays
     if ((dd1 instanceof Uint8Array) && (dd2 instanceof Uint8Array)) {
@@ -144,7 +145,7 @@ function b58_tests(): void {
         }
 
         if (!decodes_correctly) {
-            b58_pre.innerHTML += 
+            b58_pre.innerHTML +=
                 '===================================\n' +
                 'FAILED CASE: decode\n'                 +
                 '===================================\n' +
@@ -188,7 +189,7 @@ function rlp_tests(): void {
         }
 
         if (!decodes_correctly) {
-            rlp_pre.innerHTML += 
+            rlp_pre.innerHTML +=
                 '===================================\n' +
                 'FAILED CASE: decode\n'                 +
                 '===================================\n' +
@@ -219,4 +220,5 @@ function main(): void {
 
     document.getElementById('tx-go')!.onclick             = tx_tests;
 }
+
 main();
