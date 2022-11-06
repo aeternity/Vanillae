@@ -17,7 +17,10 @@ export {
  * Encode a Uint8Array into base58
  */
 function
-encode(binary : Uint8Array): string {
+encode
+    (binary : Uint8Array)
+    : string
+{
     let num_leading_zeros : number     = nlz(binary);
     let rest              : Uint8Array = binary.slice(num_leading_zeros);
     let ones              : string     = encode_zeros(num_leading_zeros);
@@ -34,13 +37,15 @@ encode(binary : Uint8Array): string {
  * @internal
  */
 function
-nlz(bytes: Uint8Array): number {
+nlz
+    (bytes: Uint8Array)
+    : number
+{
     let n = 0;
-    for (let this_byte of bytes) {
-        if (0 === this_byte)
-            n++;
-        else
-            break;
+    for (let this_byte of bytes)
+    {
+        if (0 === this_byte) { n++;   }
+        else                 { break; }
     }
     return n;
 }
@@ -53,7 +58,10 @@ nlz(bytes: Uint8Array): number {
  * @internal
  */
 function
-encode_zeros(how_many : number): string {
+encode_zeros
+    (how_many : number)
+    : string
+{
     let ones : string = '';
     for (let i  = 1;
              i <= how_many;
@@ -73,7 +81,10 @@ encode_zeros(how_many : number): string {
  * @internal
  */
 function
-encode_rest(bytes : Uint8Array): string {
+encode_rest
+    (bytes : Uint8Array)
+    : string
+{
     let bytes_bignum : bigint = bytes_to_bigint(bytes);
     let result       : string = bignum_to_base58(bytes_bignum);
     return result;
@@ -87,9 +98,13 @@ encode_rest(bytes : Uint8Array): string {
  * @internal
  */
 function
-bytes_to_bigint(bytes: Uint8Array): bigint {
+bytes_to_bigint
+    (bytes: Uint8Array)
+    : bigint
+{
     let acc_bigint : bigint = 0n;
-    for(let this_byte of bytes) {
+    for(let this_byte of bytes)
+    {
         acc_bigint <<= 8n;
         acc_bigint  += BigInt(this_byte);
     }
@@ -104,9 +119,13 @@ bytes_to_bigint(bytes: Uint8Array): bigint {
  * @internal
  */
 function
-bignum_to_base58(q: bigint) {
+bignum_to_base58
+    (q: bigint)
+    : string
+{
     let s = '';
-    while (q !== 0n) {
+    while (q !== 0n)
+    {
         let this_n        : bigint = q % 58n;
         q /= 58n;
 
@@ -126,7 +145,10 @@ bignum_to_base58(q: bigint) {
  * Decode a Base58 string into a Uint8Array
  */
 function
-decode(base58: string): Uint8Array {
+decode
+    (base58: string)
+    : Uint8Array
+{
     let num_leading_ones : number        = nlo(base58);
     let rest             : string        = base58.slice(num_leading_ones);
     let zeros            : Array<number> = decode_ones(num_leading_ones);
@@ -143,13 +165,15 @@ decode(base58: string): Uint8Array {
  * @internal
  */
 function
-nlo(base58: string): number {
+nlo
+    (base58: string)
+    : number
+{
     let n = 0;
-    for (let this_char of base58) {
-        if ('1' === this_char)
-            n++;
-        else
-            break;
+    for (let this_char of base58)
+    {
+        if ('1' === this_char) { n++;   }
+        else                   { break; }
     }
     return n;
 }
@@ -162,7 +186,10 @@ nlo(base58: string): number {
  * @internal
  */
 function
-decode_ones(how_many : number): Array<number> {
+decode_ones
+    (how_many : number)
+    : Array<number>
+{
     let zeros : Array<number> = [];
     for (let i  = 1;
              i <= how_many;
@@ -182,7 +209,10 @@ decode_ones(how_many : number): Array<number> {
  * @internal
  */
 function
-decode_rest(base58: string): Array<number> {
+decode_rest
+    (base58: string)
+    : Array<number>
+{
     let result_bignum : bigint        = base58_to_bigint(base58);
     let result        : Array<number> = bigint_to_base256(result_bignum);
     return result;
@@ -196,9 +226,13 @@ decode_rest(base58: string): Array<number> {
  * @internal
  */
 function
-base58_to_bigint(base58: string): bigint {
+base58_to_bigint
+    (base58: string)
+    : bigint
+{
     let acc_bigint : bigint = 0n;
-    for(let this_char of base58) {
+    for(let this_char of base58)
+    {
         acc_bigint *= 58n;
         acc_bigint += char_to_bigint(this_char);
     }
@@ -212,10 +246,14 @@ base58_to_bigint(base58: string): bigint {
  * @end
  */
 function
-bigint_to_base256(q: bigint): Array<number> {
+bigint_to_base256
+    (q: bigint)
+    : Array<number>
+{
     let arr_reverse = [];
-    while(q !== 0n) {
-        let r = Number(q % 256n);
+    while(q !== 0n)
+    {
+        let r: number = Number(q % 256n);
         q /= 256n;
         arr_reverse.push(r);
     }
@@ -228,8 +266,17 @@ bigint_to_base256(q: bigint): Array<number> {
 // TRANSLATION TABLES
 //=============================================================================
 
+
+/**
+ * Base58 integer -> character conversion table
+ *
+ * @internal
+ */
 function
-bigint_to_char(n: bigint): string {
+bigint_to_char
+    (n: bigint)
+    : string
+{
     switch(n) {
         case  0n: return '1';
         case  1n: return '2';
@@ -295,8 +342,17 @@ bigint_to_char(n: bigint): string {
 }
 
 
+
+/**
+ * Base58 character -> integer conversion table
+ *
+ * @internal
+ */
 function
-char_to_bigint(s: string): bigint {
+char_to_bigint
+    (s: string)
+    : bigint
+{
     switch(s) {
         case '1': return  0n;
         case '2': return  1n;

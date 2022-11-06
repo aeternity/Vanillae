@@ -1,14 +1,13 @@
 /**
- * Humanization/dehumanization of data
+ * Node API constructor/deconstructor
  *
- * This is similar to serialization/deserialization, but not quite the same thing
+ * This is similar to serialization/deserialization, but not quite the same
+ * thing. It converts back and forth between different forms of
+ * "api-serialized" data.
  *
- * This is for taking "api-encoded" data, and pulling it apart and seeing what
- * is in it. See example below.
- *
- * This is not exhaustive.
- *
- * Reference: https://github.com/aeternity/protocol/blob/master/serializations.md
+ * References:
+ * 1. https://github.com/aeternity/protocol/blob/master/serializations.md
+ * 2. https://github.com/aeternity/protocol/blob/master/node/api/api_encoding.md
  *
  * ## General type rules
  *
@@ -118,7 +117,7 @@
  *
  * The remaining fields are the fields of a spend transaction (https://github.com/aeternity/protocol/blob/master/serializations.md#spend-transaction)
  *
- * ```
+ * ```erlang
  * [ <sender>    :: id()        % <<1,201,99,126,...>    "=" "ak_2XhCkjzTwcq1coXSSzHJoMZkUzTwnjH88zmPGkkowUsFNTo9UE"
  * , <recipient> :: id()        % <<1,123,102,230,...>   "=" "ak_wM8yFU8eSETXU7VSN48HMDmevGoCMiuveQZgkPuRn1nTiRqyv"
  * , <amount>    :: int()       % <<"\n">>               "=" 10
@@ -131,207 +130,136 @@
  *
  * Our task here is to be able to pull apart the "tx_..." string into its fields.
  *
- * Need to think about this
+ * Converting the binaries to integers is pretty trivial. The only mildly
+ * annoying thing is the `id` type.
+ *
+ * `id`s have two fields: a single-byte prefix which says which type of ID it
+ * is. In this case, both `id`s have a prefix of `1`, which means they are both
+ * normal accounts (hence the `ak_` prefix on the "api-encoded" id).  The other
+ * options are oracles (prefix `4`/`ok_`), contracts (prefix `5`/`ct_`), or
+ * names (prefix `2`/`nm_`)
+ *
+ * To "api-encode" the name, we first pick the appropriate prefix based on the
+ * first byte (in this case `1 -> "ak_"). The remaining 32 bytes are then
+ * double-SHA'd to get the 4-byte check suffix
+ *
+ * ```erlang
+ * 30> SenderBytes = lists:nth(3, Data).
+ * <<1,201,99,126,70,0,231,171,59,194,230,127,198,64,232,35,
+ *   118,68,68,244,48,85,218,93,85,120,164,154,55,...>>
+ * 31> <<1, SenderAddrBytes/binary>> = SenderBytes.
+ * <<1,201,99,126,70,0,231,171,59,194,230,127,198,64,232,35,
+ *   118,68,68,244,48,85,218,93,85,120,164,154,55,...>>
+ * 32> DoubleSha = fun(Bytes) -> <<Foo:4/binary, _/binary>> = crypto:hash(sha256, crypto:hash(sha256, Bytes)), Foo end.
+ * #Fun<erl_eval.44.97283095>
+ * 33> "ak_" ++ b58:enc(<<SenderAddrBytes/binary, (DoubleSha(SenderAddrBytes))/binary>>).
+ * "ak_2XhCkjzTwcq1coXSSzHJoMZkUzTwnjH88zmPGkkowUsFNTo9UE"
+ * 34> RecipBytes = lists:nth(4, Data).
+ * <<1,123,102,230,195,5,7,8,54,228,233,121,32,82,61,195,234,
+ *   89,203,191,216,108,88,186,7,3,234,139,205,...>>
+ * 35> <<1, RecipAddrBytes/binary>> = RecipBytes.
+ * <<1,123,102,230,195,5,7,8,54,228,233,121,32,82,61,195,234,
+ *   89,203,191,216,108,88,186,7,3,234,139,205,...>>
+ * 36> "ak_" ++ b58:enc(<<RecipAddrBytes/binary, (DoubleSha(RecipAddrBytes))/binary>>).  
+ * "ak_wM8yFU8eSETXU7VSN48HMDmevGoCMiuveQZgkPuRn1nTiRqyv"
+ * ```
+ *
+ * ```js
+ * > anth.deconstruct("tx_+FgMAaEByWN+RgDnqzvC5n/GQOgjdkRE9DBV2l1VeKSaN1r6GNyhAXtm5sMFBwg25Ol5IFI9w+pZy7/YbFi6BwPqi80KuKdsCoYPJvVhyAAACYdoYWluYW5hA7ZC1w==")
+ * {tag     : 'SpendTx',
+ *  version : 1n,
+ *  fields  : {sender    : "ak_2XhCkjzTwcq1coXSSzHJoMZkUzTwnjH88zmPGkkowUsFNTo9UE",
+ *             recipient : "ak_wM8yFU8eSETXU7VSN48HMDmevGoCMiuveQZgkPuRn1nTiRqyv",
+ *             amount    : 10n,
+ *             fee       : 16660000000000n,
+ *             ttl       : 0n,
+ *             nonce     : 9n,
+ *             payload   : Uint8Array([104, 97, 105, 110, 97, 110, 97])}}
+ * ```
  *
  * @module
  */
 
 export {
-    OTAG_SIGNED_TX,
-    OTAG_SPEND_TX,
-    OTAG_CONTRACT_CREATE_TX,
-    OTAG_CONTRACT_CALL_TX,
-    IDTAG_ACCOUNT,
-    IDTAG_NAME,
-    IDTAG_CONTRACT,
-    id,
-    SignedTx,
-    SpendTx,
-    ContractCreateTx,
-    ContractCallTx,
-    decode_tx
+    // types
+    tx_str,
+    deconstructed_tx,
+    // functions
+    deconstruct_tx
 };
 
 import * as b64 from './b64.js'
+import * as bin from './bin.js'
 import * as rlp from './rlp.js'
 
-const OTAG_SIGNED_TX          = 11n;
-const OTAG_SPEND_TX           = 12n;
-const OTAG_CONTRACT_CREATE_TX = 42n;
-const OTAG_CONTRACT_CALL_TX   = 43n;
-
-type otag = 11n | 12n | 42n | 43n;
-
-const IDTAG_ACCOUNT  = 1n;
-const IDTAG_NAME     = 2n;
-const IDTAG_CONTRACT = 5n;
-
-type idtag = 1n | 2n | 5n;
-
-
-type id =
-    {tag  : idtag,
-     hash : Uint8Array};
-
-type SignedTx =
-    {signatures  : Array<Uint8Array>,
-     transaction : Uint8Array};
-
-type SpendTx =
-    {sender    : id,
-     recipient : id,
-     amount    : bigint,
-     fee       : bigint,
-     ttl       : bigint,
-     nonce     : bigint,
-     payload   : Uint8Array};
-
-type ContractCreateTx =
-    {owner      : id,
-     nonce      : bigint,
-     code       : Uint8Array,
-     ct_version : bigint,
-     fee        : bigint,
-     ttl        : bigint,
-     deposit    : bigint,
-     amount     : bigint,
-     gas        : bigint,
-     gas_price  : bigint,
-     call_data  : Uint8Array};
-
-type ContractCallTx =
-    {caller      : id,
-     nonce       : bigint,
-     contract    : id,
-     abi_version : bigint,
-     fee         : bigint,
-     ttl         : bigint,
-     amount      : bigint,
-     gas         : bigint,
-     gas_price   : bigint,
-     call_data   : Uint8Array};
-
-type tx = SignedTx | SpendTx | ContractCreateTx | ContractCallTx;
-
-type decoded_tx =
-    {tag     : otag,
-     version : Uint8Array,
-     tx      : tx};
 
 /**
- * Decode a `tx_Base64` string
+ * Alias type for a `tx_...` string
+ */
+type tx_str = string;
+
+
+ */
+type deconstructed_tx
+    = {type    : 'SignedTx',
+       version : bigint,
+       fields  : fields_SignedTx}
+    | {type    : 'SpendTx',
+       version : bigint,
+       fields  : fields_SpendTx}
+    | {type    : 'ContractCreateTx',
+       version : bigint,
+       fields  : fields_ContractCreateTx}
+    | {type    : 'ContractCallTx'
+       version : bigint,
+       fields  : fields_ContractCallTx};
+
+/**
+ * Convenient type alias
+ *
+ * @internal
+ */
+type rlpdata = rlp.decoded_data;
+
+
+/**
+ * Deconstruct a Tx
  */
 function
-decode_tx(tx_str : string): decoded_tx {
-    let base64_stuff   : string                  = tx_str.slice(3);                                                // tx_[...] -> [...]
-    let stuff          : Uint8Array              = b64.decode(base64_stuff);                                        // <<Bin/binary, DoubleSha:4>>
-    let rlp_stuff      : Uint8Array              = stuff.slice(0, stuff.length - 4);                                 // <<Bin/binary>>
-    let decoded_datas : Array<rlp.decoded_data> = rlp.decode(rlp_stuff).decoded_data as Array<rlp.decoded_data>;   // decoded_data : list(rlp.decoded_data() :: binary() | list(decoded_data()))
-    // tag, vsn
-    let tag_bytes     : Uint8Array              = decoded_datas[0] as Uint8Array; // [tag, vsn, fields] -> tag
-    let tag           : bigint                  = bytes_to_bigint(tag_bytes);     // <<Tag:(byte_size(TagBytes))>> = TagBytes
-    let vsn           : Uint8Array              = decoded_datas[1] as Uint8Array;
-    // tx fields
-    let tx_fields     : Array<rlp.decoded_data> = decoded_datas.slice(2);
-    let tx            : tx                      = decode_fields(tag, tx_fields);
-    return {tag: tag as otag, version: vsn, tx: tx};
+deconstruct_tx
+    (tx_str: tx_str)
+    : deconstructed_tx
+{
+    let b64_str        : string         = tx_str.slice(3);                         // tx_[...] -> [...]
+    let tx_rlp_encoded : Uint8Array     = b64.decode(b64_str);                     // [...] -> bytes
+    let tx_data        : Array<rlpdata> = shasha_rlp_decode_list(tx_rlp_encoded);  // decode data and check the double-sha thing
+    let tx_type        : bigint         = bin.bytes_to_bigint(tx_data[0]);         // get a bigint
+    let tx_type_str    : tx_type_str    = tx_type_str(tx_type);
+    let tx_version     : bigint         = bin.bytes_to_bigint(tx_data[1]);
+    let tx_fields      : fields         = deconstruct_fields(tx_type_str, tx_version, tx_data.slice(2));
+    return {type    : tx_type_str,
+            version : tx_version,
+            fields  : tx_fields};
 }
 
 
-
 /**
- * Convert a byte array to a bigint
+ * Data that's "api-encoded" goes through the following stages:
+ *
+ * 1. data structure -> rlp decode data (arbitrary-depth [possibly 0] list of bytestrings)
+ * 2. rlp decode data -> bytestring
+ * 3. bytestring -> <<Bytestring/binary, Hash:4/binary>>
+ * 4. HashedBytestring -> base64/base58 string encoding
+ * 5. Add string prefix
+ *
+ * This function undoes step 3 and step 2, returns back the rlp decode data
  *
  * @internal
  */
 function
-bytes_to_bigint(bytes: Uint8Array): bigint {
-    let n : bigint = 0n;
-    for (let b of bytes) {
-        // move first, then add
-        // otherwise it ends on a move
-        // imperative languages are for losers
-        n <<= 8n;
-        n  += BigInt(b);
-    }
-    return n;
-}
-
-
-
-/**
- * Decode a transaction given the raw fields
- *
- * @internal
- */
-function
-decode_fields(tag: bigint, fields: Array<rlp.decoded_data>): tx {
-    switch (tag) {
-        case 11n: return decode_fields_SignedTx(fields);
-        case 12n: return decode_fields_SpendTx(fields);
-        case 42n: return decode_fields_ContractCreateTx(fields);
-        case 43n: return decode_fields_ContractCallTx(fields);
-        default : throw new Error("invalid object tag: " + tag);
-    }
-    console.log('fields: ', fields);
-    throw new Error("nyi");
-}
-
-
-/**
- * Decode a SignedTx
- *
- * @internal
- */
-function
-decode_fields_SignedTx(fields: Array<rlp.decoded_data>): SignedTx {
-    throw new Error('nyi');
-}
-
-
-/**
- * Decode a SpendTx
- *
- * @internal
- */
-function
-decode_fields_SpendTx(fields: Array<rlp.decoded_data>): SpendTx {
-    // [<sender>    :: id(),
-    //  <recipient> :: id(),
-    //  <amount>    :: int(),
-    //  <fee>       :: int(),
-    //  <ttl>       :: int(),
-    //  <nonce>     :: int(),
-    //  <payload>   :: binary()]
-    let sender    : id         = decode_id(fields[0] as Uint8Array);
-    let recipient : id         = decode_id(fields[1] as Uint8Array);
-    let amount    : bigint     = bytes_to_bigint(fields[2] as Uint8Array);
-    let fee       : bigint     = bytes_to_bigint(fields[3] as Uint8Array);
-    let ttl       : bigint     = bytes_to_bigint(fields[4] as Uint8Array);
-    let nonce     : bigint     = bytes_to_bigint(fields[5] as Uint8Array);
-    let payload   : Uint8Array = fields[6] as Uint8Array;
-    return {sender    : sender,
-            recipient : recipient,
-            amount    : amount,
-            fee       : fee,
-            ttl       : ttl,
-            nonce     : nonce,
-            payload   : payload};
-
-}
-
-function
-decode_fields_ContractCreateTx(fields: Array<rlp.decoded_data>): ContractCreateTx {
-    throw new Error('nyi');
-}
-
-function
-decode_fields_ContractCallTx(fields: Array<rlp.decoded_data>): ContractCallTx {
-    throw new Error('nyi');
-}
-
-function
-decode_id(id: Uint8Array): id {
-    let idtag : idtag = BigInt(id[0]) as idtag;
-    return {tag: idtag, hash: id.slice(1)};
+shasha_rlp_decode
+    (hashed_bs : Uint8Array)
+    : Array<rlpdata>
+{
+    
 }

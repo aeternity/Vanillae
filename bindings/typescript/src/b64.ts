@@ -13,7 +13,10 @@ export {
  * Encode an array of bytes as a Uint8Array in base64 notation.
  */
 function
-encode(bytes: Uint8Array): string {
+encode
+    (bytes: Uint8Array)
+    : string
+{
     // slice the array
     // length of head is a multiple of 3
     // treat the tail as a special case
@@ -25,11 +28,10 @@ encode(bytes: Uint8Array): string {
 
 
 
-type slice3k = {head     : Uint8Array,
-                tail     : Uint8Array,
-                tail_len : number};
-
-
+type slice3k
+    = {head     : Uint8Array,
+       tail     : Uint8Array,
+       tail_len : number};
 
 /**
  * Take a Uint8Array, take the first 3k (k >= 0) bytes, put them in head, and
@@ -38,7 +40,10 @@ type slice3k = {head     : Uint8Array,
  * @internal
  */
 function
-slice3k(bytes: Uint8Array): slice3k {
+slice3k
+    (bytes: Uint8Array)
+    : slice3k
+{
     let len      : number = bytes.length;
     // too lazy to look up how to do integer division in js so this will do
     let tail_len : number = len % 3;
@@ -62,7 +67,10 @@ slice3k(bytes: Uint8Array): slice3k {
  * @internal
  */
 function
-encode_head(head_bytes: Uint8Array): string {
+encode_head
+    (head_bytes: Uint8Array)
+    : string
+{
     // can assume length of bytes is a multiple of 3
     // start index at 0
     // increment by 3
@@ -90,7 +98,10 @@ encode_head(head_bytes: Uint8Array): string {
  * @internal
  */
 function
-encode3(bytes: Uint8Array) {
+encode3
+    (bytes: Uint8Array)
+    : string
+{
     let b0 : number = bytes[0];
     let b1 : number = bytes[1];
     let b2 : number = bytes[2];
@@ -139,9 +150,11 @@ encode3(bytes: Uint8Array) {
  * @internal
  */
 function
-encode_tail(tail_bytes : Uint8Array,
-            tail_len   : number)
-           : string {
+encode_tail
+    (tail_bytes : Uint8Array,
+     tail_len   : number)
+    : string
+{
     switch(tail_len) {
         case 0: return '';
         case 1: return encode1(tail_bytes);
@@ -159,7 +172,10 @@ encode_tail(tail_bytes : Uint8Array,
  * @internal
  */
 function
-encode1(bytes: Uint8Array): string {
+encode1
+    (bytes: Uint8Array)
+    : string
+{
     let b0 : number = bytes[0];
     // n0            = __ABCDEF
     // b0            = ABCDEFGH
@@ -183,7 +199,10 @@ encode1(bytes: Uint8Array): string {
  * @internal
  */
 function
-encode2(bytes: Uint8Array): string {
+encode2
+    (bytes: Uint8Array)
+    : string
+{
     let b0 : number = bytes[0];
     let b1 : number = bytes[1];
 
@@ -222,7 +241,10 @@ encode2(bytes: Uint8Array): string {
  * Decode a base64-encoded string
  */
 function
-decode(base64_str : string): Uint8Array {
+decode
+    (base64_str : string)
+    : Uint8Array
+{
     // length of the string is guaranteed to be a multiple of 4
     // if the string is empty, return the empty array
     let len = base64_str.length;
@@ -280,7 +302,10 @@ decode(base64_str : string): Uint8Array {
  * @internal
  */
 function
-decode_head(s: string): Array<number> {
+decode_head
+    (s: string)
+    : Array<number>
+{
     // go 4 characters at a time
     let max_i0      : number        = s.length - 1;
     let decoded_acc : Array<number> = [];
@@ -304,7 +329,10 @@ decode_head(s: string): Array<number> {
  * @internal
  */
 function
-decode_tail(s: string): Array<number> {
+decode_tail
+    (s: string)
+    : Array<number>
+{
     // all that matters right now is the last 2 chars
     // s0, s1, s2, s3
     // 0 based indexing is so annoying
@@ -333,7 +361,11 @@ decode_tail(s: string): Array<number> {
  *
  * @internal
  */
-function decode3(s: string): Array<number> {
+function
+decode3
+    (s: string)
+    : Array<number>
+{
     // pull out strings
     let s0 : string = s[0];
     let s1 : string = s[1];
@@ -382,7 +414,11 @@ function decode3(s: string): Array<number> {
  *
  * @internal
  */
-function decode2(s: string): Array<number> {
+function
+decode2
+    (s: string)
+    : Array<number>
+{
     // xyz=
     // pull out strings
     let s0 : string = s[0];
@@ -424,7 +460,11 @@ function decode2(s: string): Array<number> {
  *
  * @internal
  */
-function decode1(s: string): Array<number> {
+function
+decode1
+    (s: string)
+    : Array<number>
+{
     // xy==
     // pull out strings
     let s0 : string = s[0];
@@ -460,7 +500,9 @@ function decode1(s: string): Array<number> {
  * @internal
  */
 function
-int2char(n: number): string
+int2char
+    (n: number)
+    : string
 {
     switch(n) {
         case  0: return 'A';
@@ -539,7 +581,9 @@ int2char(n: number): string
  * @internal
  */
 function
-char2int(s: string): number
+char2int
+    (s: string)
+    : number
 {
     switch(s) {
         case 'A': return  0;
@@ -609,5 +653,3 @@ char2int(s: string): number
         default:  throw new Error("invalid base64 character: " + s);
     }
 }
-
-

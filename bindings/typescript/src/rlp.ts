@@ -50,7 +50,10 @@ type decode_result
  * whatever wasn't consumed)
  */
 function
-decode(bytes: Uint8Array): decode_result {
+decode
+    (bytes: Uint8Array)
+    : decode_result
+{
     // check the first byte
     let first_byte: number      = bytes[0];
     let rest       : Uint8Array = bytes.slice(1);
@@ -118,7 +121,10 @@ decode(bytes: Uint8Array): decode_result {
  * @internal
  */
 function
-decode_list(bytes: Uint8Array): Array<decoded_data> {
+decode_list
+    (bytes: Uint8Array)
+    : Array<decoded_data>
+{
     let arr : Array<decoded_data> = [];
     while (bytes.length > 0) {
         // grab an item off the bytes
@@ -139,9 +145,13 @@ decode_list(bytes: Uint8Array): Array<decoded_data> {
  * @internal
  */
 function
-bytes_to_number(bytes: Uint8Array): number {
+bytes_to_number
+    (bytes: Uint8Array)
+    : number
+{
     let n : number = 0;
-    for (let b of bytes) {
+    for (let b of bytes)
+    {
         n <<= 8;
         n  += b;
     }
@@ -156,8 +166,13 @@ bytes_to_number(bytes: Uint8Array): number {
  * @internal
  */
 function
-dr(x : decoded_data, y : Uint8Array): decode_result {
-    return {decoded_data: x, remainder: y};
+dr
+    (x : decoded_data,
+     y : Uint8Array)
+    : decode_result
+{
+    return {decoded_data : x,
+            remainder    : y};
 }
 
 
@@ -172,12 +187,17 @@ dr(x : decoded_data, y : Uint8Array): decode_result {
  * Encode some decoded data
  */
 function
-encode(data: decoded_data): Uint8Array {
+encode
+    (data: decoded_data)
+    : Uint8Array
+{
     // is it an array or data
-    if (is_binary(data)) {
+    if
+    (is_binary(data)) {
         return encode_binary(data as Uint8Array);
     }
-    else if (is_list(data)) {
+    else if
+    (is_list(data)) {
         return encode_list(data as Array<decoded_data>);
     }
     else {
@@ -193,7 +213,10 @@ encode(data: decoded_data): Uint8Array {
  * @internal
  */
 function
-encode_binary(bytes: Uint8Array): Uint8Array {
+encode_binary
+    (bytes: Uint8Array)
+    : Uint8Array
+{
     let len: number = bytes.length;
     // single byte case when the byte is between 0..127
     // result is the bytestring containing the byte itself
@@ -273,7 +296,10 @@ encode_binary(bytes: Uint8Array): Uint8Array {
  * @internal
  */
 function
-encode_list(list: Array<decoded_data>): Uint8Array {
+encode_list
+    (list: Array<decoded_data>)
+    : Uint8Array
+{
     // first encode every element in the list, then branch
     let payloads     : Array<Uint8Array> = list.map(encode);
     let payload      : Uint8Array        = uint8arr_concat(payloads);
@@ -361,7 +387,10 @@ encode_list(list: Array<decoded_data>): Uint8Array {
  * @internal
  */
 function
-encode_unsigned(n: number): Uint8Array {
+encode_unsigned
+    (n: number)
+    : Uint8Array
+{
     // can assume that n initially is greater than 55
     // have to encode it in reverse order
     let arr  : Array<number> = [];
@@ -431,7 +460,10 @@ encode_unsigned(n: number): Uint8Array {
  * @internal
  */
 function
-uint8arr_concat(arrs: Array<Uint8Array>): Uint8Array {
+uint8arr_concat
+    (arrs: Array<Uint8Array>)
+    : Uint8Array
+{
     // total length
     let total_len = arrs.reduce(// fold
                                 function (acc_len: number, this_uint8array: Uint8Array): number {
@@ -463,7 +495,10 @@ uint8arr_concat(arrs: Array<Uint8Array>): Uint8Array {
  * @internal
  */
 function
-is_binary(x: any): boolean {
+is_binary
+    (x: any)
+    : boolean
+{
     return (x instanceof Uint8Array);
 }
 
@@ -475,6 +510,9 @@ is_binary(x: any): boolean {
  * @internal
  */
 function
-is_list(x: any): boolean {
+is_list
+    (x: any)
+    : boolean
+{
     return (x instanceof Array);
 }

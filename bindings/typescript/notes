@@ -1,10 +1,11 @@
 done:
 - base64/base58 encoding/decoding
+- rlp
+
+today:
+- pull apart data
 
 tomorrow:
-
-- rlp
-- pull apart data
 - basic easy serialization/deserialization
 - serialize/deserialize examples
 - (maybe) pull in awcp/sidekick
