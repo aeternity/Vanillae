@@ -198,7 +198,24 @@ import * as rlp from './rlp.js'
  */
 type tx_str = string;
 
+/**
+ * Alias type for a `sg_...` string
+ */
+type sg_str = string;
 
+/**
+ * types of decoded tx we currently support
+ * @internal
+ */
+type tx_type_str
+    = 'SignedTx'
+    | 'SpendTx'
+    | 'ContractCreateTx'
+    | 'ContractCallTx';
+
+
+/**
+ * Results of deconstruct_tx
  */
 type deconstructed_tx
     = {type    : 'SignedTx',
@@ -223,6 +240,28 @@ type rlpdata = rlp.decoded_data;
 
 
 /**
+ * Fields types
+ */
+type fields
+    = fields_SignedTx
+    | fields_SpendTx
+    | fields_ContractCreateTx
+    | fields_ContractCallTx;
+
+type fields_SignedTx
+    = {signatures  : Array<sg_str>,
+       transaction : tx_str};
+
+type fields_SpendTx
+    = {sender    : string,
+       recipient : string,
+       amount    : bigint,
+       fee       : bigint,
+       ttl       : bigint,
+       nonce     : bigint,
+       payload   : Uint8Array};
+
+/**
  * Deconstruct a Tx
  */
 function
@@ -234,10 +273,10 @@ deconstruct_tx
     let tx_rlp_encoded : Uint8Array     = b64.decode(b64_str);                     // [...] -> bytes
     let tx_data        : Array<rlpdata> = shasha_rlp_decode_list(tx_rlp_encoded);  // decode data and check the double-sha thing
     let tx_type        : bigint         = bin.bytes_to_bigint(tx_data[0]);         // get a bigint
-    let tx_type_str    : tx_type_str    = tx_type_str(tx_type);
+    let tts            : tx_type_str    = tx_type_str(tx_type);
     let tx_version     : bigint         = bin.bytes_to_bigint(tx_data[1]);
-    let tx_fields      : fields         = deconstruct_fields(tx_type_str, tx_version, tx_data.slice(2));
-    return {type    : tx_type_str,
+    let tx_fields      : fields         = deconstruct_fields(tts, tx_version, tx_data.slice(2));
+    return {type    : tts,
             version : tx_version,
             fields  : tx_fields};
 }
@@ -254,12 +293,111 @@ deconstruct_tx
  *
  * This function undoes step 3 and step 2, returns back the rlp decode data
  *
+ * FIXME: Does not check double-sha (yet); need to figure out way to handle hash failures
+ * FIXME: No good way to handle failure cases
+ *
  * @internal
  */
 function
-shasha_rlp_decode
+shasha_rlp_decode_list
     (hashed_bs : Uint8Array)
     : Array<rlpdata>
 {
-    
+    let len   = hashed_bs.length;
+    let bytes = hashed_bs.slice(0, len - 4);
+    let {decoded_data} = rlp.decode(bytes);
+    return (decoded_data as Array<rlpdata>);
 }
+
+
+
+/**
+ * Convert an object tag that's a type of transaction to the type string
+ *
+ * See: https://github.com/aeternity/protocol/blob/master/serializations.md#table-of-object-tags
+ *
+ * @internal
+ */
+function
+tx_type_str
+    (tx_type_int : bigint)
+    : tx_type_str
+{
+    switch (tx_type_int)
+    {
+        case 11n: return 'SignedTx';
+        case 12n: return 'SpendTx';
+        case 42n: return 'ContractCreateTx';
+        case 43n: return 'ContractCallTx';
+        default: throw new Error('invalid transaction type: ' + tx_type_int);
+    }
+}
+
+
+
+/**
+ * Given an array of data decoded from RLP, convert it to the fields, as
+ * appropriate as given by the tx type string and the version
+ */
+function
+deconstruct_fields
+    (tx_type_str  : tx_type_str,
+     tx_version   : bigint,
+     tx_rawfields : Array<rlpdata>)
+    : fields
+ {
+    switch (tx_type_str)
+    {
+        // case 'SignedTx'         : return deconstruct_fields_SignedTx(tx_rawfields);
+        case 'SpendTx'          : return deconstruct_fields_SpendTx(tx_rawfields);
+        // case 'ContractCreateTx' : return deconstruct_fields_ContractCreateTx(tx_rawfields);
+        // case 'ContractCallTx'   : return deconstruct_fields_ContractCallTx(tx_rawfields);
+        default                 : throw new Error('invalid tx type str: ' + tx_type_str);
+    }
+ }
+
+
+// TODO: do all this in Erlang
+ function
+ deconstruct_fields_SpendTx
+    (fields: Array<rlpdata>)
+    : fields_SpendTx
+{
+    let sender_bytes  = fields[0];
+    let recip_bytes   = fields[1];
+    let amount_bytes  = fields[2];
+    let fee_bytes     = fields[3];
+    let ttl_bytes     = fields[4];
+    let nonce_bytes   = fields[5];
+    let payload_bytes = fields[6];
+    return {sender    : encode_id(sender_bytes),
+            recipient : encode_id(sender_bytes),
+            amount    : bin.bytes_to_bigint(amount_bytes),
+            fee       : bin.bytes_to_bigint(fee_bytes),
+            ttl       : bin.bytes_to_bigint(ttl_bytes),
+            nonce     : bin.bytes_to_bigint(nonce_bytes),
+            payload   : bin.bytes_to_bigint(payload_bytes)};
+}
+
+
+/**
+ * Convert a binary account/name/etc binary id into the appropriate type of string
+ *
+ * @internal
+ */
+function
+encode_id
+    (id: Uint8Array)
+    : string
+{
+    throw new Error('nyi');
+}
+
+/*
+FIXME:
+1. work out all this in Erlang to clear conceptual goo
+2. think about how i want type safety etc to work
+3. think about a language to assert that the data has the correct shape to it
+4. get some examples working in Erlang
+5. convert erlang code back to ts
+*/

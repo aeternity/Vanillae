@@ -9,6 +9,9 @@
  *
  * This work can be found in ../test/testgen/
  *
+ * FIXME: need to have Safe assertions for "i am decoding a list", "i am
+ *        decoding a binary", "I am decoding something with no remainder", etc
+ *
  * @module
  */
 
