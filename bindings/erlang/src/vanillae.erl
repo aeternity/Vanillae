@@ -921,13 +921,25 @@ contract_create2(CreatorID, Nonce,
 contract_create3(CreatorID, Nonce,
                  Amount, Gas, GasPrice, Fee,
                  Compiled, CallData) ->
+    try
+        {account_pubkey, OwnerID} = aeser_api_encoder:decode(CreatorID),
+        contract_create4(OwnerID, Nonce,
+                         Amount, Gas, GasPrice, Fee,
+                         Compiled, CallData)
+    catch
+        Error:Reason -> {Error, Reason}
+    end.
+
+contract_create4(OwnerID, Nonce,
+                 Amount, Gas, GasPrice, Fee,
+                 Compiled, CallData) ->
     Code = aeser_contract_code:serialize(Compiled),
     CTVersion = 2,
     ContractCreateVersion = 1,
     TTL = 0,
     Type = contract_create_tx,
     Fields =
-        [{owner_id,   aeser_id:create(account, CreatorID)},
+        [{owner_id,   aeser_id:create(account, OwnerID)},
          {nonce,      Nonce},
          {code,       Code},
          {ct_version, CTVersion},
