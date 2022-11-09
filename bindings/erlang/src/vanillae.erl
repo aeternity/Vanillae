@@ -93,9 +93,9 @@
                              | {headers, map()}
                              | bad_length
                              | gc_out_of_range.
--type pubkey()              :: string().            % "ak_" ++ _
+-type pubkey()              :: unicode:chardata().  % "ak_" ++ _
 -type account_id()          :: pubkey().
--type contract_id()         :: string().            % "ct_" ++ _
+-type contract_id()         :: unicode:chardata().  % "ct_" ++ _
 -type peer_pubkey()         :: string().            % "pp_" ++ _
 -type keyblock_hash()       :: string().            % "kh_" ++ _
 -type contract_byte_array() :: string().            % "cb_" ++ _
@@ -744,7 +744,7 @@ result(Received)                    -> Received.
 %%% Contract calls
 
 -spec contract_create(CreatorID, Path, InitArgs) -> Result
-    when CreatorID :: binary(),
+    when CreatorID :: unicode:chardata(),
          Path      :: file:filename(),
          InitArgs  :: [string()],
          Result    :: {ok, CreateTX} | {error, Reason},
@@ -773,7 +773,7 @@ contract_create(CreatorID, Path, InitArgs) ->
 -spec contract_create(CreatorID, Nonce,
                       Amount, Gas, GasPrice, Fee,
                       Path, InitArgs) -> Result
-    when CreatorID :: binary(),
+    when CreatorID :: unicode:chardata(),
          Nonce     :: pos_integer(),
          Amount    :: non_neg_integer(),
          Gas       :: pos_integer(),
@@ -921,8 +921,9 @@ contract_create2(CreatorID, Nonce,
 contract_create3(CreatorID, Nonce,
                  Amount, Gas, GasPrice, Fee,
                  Compiled, CallData) ->
+    PK = unicode:characters_to_binary(CreatorID),
     try
-        {account_pubkey, OwnerID} = aeser_api_encoder:decode(CreatorID),
+        {account_pubkey, OwnerID} = aeser_api_encoder:decode(PK),
         contract_create4(OwnerID, Nonce,
                          Amount, Gas, GasPrice, Fee,
                          Compiled, CallData)
@@ -1003,9 +1004,9 @@ read_aci(Path) ->
 
 
 -spec contract_call(CallerID, AACI, ConID, Fun, Args) -> Result
-    when CallerID :: binary(),
+    when CallerID :: unicode:chardata(),
          AACI     :: map(),
-         ConID    :: binary(),
+         ConID    :: unicode:chardata(),
          Fun      :: string(),
          Args     :: [string()],
          Result   :: {ok, CallTX} | {error, Reason},
@@ -1034,14 +1035,14 @@ contract_call(CallerID, AACI, ConID, Fun, Args) ->
 -spec contract_call(CallerID, Nonce,
                     Gas, GasPrice, Fee, Amount,
                     AACI, ConID, Fun, Args) -> Result
-    when CallerID :: binary(),
+    when CallerID :: unicode:chardata(),
          Nonce    :: pos_integer(),
          Gas      :: pos_integer(),
          GasPrice :: pos_integer(),
          Fee      :: non_neg_integer(),
          Amount   :: non_neg_integer(),
          AACI     :: map(),
-         ConID    :: binary(),
+         ConID    :: unicode:chardata(),
          Fun      :: string(),
          Args     :: [string()],
          Result   :: {ok, CallTX} | {error, Reason},
@@ -1162,16 +1163,18 @@ contract_call(CallerID, Nonce, Gas, GP, Fee, Amount, AACI, ConID, Fun, Args) ->
     end.
 
 contract_call2(CallerID, Nonce, Gas, GasPrice, Fee, Amount, ConID, CallData) ->
+    CallerBin = unicode:characters_to_binary(CallerID),
     try
-        {account_pubkey, PK}  = aeser_api_encoder:decode(CallerID),
+        {account_pubkey, PK}  = aeser_api_encoder:decode(CallerBin),
         contract_call3(PK, Nonce, Gas, GasPrice, Fee, Amount, ConID, CallData)
     catch
         Error:Reason -> {Error, Reason}
     end.
 
 contract_call3(PK, Nonce, Gas, GasPrice, Fee, Amount, ConID, CallData) ->
+    ConBin = unicode:characters_to_binary(ConID),
     try
-        {contract_pubkey, CK} = aeser_api_encoder:decode(ConID),
+        {contract_pubkey, CK} = aeser_api_encoder:decode(ConBin),
         contract_call4(PK, Nonce, Gas, GasPrice, Fee, Amount, CK, CallData)
     catch
         Error:Reason -> {Error, Reason}
@@ -1265,7 +1268,7 @@ coerce({{ArgName, integer},  S}, {Good, Broken}) ->
     end;
 coerce({{ArgName, address},  S}, {Good, Broken}) ->
     try
-        case aeser_api_encoder:decode(S) of
+        case aeser_api_encoder:decode(unicode:characters_to_binary(S)) of
             {account_pubkey, Key} -> {[{address, Key} | Good], Broken};
             _                     -> {Good, [{ArgName, bad_pubkey} | Broken]}
         end
@@ -1274,7 +1277,7 @@ coerce({{ArgName, address},  S}, {Good, Broken}) ->
     end;
 coerce({{ArgName, contract}, S}, {Good, Broken}) ->
     try
-        case aeser_api_encoder:decode(S) of
+        case aeser_api_encoder:decode(unicode:characters_to_binary(S)) of
             R = {contract_bytearray, _} -> {[R | Good], Broken};
             _                           -> {Good, [{ArgName, bad_contract} | Broken]}
         end
