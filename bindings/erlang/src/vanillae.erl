@@ -40,28 +40,31 @@
 % AE node JSON query interface functions
 -export([top_height/0, top_block/0,
          kb_current/0, kb_current_hash/0, kb_current_height/0,
-%        kb_pending/0,
+         kb_pending/0,
          kb_by_hash/1, kb_by_height/1,
 %        kb_insert/1,
          mb_header/1, mb_txs/1, mb_tx_index/2, mb_tx_count/1,
          gen_current/0, gen_by_id/1, gen_by_height/1,
          acc/1, acc_at_height/2, acc_at_block_id/2,
-%        acc_pending_txs/1,
+         acc_pending_txs/1,
          next_nonce/1,
          dry_run/1, dry_run/2, dry_run/3,
          tx/1, tx_info/1,
          post_tx/1,
          contract/1, contract_code/1,
-%        contract_poi/1,
+         contract_poi/1,
 %        oracle/1, oracle_queries/1, oracle_queries_by_id/2,
          name/1,
 %        channel/1,
          peer_pubkey/0,
-         status/0]).
-%        status_chainends/0]).
+         status/0,
+         status_chainends/0]).
 
 % AE contract call and serialization interface functions
 -export([read_aci/1,
+         min_gas/0,
+         min_gas_price/0,
+         min_fee/0,
          prepare_contract/1,
          contract_call/5,
          contract_call/10]).
@@ -134,7 +137,20 @@
 %   "block_height"  => pos_integer(),
 %   "hash"          => tx_hash(),
 %   "signatures"    => [signature()],
-%   "tx"            => map()}. % FIXME
+%   "tx"            =>
+%       #{"abi_version" => pos_integer(),
+%         "amount"      => non_neg_integer(),
+%         "call_data"   => contract_byte_array(),
+%         "code"        => contract_byte_array(),
+%         "deposit"     => non_neg_integer(),
+%         "fee"         => pos_integer(),
+%         "gas"         => pos_integer(),
+%         "gas_price"   => pos_integer(),
+%         "nonce"       => pos_integer(),
+%         "owner_id"    => account_id(),
+%         "type"        => string(),
+%         "version"     => pos_integer(),
+%         "vm_version"  => pos_integer()}}
 -type generation()          :: #{string() => term()}.
 % #{"key_block"     => keyblock(),
 %   "micro_blocks"  => [microblock_hash()]}.
@@ -321,10 +337,15 @@ kb_current_height() ->
     end.
 
 
-%-spec kb_pending() ->
-%
-%kb_pending() ->
-%    request("/v2/key-blocks/pending").
+-spec kb_pending() -> {ok, keyblock_hash()} | {error, Reason}
+    when Reason :: string().
+%% @doc
+%% Request the hash of the pending keyblock of a mining node's beneficiary.
+%% If the node queried is not configured for mining it will return
+%%  `{error, "Beneficiary not configured"}'
+
+kb_pending() ->
+    result(request("/v2/key-blocks/pending")).
 
 
 -spec kb_by_hash(ID) -> {ok, KeyBlock} | {error, Reason}
@@ -488,16 +509,15 @@ acc_at_block_id(AccountID, BlockID) ->
     end.
 
 
-% TODO
-%-spec acc_pending_txs(AccountID) -> {ok, TXs} | {error, Reason}
-%    when AccountID :: account_id(),
-%         TXs       :: 
-%         Reason    :: 
-%%% @doc
-%%% Retrieve a list of transactions pending for the given account.
-%
-%acc_pending_txs(AccountID) ->
-%    request(["/v2/accounts/", AccountID, "/transactions/pending"]).
+-spec acc_pending_txs(AccountID) -> {ok, TXs} | {error, Reason}
+    when AccountID :: account_id(),
+         TXs       :: [tx_hash()],
+         Reason    :: ae_error() | string().
+%% @doc
+%% Retrieve a list of transactions pending for the given account.
+
+acc_pending_txs(AccountID) ->
+    request(["/v2/accounts/", AccountID, "/transactions/pending"]).
 
 
 -spec next_nonce(AccountID) -> {ok, Nonce} | {error, Reason}
@@ -630,11 +650,13 @@ contract_code(ID) ->
     end.
 
 
-% FIXME: Is this broken? Seems to just stall
-% -spec conract_poi(ID) -> 
-%
-%contract_poi(ID) ->
-%    request(["/v2/contracts/", ID, "/poi"]).
+-spec contract_poi(ID) -> {ok, Bytecode} | {error, Reason}
+    when ID       :: contract_id(),
+         Bytecode :: contract_byte_array(),
+         Reason   :: ae_error() | string().
+
+contract_poi(ID) ->
+    request(["/v2/contracts/", ID, "/poi"]).
 
 % TODO
 %oracle(ID) ->
@@ -694,24 +716,23 @@ status() ->
     request("/v2/status").
 
 
-% TODO
-%-spec status_chainends() -> {ok, ChainEnds} | {error, Reason}
-%    when ChainEnds :: [keyblock_hash()],
-%         Reason    :: ae_error().
-%%% @doc
-%%% Retrieve the latest keyblock hashes
-%
-%status_chainends() ->
-%    request("/v2/status/chain-ends").
+-spec status_chainends() -> {ok, ChainEnds} | {error, Reason}
+    when ChainEnds :: [keyblock_hash()],
+         Reason    :: ae_error().
+%% @doc
+%% Retrieve the latest keyblock hashes
+
+status_chainends() ->
+    request("/v2/status/chain-ends").
 
 
 request(Path) ->
-    vanillae_man:request(Path).
+    vanillae_man:request(unicode:characters_to_list(Path)).
 
 
 request(Path, Payload) ->
-    vanillae_man:request(Path, Payload).
-    
+    vanillae_man:request(unicode:characters_to_list(Path), Payload).
+
 
 result({ok, #{"reason" := Reason}}) -> {error, Reason};
 result(Received)                    -> Received.
@@ -719,6 +740,235 @@ result(Received)                    -> Received.
 
 
 %%% Contract calls
+
+-spec contract_create(CreatorID, Path, InitArgs) -> Result
+    when CreatorID :: binary(),
+         Path      :: file:filename(),
+         InitArgs  :: [string()],
+         Result    :: {ok, CallTX} | {error, Reason},
+         CreateTX  :: binary(),
+         Reason    :: file:posix() | term().
+%% @doc
+%% This function reads the source of a Sophia contract (an .aes file)
+%% and returns the unsigned create contract call data with default values.
+%% For more control over exactly what those values are, use create_contract/9.
+
+contract_create(CreatorID, Path, InitArgs) ->
+    case next_nonce(CreatorID) of
+        {ok, Nonce} ->
+            Deposit = 0,
+            Amount = 0,
+            Gas = 100000,
+            GasPrice = min_gas_price(),
+            Fee = fee(),
+            contract_create(CreatorID, Nonce,
+                            Deposit, Amount,
+                            Gas, GasPrice, Fee,
+                            Path, InitArgs);
+        Error ->
+            Error
+    end.
+
+
+-spec create_contract(CreatorID, Nonce,
+                      Deposit, Amount,
+                      Gas, GasPrice, Fee,
+                      Path, InitArgs) -> Result
+    when CreatorID :: binary(),
+         Nonce     :: pos_integer(),
+         Deposit   :: non_neg_integer(),
+         Amount    :: non_neg_integer(),
+         Gas       :: pos_integer(),
+         GasPrice  :: pos_integer(),
+         Fee       :: non_neg_integer(),
+         Path      :: file:filename(),
+         InitArgs  :: [string()],
+         Result    :: {ok, CreateTX} | {error, Reason},
+         CreateTX  :: binary(),
+         Reason    :: term().
+%% @doc
+%% Create a "create contract" call using the supplied values.
+%%
+%% Contract creation is an even more opaque process than contract calls if you're new
+%% to Aeternity.
+%%
+%% The meaning of each argument is as follows:
+%% <ul>
+%%  <li>
+%%   <b>CreatorID:</b>
+%%   This is the <em>public</em> key of the entity who will be posting the contract
+%%   to the chain.
+%%   The key must be encoded as a binary string prefixed with <<"ak_">>.
+%%   The returned call will still need to be signed by the caller's <em>private</em>
+%%   key.
+%%  </li>
+%%  <li>
+%%   <b>Nonce:</b>
+%%   This is a sequential integer value that ensures that the hash value of two
+%%   sequential signed calls with the same contract ID, function and arguments can
+%%   never be the same.
+%%   This avoids replay attacks and ensures indempotency despite the distributed
+%%   nature of the blockchain network).
+%%   Every CallerID on the chain has a "next nonce" value that can be discovered by
+%%   querying your Aeternity node (via `vanillae:next_nonce(CallerID)', for example).
+%%  </li>
+%%  <li>
+%%   <b>Deposit:</b>
+%%   I'm still not sure how to define this, so leave it at 0 for now.
+%%   Note to self: FIXME
+%%  </li>
+%%  <li>
+%%   <b>Amount:</b>
+%%   All Aeternity transactions can carry an "amount" spent from the origin account
+%%   (in this case the `CallerID') to the destination. In a "Spend" transaction this
+%%   is the only value that really matters, but in a contract call the utility is
+%%   quite different, as you can pay money <em>into</em> a contract and have that
+%%   contract hold it (for future payouts, to be held in escrow, as proof of intent
+%%   to purchase or engage in an auction, whatever). Typically this value is 0, but
+%%   of course there are very good reasons why it should be set to a non-zero value
+%%   in the case of calls related to contract-governed payment systems.
+%%  </li>
+%%  <li>
+%%   <b>Gas:</b>
+%%   This number sets a limit on the maximum amount of computation the caller is willing
+%%   to pay for on the chain.
+%%   Both storage and thunks are costly as the entire Aeternity network must execute,
+%%   verify, store and replicate all state changes to the chain.
+%%   Each byte stored on the chain carries a cost of 20 gas, which is not an issue if
+%%   you are storing persistent values of some state trasforming computation, but
+%%   high enough to discourage frivolous storage of media on the chain (which would be
+%%   a burden to the entire network).
+%%   Computation is less expensive, but still costs and is calculated very similarly
+%%   to the Erlang runtime's per-process reduction budget.
+%%   The maximum amount of gas that a microblock is permitted to carry (its maximum
+%%   computational weight, so to speak) is 6,000,000.
+%%   Typical contract calls range between about 100 to 15,000 gas, so the default gas
+%%   limit set by the `contract_call/6' function is only 20,000.
+%%   Setting the gas limit to 6,000,000 or more will cause your contract call to fail.
+%%   All transactions cost some gas with the exception of stateless or read-only
+%%   calls to your Aeternity node (executed as "dry run" calls and not propagated to
+%%   the network).
+%%   The gas consumed by the contract call transaction is multiplied by the `GasPrice'
+%%   provided and rolled into the block reward paid out to the node that mines the
+%%   transaction into a microblock.
+%%   Unused gas is refunded to the caller.
+%%  </li>
+%%  <li>
+%%   <b>GasPrice:</b>
+%%   This is a factor that is used calculate a value in aettos (the smallest unit of
+%%   Aeternity's currency value) for the gas consumed. In times of high contention
+%%   in the mempool increasing the gas price increases the value of mining a given
+%%   transaction, thus making miners more likely to prioritize the high value ones.
+%%  </li>
+%%  <li>
+%%   <b>Fee:</b>
+%%   This value should really be caled `Bribe' or `Tip'.
+%%   This is a flat fee in aettos that is paid into the block reward, thereby allowing
+%%   an additional way to prioritize a given transaction above others, even if the
+%%   transaction will not consume much gas.
+%%  </li>
+%%  <li>
+%%   <b>ACI:</b>
+%%   This is the compiled contract's metadata. It provides the information necessary
+%%   for the contract call data to be formed in a way that the Aeternity runtime will
+%%   understand.
+%%   This ACI data must be already formatted in the native Erlang format as an .aci
+%%   file rather than as the JSON serialized format produced by the Sophia CLI tool.
+%%   The easiest way to create native ACI data is to use the Aeternity Launcher,
+%%   a GUI tool with a "Developers' Workbench" feature that can assist with this.
+%%  </li>
+%%  <li>
+%%   <b>ConID:</b>
+%%   This is the on-chain address of the contract instance that is to be called.
+%%   Note, this is different from the `name' of the contract, as a single contract may
+%%   be deployed multiple times.
+%%  </li>
+%%  <li>
+%%   <b>Fun:</b>
+%%   This is the name of the entrypoint function to be called on the contract,
+%%   provided as a string (not a binary string, but a textual string as a list).
+%%  </li>
+%%  <li>
+%%   <b>Args:</b>
+%%   This is a list of the arguments to provide to the function, listed in order
+%%   according to the function's spec, and represented as strings (that is, an integer
+%%   argument of `10' must be cast to the textual representation `"10"').
+%%  </li>
+%% '''
+%% As should be obvious from the above description, it is pretty helpful to have a
+%% source copy of the contract you intend to call so that you can re-generate the ACI
+%% if you do not already have a copy, and can check the spec of a function before
+%% trying to form a contract call.
+
+create_contract(CreatorID, Nonce,
+                Deposit, Amount,
+                Gas, GasPrice, Fee,
+                Path, InitArgs) ->
+    case aeso_compiler:file(Path, [{aci, json}]) of
+        {ok, Compiled} ->
+            contract_create2(CreatorID, Nonce,
+                             Deposit, Amount,
+                             Gas, GasPrice, Fee,
+                             Compiled, InitArgs);
+        Error ->
+            Error
+    end.
+
+contract_create2(CratorID, Nonce,
+                 Deposit, Amount,
+                 Gas, GasPrice, Fee,
+                 Compiled, InitArgs) ->
+    AACI = prepare_aaci(maps:get(aci, Compiled)),
+    case encode_call_data(AACI, "init", InitArgs) of
+        {ok, CallData} ->
+            contract_create3(CreatorID, Nonce,
+                             Deposit, Amount,
+                             Gas, GasPrice, Fee,
+                             Compiled, CallData, InitArgs);
+        Error ->
+            Error
+    end.
+
+contract_create3(CreatorID, Nonce,
+                 Deposit, Amount,
+                 Gas, GasPrice, Fee,
+                 Compiled, CallData, InitArgs) ->
+    SophiaContractVersion = 3,
+    Code = aeser_contract_code:serialize(Compiled, SophiaContractVersion),
+    CTVersion = 2,
+    TTL = 0,
+    Type = contract_create_tx,
+    Fields =
+        [{owner_id,   aeser_id:create(account, Owner)},
+         {nonce,      Nonce},
+         {code,       Code},
+         {ct_version, CTVersion},
+         {fee,        Fee},
+         {ttl,        TTL},
+         {deposit,    Deposit},
+         {amount,     Amount},
+         {gas,        Gas},
+         {gas_price,  GasPrice},
+         {call_data,  CallData}],
+    Template =
+        [{owner_id,   id}
+         {nonce,      int}
+         {code,       binary}
+         {ct_version, int}
+         {fee,        int}
+         {ttl,        int}
+         {deposit,    int}
+         {amount,     int}
+         {gas,        int}
+         {gas_price,  int}
+         {call_data,  binary}],
+    TXB = aeser_chain_objects:serialize(Type, CallVersion, Template, Fields),
+    try
+        {ok, aeser_api_encoder:encode(transaction, TXB)}
+    catch
+        error:Reason -> {error, Reason}
+    end.
+
 
 -spec read_aci(Path) -> Result
     when Path   :: file:filename(),
@@ -772,9 +1022,9 @@ read_aci(Path) ->
 
 contract_call(CallerID, AACI, ConID, Fun, Args) ->
     {ok, Nonce} = next_nonce(CallerID),
-    Gas = 20000,
+    Gas = min_gas(),
     GasPrice = min_gas_price(),
-    Fee = 200000000000000,
+    Fee = min_fee(),
     Amount = 0,
     contract_call(CallerID, Nonce,
                   Gas, GasPrice, Fee, Amount,
@@ -809,7 +1059,8 @@ contract_call(CallerID, AACI, ConID, Fun, Args) ->
 %%   <b>CallerID:</b>
 %%   This is the <em>public</em> key of the entity making the contract call.
 %%   The key must be encoded as a binary string prefixed with <<"ak_">>.
-%%   The returned call will still need to be signed by the caller's <em>private</em>.
+%%   The returned call will still need to be signed by the caller's <em>private</em>
+%%   key.
 %%  </li>
 %%  <li>
 %%   <b>Nonce:</b>
@@ -819,8 +1070,7 @@ contract_call(CallerID, AACI, ConID, Fun, Args) ->
 %%   This avoids replay attacks and ensures indempotency despite the distributed
 %%   nature of the blockchain network).
 %%   Every CallerID on the chain has a "next nonce" value that can be discovered by
-%%   querying your Aeternity node (via `v_ejaa:next_nonce(CallerID, Node)', for
-%%   example).
+%%   querying your Aeternity node (via `vanillae:next_nonce(CallerID)', for example).
 %%  </li>
 %%  <li>
 %%   <b>Gas:</b>
@@ -933,9 +1183,9 @@ contract_call4(PK, Nonce, Gas, GasPrice, Fee, Amount, CK, CallData) ->
     CallVersion = 1,
     Type = contract_call_tx,
     Fields =
-        [{caller_id,   {id, account, PK}},
+        [{caller_id,   aeser_id:create(account, PK)},
          {nonce,       Nonce},
-         {contract_id, {id, contract, CK}},
+         {contract_id, aeser_id:create(contract, CK)},
          {abi_version, ABI},
          {fee,         Fee},
          {ttl,         TTL},
@@ -1042,7 +1292,7 @@ coerce({_, S}, {Good, Broken}) ->
 
 
 -spec min_gas_price() -> integer().
-%% @private
+%% @doc
 %% This function always returns 1,000,000,000 in the current version.
 %%
 %% This is the minimum gas price returned by aec_tx_pool:minimum_miner_gas_price(),
@@ -1056,6 +1306,33 @@ coerce({_, S}, {Good, Broken}) ->
 
 min_gas_price() ->
     1000000000.
+
+
+-spec min_gas() -> integer().
+%% @doc
+%% This function always returns 20,000 in the current version.
+%%
+%% There is no actual minimum gas price, but this figure provides a lower limit toward
+%% successful completion of general contract calls while not too severely limiting the
+%% number of TXs that may appear in a single microblock based on the per-block gas
+%% maximum (6,000,000 / 20,000 = 300 TXs in a microblock -- which at the moment seems
+%% like plenty).
+
+min_gas() ->
+    20000.
+
+
+-spec min_fee() -> integer().
+%% @doc
+%% This function always returns 200,000,000,000,000 in the current version.
+%%
+%% This is the minimum fee amount currently accepted -- it is up to callers whether
+%% they want to customize this value higher (or possibly lower, though as things stand
+%% that would only work on an independent AE-based network, not the actual Aeternity
+%% mainnet or testnet).
+
+min_fee() ->
+    200000000000000.
 
 
 encode_call_data({aaci, _, FunDefs}, Fun, Args) ->
