@@ -65,6 +65,8 @@
          min_gas/0,
          min_gas_price/0,
          min_fee/0,
+         contract_create/3,
+         contract_create/8,
          prepare_contract/1,
          contract_call/5,
          contract_call/10]).
@@ -745,7 +747,7 @@ result(Received)                    -> Received.
     when CreatorID :: binary(),
          Path      :: file:filename(),
          InitArgs  :: [string()],
-         Result    :: {ok, CallTX} | {error, Reason},
+         Result    :: {ok, CreateTX} | {error, Reason},
          CreateTX  :: binary(),
          Reason    :: file:posix() | term().
 %% @doc
@@ -756,27 +758,23 @@ result(Received)                    -> Received.
 contract_create(CreatorID, Path, InitArgs) ->
     case next_nonce(CreatorID) of
         {ok, Nonce} ->
-            Deposit = 0,
             Amount = 0,
             Gas = 100000,
             GasPrice = min_gas_price(),
-            Fee = fee(),
+            Fee = min_fee(),
             contract_create(CreatorID, Nonce,
-                            Deposit, Amount,
-                            Gas, GasPrice, Fee,
+                            Amount, Gas, GasPrice, Fee,
                             Path, InitArgs);
         Error ->
             Error
     end.
 
 
--spec create_contract(CreatorID, Nonce,
-                      Deposit, Amount,
-                      Gas, GasPrice, Fee,
+-spec contract_create(CreatorID, Nonce,
+                      Amount, Gas, GasPrice, Fee,
                       Path, InitArgs) -> Result
     when CreatorID :: binary(),
          Nonce     :: pos_integer(),
-         Deposit   :: non_neg_integer(),
          Amount    :: non_neg_integer(),
          Gas       :: pos_integer(),
          GasPrice  :: pos_integer(),
@@ -811,11 +809,6 @@ contract_create(CreatorID, Path, InitArgs) ->
 %%   nature of the blockchain network).
 %%   Every CallerID on the chain has a "next nonce" value that can be discovered by
 %%   querying your Aeternity node (via `vanillae:next_nonce(CallerID)', for example).
-%%  </li>
-%%  <li>
-%%   <b>Deposit:</b>
-%%   I'm still not sure how to define this, so leave it at 0 for now.
-%%   Note to self: FIXME
 %%  </li>
 %%  <li>
 %%   <b>Amount:</b>
@@ -900,69 +893,64 @@ contract_create(CreatorID, Path, InitArgs) ->
 %% if you do not already have a copy, and can check the spec of a function before
 %% trying to form a contract call.
 
-create_contract(CreatorID, Nonce,
-                Deposit, Amount,
-                Gas, GasPrice, Fee,
+contract_create(CreatorID, Nonce,
+                Amount, Gas, GasPrice, Fee,
                 Path, InitArgs) ->
     case aeso_compiler:file(Path, [{aci, json}]) of
         {ok, Compiled} ->
             contract_create2(CreatorID, Nonce,
-                             Deposit, Amount,
-                             Gas, GasPrice, Fee,
+                             Amount, Gas, GasPrice, Fee,
                              Compiled, InitArgs);
         Error ->
             Error
     end.
 
-contract_create2(CratorID, Nonce,
-                 Deposit, Amount,
-                 Gas, GasPrice, Fee,
+contract_create2(CreatorID, Nonce,
+                 Amount, Gas, GasPrice, Fee,
                  Compiled, InitArgs) ->
     AACI = prepare_aaci(maps:get(aci, Compiled)),
     case encode_call_data(AACI, "init", InitArgs) of
         {ok, CallData} ->
             contract_create3(CreatorID, Nonce,
-                             Deposit, Amount,
-                             Gas, GasPrice, Fee,
-                             Compiled, CallData, InitArgs);
+                             Amount, Gas, GasPrice, Fee,
+                             Compiled, CallData);
         Error ->
             Error
     end.
 
 contract_create3(CreatorID, Nonce,
-                 Deposit, Amount,
-                 Gas, GasPrice, Fee,
-                 Compiled, CallData, InitArgs) ->
-    SophiaContractVersion = 3,
-    Code = aeser_contract_code:serialize(Compiled, SophiaContractVersion),
+                 Amount, Gas, GasPrice, Fee,
+                 Compiled, CallData) ->
+    Code = aeser_contract_code:serialize(Compiled),
     CTVersion = 2,
+    ContractCreateVersion = 1,
     TTL = 0,
     Type = contract_create_tx,
     Fields =
-        [{owner_id,   aeser_id:create(account, Owner)},
+        [{owner_id,   aeser_id:create(account, CreatorID)},
          {nonce,      Nonce},
          {code,       Code},
          {ct_version, CTVersion},
          {fee,        Fee},
          {ttl,        TTL},
-         {deposit,    Deposit},
+         {deposit,    0},
          {amount,     Amount},
          {gas,        Gas},
          {gas_price,  GasPrice},
          {call_data,  CallData}],
     Template =
-        [{owner_id,   id}
-         {nonce,      int}
-         {code,       binary}
-         {ct_version, int}
-         {fee,        int}
-         {ttl,        int}
-         {deposit,    int}
-         {amount,     int}
-         {gas,        int}
-         {gas_price,  int}
+        [{owner_id,   id},
+         {nonce,      int},
+         {code,       binary},
+         {ct_version, int},
+         {fee,        int},
+         {ttl,        int},
+         {deposit,    int},
+         {amount,     int},
+         {gas,        int},
+         {gas_price,  int},
          {call_data,  binary}],
-    TXB = aeser_chain_objects:serialize(Type, CallVersion, Template, Fields),
+    TXB = aeser_chain_objects:serialize(Type, ContractCreateVersion, Template, Fields),
     try
         {ok, aeser_api_encoder:encode(transaction, TXB)}
     catch
