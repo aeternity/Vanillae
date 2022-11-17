@@ -198,37 +198,36 @@ decompose_fields_contractcalltx(X) ->
 
 
 %% general byte array
-encode_ba(Bytes) -> "ba_" ++ sha64enc(Bytes).
+encode_ba(Bytes) ->
+    "ba_" ++ sha64enc(Bytes).
 
 
 
 %% contract byte array (see: https://github.com/aeternity/protocol/blob/master/node/api/api_encoding.md)
-encode_cb(Bytes) -> "cb_" ++ sha64enc(Bytes).
+encode_cb(Bytes) ->
+    "cb_" ++ sha64enc(Bytes).
 
 
 
 %% See: https://github.com/aeternity/protocol/blob/master/serializations.md#the-id-type
 %% https://github.com/aeternity/protocol/blob/master/node/api/api_encoding.md
-%% ak_ account
-encode_id(<<1, IdBytes:32/binary>>) -> "ak_" ++ sha58enc(IdBytes);
-%% nm_ name
-encode_id(<<2, IdBytes:32/binary>>) -> "nm_" ++ sha58enc(IdBytes);
-%% cm_ commitment
-encode_id(<<3, IdBytes:32/binary>>) -> "nm_" ++ sha58enc(IdBytes);
-%% ok_ oracle
-encode_id(<<4, IdBytes:32/binary>>) -> "ok_" ++ sha58enc(IdBytes);
-%% ct_ contract
-encode_id(<<5, IdBytes:32/binary>>) -> "ct_" ++ sha58enc(IdBytes);
-%% ch_ channel
-encode_id(<<6, IdBytes:32/binary>>) -> "ch_" ++ sha58enc(IdBytes).
+
+encode_id(<<1, IdBytes:32/binary>>) -> "ak_" ++ sha58enc(IdBytes); %% ak_ account
+encode_id(<<2, IdBytes:32/binary>>) -> "nm_" ++ sha58enc(IdBytes); %% nm_ name
+encode_id(<<3, IdBytes:32/binary>>) -> "nm_" ++ sha58enc(IdBytes); %% cm_ commitment
+encode_id(<<4, IdBytes:32/binary>>) -> "ok_" ++ sha58enc(IdBytes); %% ok_ oracle
+encode_id(<<5, IdBytes:32/binary>>) -> "ct_" ++ sha58enc(IdBytes); %% ct_ contract
+encode_id(<<6, IdBytes:32/binary>>) -> "ch_" ++ sha58enc(IdBytes). %% ch_ channel
 
 
 
-encode_sg(Sig) -> "sg_" ++ sha58enc(Sig).
+encode_sg(Sig) ->
+    "sg_" ++ sha58enc(Sig).
 
 
 
-encode_tx(TxData) -> "tx_" ++ sha64enc(TxData).
+encode_tx(TxData) ->
+    "tx_" ++ sha64enc(TxData).
 
 
 
@@ -245,4 +244,5 @@ sha64enc(Bytes) ->
 
 
 %% tired of typing this
-bdu(X) -> binary:decode_unsigned(X).
+bdu(X) ->
+    binary:decode_unsigned(X).

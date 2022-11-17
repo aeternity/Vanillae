@@ -3,7 +3,7 @@ import * as awcp    from './jex_include/local-awcp-0.1.0/dist/awcp.js';
 import * as sk      from './jex_include/local-sidekick-0.1.0/dist/sidekick.js';
 
 var pv_address: string;
-var pv_spendtx_base58: string;
+var pv_spendtx_base64: string;
 
 function
 set_pv_address
@@ -18,12 +18,12 @@ set_pv_address
 }
 
 function
-set_pv_spendtx_base58
+set_pv_spendtx_base64
     (new_address: string)
     : void
 {
-    pv_spendtx_base58 = new_address;
-    for (let elt of document.getElementsByClassName('pv-spendtx-base58'))
+    pv_spendtx_base64 = new_address;
+    for (let elt of document.getElementsByClassName('pv-spendtx-base64'))
     {
         elt.innerHTML = new_address;
     }
@@ -175,8 +175,8 @@ form_tx
         JSON.stringify(spendtx, undefined, 4);
     let tx = await ae_node.PostSpend(ae_node.URL_TESTNET, spendtx);
     // @ts-ignore
-    set_pv_spendtx_base58(tx.tx);
-    //document.getElementById('spendtx-base58')!.innerHTML =
+    set_pv_spendtx_base64(tx.tx);
+    //document.getElementById('spendtx-base64')!.innerHTML =
     //    JSON.stringify(tx, undefined, 4);
     //
 }
@@ -187,7 +187,7 @@ sign_tx
     : Promise<void>
 {
     let sign_params = {
-        tx: pv_spendtx_base58,
+        tx: pv_spendtx_base64,
         // returnsigned: false tells it to propagate the transaction
         // returnsigned: true just signs it and returns the signed tx back
         returnSigned: true as true,

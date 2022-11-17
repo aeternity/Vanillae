@@ -101,6 +101,7 @@ hum_spendtx_fields([SenderBytes,
                     TTLBytes,
                     NonceBytes,
                     Payload]) ->
+    % TODO: drop-through to make sure id humanization works
     SenderStr = humanize_id(SenderBytes),
     RecipStr  = humanize_id(RecipBytes),
     Amount    = binary:decode_unsigned(AmountBytes),

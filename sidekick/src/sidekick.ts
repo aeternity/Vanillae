@@ -1,3 +1,9 @@
+// tomorrow:
+// message signing
+// examples
+// documentation
+// project organization
+
 /**
  * # How to use this library
  *
@@ -44,6 +50,7 @@
  * ## Step 2: Detect the wallet
  *
  * ```
+ * //                                   timeout                 error message       logger
  * let maybe_detected = await sk.detect(sk.TIMEOUT_DEF_DETECT, 'detect: timeout', my_logger);
  * ```
  *
@@ -220,6 +227,7 @@ type Error<err_t>
        error : err_t};
 
 
+
 /**
  * Constructs an `Ok` value from a pure value
  */
@@ -333,23 +341,19 @@ class ConsoleLogger implements Logger
     constructor() {
         let this_ptr = this;
         this.listener =
-                function (e : Event) {
-                    // for typescript
-                    if (e instanceof MessageEvent) {
-                        this_ptr.debug(`ConsoleLogger received MessageEvent`, e.data);
-                    }
-                };
+            function (e : Event) {
+                // for typescript
+                if (e instanceof MessageEvent) {
+                    this_ptr.debug(`ConsoleLogger received MessageEvent`, e.data);
+                }
+            };
     }
     async debug   (_msg: string, _data: object) { console.debug (_msg, _data); }
     async info    (_msg: string, _data: object) { console.log   (_msg, _data); }
     async warning (_msg: string, _data: object) { console.warn  (_msg, _data); }
     async error   (_msg: string, _data: object) { console.error (_msg, _data); }
-    listen() {
-        window.addEventListener('message', this.listener);
-    }
-    ignore () {
-        window.removeEventListener('message', this.listener);
-    }
+    listen() { window.addEventListener('message', this.listener); }
+    ignore() { window.removeEventListener('message', this.listener); }
 }
 
 /**
@@ -363,23 +367,19 @@ class HttpLogger implements Logger
         this.post_endpoint = post_endpoint;
         let this_ptr = this;
         this.listener =
-                function (e : Event) {
-                    // for typescript
-                    if (e instanceof MessageEvent) {
-                        this_ptr.debug(`HttpLogger received MessageEvent`, e.data);
-                    }
-                };
+            function (e : Event) {
+                // for typescript
+                if (e instanceof MessageEvent) {
+                    this_ptr.debug(`HttpLogger received MessageEvent`, e.data);
+                }
+            };
     }
     async debug   (_msg: string, _data: object) { http_log(this.post_endpoint, 'debug', _msg, _data); }
     async info    (_msg: string, _data: object) { http_log(this.post_endpoint, 'info', _msg, _data); }
     async warning (_msg: string, _data: object) { http_log(this.post_endpoint, 'warning', _msg, _data); }
     async error   (_msg: string, _data: object) { http_log(this.post_endpoint, 'error', _msg, _data); }
-    listen() {
-        window.addEventListener('message', this.listener);
-    }
-    ignore () {
-        window.removeEventListener('message', this.listener);
-    }
+    listen() { window.addEventListener('message', this.listener); }
+    ignore() { window.removeEventListener('message', this.listener); }
 }
 
 async function
@@ -506,6 +506,11 @@ const TIMEOUT_DEF_TX_SIGN_NOPROP_MS = 5*MIN;
 //-----------------------------------------------------------------------------
 
 /**
+ * This is the first step in connecting to the wallet. Before doing anything
+ * else, you have to wait for the wallet to announce itself.
+ *
+ * This function waits for the wallet to announce itself
+ *
  * Wait for wallet to announce itself, and then return.
  *
  * Example message data:
@@ -702,6 +707,8 @@ class CAPListener
 // API: connection
 //-----------------------------------------------------------------------------
 
+
+
 async function
 connect
     (id          : number | string,
@@ -728,6 +735,9 @@ connect
 // API: get address
 //-----------------------------------------------------------------------------
 
+
+
+
 async function
 address
     (id          : number | string,
@@ -750,9 +760,41 @@ address
     return result;
 }
 
+
+//-----------------------------------------------------------------------------
+// API: message sign
+//-----------------------------------------------------------------------------
+
+
+
+async function
+msg_sign
+    (id             : number | string,
+     account_pubkey : string,
+     message        : string,
+     timeout_ms     : number,
+     timeout_msg    : string,
+     logger         : Logger)
+    : Promise<Safe<any, awcp.RpcError | SkTimeoutError>>
+{
+    logger.debug('address', {id:id, params:params, timeout_ms:timeout_ms, timeout_msg:timeout_msg});
+    let msgr = new MsgR(logger);
+    // FIXME: for type purposes, making the correct RPC message should be up here
+    // this way we can enforce that it's a correct RPC call with typescript
+    // Ideal:
+    // let result = await msgr.send_raseev(id, awcp.METHOD_CONNECTION_OPEN, params, target, timeout_ms, timeout_msg);
+    let result =
+        await msgr.send_raseev
+                <any, any, any>
+                (id, "message.sign", {onAccount: account_pubkey, message: message}, timeout_ms, timeout_msg);
+    return result;
+}
+
 //-----------------------------------------------------------------------------
 // API: tx sign (no prop)
 //-----------------------------------------------------------------------------
+
+
 
 async function
 tx_sign_noprop
