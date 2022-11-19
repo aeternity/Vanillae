@@ -170,6 +170,7 @@ export {
         connect,
         address,
         tx_sign_noprop,
+        msg_sign,
 
     // internals
         sleep,
@@ -777,7 +778,7 @@ msg_sign
      logger         : Logger)
     : Promise<Safe<any, awcp.RpcError | SkTimeoutError>>
 {
-    logger.debug('address', {id:id, params:params, timeout_ms:timeout_ms, timeout_msg:timeout_msg});
+    logger.debug('address', {id:id, account_pubkey:account_pubkey, message:message, timeout_ms:timeout_ms, timeout_msg:timeout_msg});
     let msgr = new MsgR(logger);
     // FIXME: for type purposes, making the correct RPC message should be up here
     // this way we can enforce that it's a correct RPC call with typescript

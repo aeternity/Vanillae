@@ -197,6 +197,13 @@ sign_tx
     document.getElementById("sign-spendtx-result")!.innerHTML = JSON.stringify(signedTx, undefined, 4);
 }
 
+async function sign_msg(logger: sk.Logger): Promise<void> {
+    console.log('poop');
+    let acc_pubkey : string = pv_address;
+    let signed_msg = await sk.msg_sign('sk-msg-sign-1', acc_pubkey, 'I make stinky poo poo', sk.TIMEOUT_DEF_TX_SIGN_NOPROP_MS, 'stinky poo poo too long', logger);
+    console.log('signed message:', signed_msg);
+}
+
 function
 main
     ()
@@ -212,6 +219,7 @@ main
     document.getElementById('address')!.onclick = function() { address(logger); };
     document.getElementById('mk-spendtx')!.onclick = function() { form_tx(logger); };
     document.getElementById('sign-spendtx')!.onclick = function() { sign_tx(logger); };
+    document.getElementById('sign-message')!.onclick = function() { sign_msg(logger); };
 
     //set_pv_address("ak_2XhCkjzTwcq1coXSSzHJoMZkUzTwnjH88zmPGkkowUsFNTo9UE");
 }
