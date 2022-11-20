@@ -65,6 +65,7 @@ help_screen() ->
      "  tree            tree $HOME/.jex/\n"
      "  rmpkg PKG       rm -r $HOME/.jex/dev/PKG\n"
      "  pull            pull each dependency into src/jx_include\n"
+     "  mkdocs          (maybe run dwim- first) npx typedoc\n"
     ].
 
 
@@ -86,6 +87,7 @@ dispatch(["ls"])              -> ls();
 dispatch(["tree"])            -> tree();
 dispatch(["rmpkg", Pkg])      -> rmpkg(Pkg);
 dispatch(["pull"])            -> pull();
+dispatch(["mkdocs"])          -> mkdocs();
 dispatch(_)                   -> help().
 
 
@@ -322,6 +324,14 @@ pull_dep(Dep) ->
     _ = cmd(io_lib:format("mkdir -p ~ts", [Dst])),
     %tell(info, "path of ~s: ~s", [Dep, Src]),
     _ = cmd(io_lib:format("rsync -avv ~ts/ ~ts", [Src, Dst])),
+    ok.
+
+%%-----------------------------------------------------------------------------
+%% jex mkdocs
+%%-----------------------------------------------------------------------------
+
+mkdocs() ->
+    _ = cmd("npx typedoc --entryPointStrategy expand --sort source-order src"),
     ok.
 
 %%-----------------------------------------------------------------------------
