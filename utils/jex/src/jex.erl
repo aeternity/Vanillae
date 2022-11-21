@@ -31,10 +31,10 @@ help() ->
 
 % TODONE: make tsdocs
 % TODONE: jex pull
-% TODO: delete before mindist
-% TODO: delete before push
-% TODO: delete before pushdocs
-% TODO: jex viewdocs [port]
+% TODONE: delete before mindist
+% TODONE: delete before push
+% TODONE: delete before pushdocs
+% TODO: jex viewdocs PKG [port]
 % TODO: make fulldist tarballs
 
 % TODO: be smart about creating jex_include
@@ -47,60 +47,66 @@ help_screen() ->
     ["Jex: simple JavaScript packaging system\n"
      "\n"
      "COMMANDS:\n"
-     "  man                 show the manual\n"
-     "  dwim-               init, pull, build\n"
-     "  dwim+               init, pull, build, mindist, push\n"
-     "  dwim++              init, pull, build, mindist, push, mkdocs, pushdocs\n"
-     "  cfgbarf             barf out the jex.eterms file (mostly to make sure it parses correctly)\n"
-     "  echo home           echo $HOME\n"
-     "  echo jexdir         echo $HOME/.jex\n"
-     "  echo devdir         echo $HOME/.jex/dev\n"
-     "  echo docsdir        echo $HOME/.jex/docs\n"
-     "  echo pkgname        name of current package\n"
-     "  echo pkg_devdir     echo $HOME/.jex/dev/realm-name-X.Y.Z\n"
-     "  echo pkg_docsdir    echo $HOME/.jex/docs/realm-name-X.Y.Z\n"
-     "  echo deps           list dependencies of current package\n"
-     "  echo pathof PKG     list the path to PKG or \n"
-     "  init                mkdir -p $HOME/.jex/dev\n"
-     "  build               tsc && cp -r ./src/jex_include ./dist/\n"
-     "      -w, --weak          continue building even if tsc fails\n"
-     "      -f, --force         use cp -rf instead of cp -r\n"
-     "  mindist             mkdir jex_mindist && cp -r src jex_mindist && cp -r dist jex_mindist && rm -r jex_mindist/src/jex_include\n"
-     "      -f, --force         use cp -rf instead of cp -r\n"
-     "  push                rsync -a jex_mindist/ PKG_DEVDIR\n"
-     "  mkdocs              (maybe run dwim- first) npx typedoc\n"
-     "  pushdocs            rsync -a docs/ PKG_DOCSDIR\n"
-     "  ls                  ls $HOME/.jex/dev\n"
-     "  tree                tree $HOME/.jex/\n"
-     "  rmpkg PKG           rm -r $HOME/.jex/dev/PKG\n"
-     "  pull                pull each dependency into src/jx_include\n"
+     "  man                     show the manual\n"
+     "  dwim-                   init, pull, build\n"
+     "  dwim+                   init, pull, build, mindist, push\n"
+     "  dwim++                  init, pull, build, mindist, push, mkdocs, pushdocs\n"
+     "  cfgbarf                 barf out the jex.eterms file (mostly to make sure it parses correctly)\n"
+     "  echo home               echo $HOME\n"
+     "  echo jexdir             echo $HOME/.jex\n"
+     "  echo devdir             echo $HOME/.jex/dev\n"
+     "  echo docsdir            echo $HOME/.jex/docs\n"
+     "  echo pkgname            name of current package\n"
+     "  echo pkg_devdir         echo $HOME/.jex/dev/realm-name-X.Y.Z\n"
+     "  echo pkg_devdir PKG     echo $HOME/.jex/dev/PKG\n"
+     "  echo pkg_docsdir        echo $HOME/.jex/docs/realm-name-X.Y.Z\n"
+     "  echo pkg_docsdir PKG    echo $HOME/.jex/docs/PKG\n"
+     "  echo deps               list dependencies of current package\n"
+     "  init                    mkdir -p $HOME/.jex/dev\n"
+     "  build                   tsc && cp -r ./src/jex_include ./dist/\n"
+     "      -w, --weak              continue building even if tsc fails\n"
+     "      -f, --force             use cp -rf instead of cp -r\n"
+     "  mindist                 mkdir jex_mindist && cp -r src jex_mindist && cp -r dist jex_mindist && rm -r jex_mindist/src/jex_include\n"
+     "      -f, --force             use cp -rf instead of cp -r\n"
+     "  push                    rsync -a jex_mindist/ PKG_DEVDIR\n"
+     "  mkdocs                  (maybe run dwim- first) npx typedoc\n"
+     "  pushdocs                rsync -a docs/ PKG_DOCSDIR\n"
+     "  viewdocs PKG [PORT]     view package docs in browser\n"
+     "  ls                      ls $HOME/.jex/dev\n"
+     "  tree                    tree $HOME/.jex/\n"
+     "  rmpkg PKG               rm -r $HOME/.jex/dev/PKG\n"
+     "  pull                    pull each dependency into src/jx_include\n"
     ].
 
 
-dispatch(["man"])                 -> man();
-dispatch(["dwim-"])               -> dwim(minus);
-dispatch(["dwim+"])               -> dwim(plus);
-dispatch(["dwim++"])              -> dwim(plus_plus);
-dispatch(["cfgbarf"])             -> cfgbarf();
-dispatch(["echo", "home"])        -> echo(home);
-dispatch(["echo", "jexdir"])      -> echo(jexdir);
-dispatch(["echo", "devdir"])      -> echo(devdir);
-dispatch(["echo", "docsdir"])     -> echo(docsdir);
-dispatch(["echo", "pkgname"])     -> echo(pkgname);
-dispatch(["echo", "pkg_devdir"])  -> echo(pkg_devdir);
-dispatch(["echo", "pkg_docsdir"]) -> echo(pkg_docsdir);
-dispatch(["echo", "deps"])        -> echo(deps);
-dispatch(["init"])                -> init();
-dispatch(["build" | Opts])        -> build(Opts);
-dispatch(["mindist" | Opts])      -> mindist(Opts);
-dispatch(["push"])                -> push();
-dispatch(["mkdocs"])              -> mkdocs();
-dispatch(["pushdocs"])            -> pushdocs();
-dispatch(["ls"])                  -> ls();
-dispatch(["tree"])                -> tree();
-dispatch(["rmpkg", Pkg])          -> rmpkg(Pkg);
-dispatch(["pull"])            -> pull();
-dispatch(_)                   -> help().
+dispatch(["man"])                          -> man();
+dispatch(["dwim-"])                        -> dwim(minus);
+dispatch(["dwim+"])                        -> dwim(plus);
+dispatch(["dwim++"])                       -> dwim(plus_plus);
+dispatch(["cfgbarf"])                      -> cfgbarf();
+dispatch(["echo", "home"])                 -> echo(home);
+dispatch(["echo", "jexdir"])               -> echo(jexdir);
+dispatch(["echo", "devdir"])               -> echo(devdir);
+dispatch(["echo", "docsdir"])              -> echo(docsdir);
+dispatch(["echo", "pkgname"])              -> echo(pkgname);
+dispatch(["echo", "pkg_devdir"])           -> echo(pkg_devdir);
+dispatch(["echo", "pkg_devdir", PkgName])  -> echo({pkg_devdir, PkgName});
+dispatch(["echo", "pkg_docsdir"])          -> echo(pkg_docsdir);
+dispatch(["echo", "pkg_docsdir", PkgName]) -> echo({pkg_docsdir, PkgName});
+dispatch(["echo", "deps"])                 -> echo(deps);
+dispatch(["init"])                         -> init();
+dispatch(["build" | Opts])                 -> build(Opts);
+dispatch(["mindist" | Opts])               -> mindist(Opts);
+dispatch(["push"])                         -> push();
+dispatch(["mkdocs"])                       -> mkdocs();
+dispatch(["pushdocs"])                     -> pushdocs();
+dispatch(["viewdocs", Pkg])                -> viewdocs(Pkg);
+dispatch(["viewdocs", Pkg, Port])          -> viewdocs(Pkg, Port);
+dispatch(["ls"])                           -> ls();
+dispatch(["tree"])                         -> tree();
+dispatch(["rmpkg", Pkg])                   -> rmpkg(Pkg);
+dispatch(["pull"])                         -> pull();
+dispatch(_)                                -> help().
 
 
 
@@ -160,17 +166,24 @@ echo(docsdir) ->
 echo(pkgname) ->
     tell(info, "~ts", [pkgname()]);
 echo(pkg_devdir) ->
-    tell(info, "~ts", [pkg_devdir()]);
+    {_Exists, PkgDevDir} = pkg_devdir(),
+    tell(info, "~ts", [PkgDevDir]);
+echo({pkg_devdir, PkgName}) ->
+    case pkg_devdir(PkgName) of
+        {exists, Dir} -> tell(info, "~ts", [Dir]);
+        Error         -> tell(error, "Error: ~tp", [Error])
+    end;
 echo(pkg_docsdir) ->
-    tell(info, "~ts", [pkg_docsdir()]);
+    {_Exists, PkgDocsDir} = pkg_docsdir(),
+    tell(info, "~ts", [PkgDocsDir]);
+echo({pkg_docsdir, PkgName}) ->
+    case pkg_docsdir(PkgName) of
+        {exists, Dir} -> tell(info, "~ts", [Dir]);
+        Error         -> tell(error, "Error: ~tp", [Error])
+    end;
 echo(deps) ->
-    PrintDep =
-        fun(Dep) ->
-            tell(info, "~ts", [Dep])
-        end,
-    lists:foreach(PrintDep, deps());
-echo({pathof, Pkg}) ->
-    tell(info, "~ts", [pathof(Pkg)]).
+    PrintDep = fun(Dep) -> tell(info, "~ts", [Dep]) end,
+    lists:foreach(PrintDep, deps()).
 
 
 home() ->
@@ -197,10 +210,25 @@ pkgname() ->
     io_lib:format("~tp-~tp-~ts", [Realm, Name, Vsn]).
 
 pkg_devdir() ->
-    filename:join(devdir(), pkgname()).
+    pkg_devdir(pkgname()).
+
+pkg_devdir(Pkg) ->
+    Filename = filename:join(devdir(), Pkg),
+    case file_exists(Filename) of
+        true    -> {exists, Filename};
+        false   -> {dne, Filename}
+    end.
 
 pkg_docsdir() ->
-    filename:join([docsdir(), pkgname()]).
+    pkg_docsdir(pkgname()).
+
+pkg_docsdir(PkgName) ->
+    Filename = filename:join([docsdir(), PkgName]),
+    case file_exists(Filename) of
+        true    -> {exists, Filename};
+        false   -> {dne, Filename}
+    end.
+
 
 deps() ->
     {ok, Cfg} = cfg(),
@@ -212,12 +240,6 @@ deps() ->
     end.
 
 
-pathof(Pkg) ->
-    Filename = filename:join(devdir(), Pkg),
-    case file_exists(Filename) of
-        true    -> Filename;
-        false   -> error({unknown_package, Pkg})
-    end.
 
 file_exists(Filename) ->
     case file:read_file_info(Filename) of
@@ -277,14 +299,15 @@ mindist(Opts) ->
                  % flags              if flag         default
     OptsConfig = [{["-f", "--force"], {force, force}, {force, dont_force}}],
     #{force := Force} = parseopts(OptsConfig, Opts),
+    _ = cmd("rm -r jex_mindist"),
     _ = cmd("mkdir -p jex_mindist"),
     _ = mindist_cp(Force),
     _ = cmd("rm -r jex_mindist/src/jex_include"),
     ok.
 
 mindist_cp(dont_force) ->
-    _ = cmd("rsync -avv --exclude=\"*.swp\" src  jex_mindist"),
-    _ = cmd("cp -rv                         dist jex_mindist"),
+    _ = cmd("rsync -avv --exclude=\"*.swp\" --exclude=\"*.swo\" src  jex_mindist"),
+    _ = cmd("cp -rv                                             dist jex_mindist"),
     ok;
 mindist_cp(force) ->
     _ = cmd("cp -rvf src  jex_mindist"),
@@ -298,7 +321,9 @@ mindist_cp(force) ->
 %%-----------------------------------------------------------------------------
 
 push() ->
-    _ = cmd(io_lib:format("rsync -avv jex_mindist/ ~ts", [pkg_devdir()])),
+    {_Exists, PackageDestination} = pkg_devdir(),
+    _ = cmd(["rm -r ", PackageDestination]),
+    _ = cmd(["rsync -avv jex_mindist/ ", PackageDestination()]),
     ok.
 
 
@@ -323,8 +348,14 @@ tree() ->
 %%-----------------------------------------------------------------------------
 
 rmpkg(Pkg) ->
-    Filename = pathof(Pkg),
-    _ = cmd(io_lib:format("rm -r ~ts", [Filename])),
+    case pkg_devdir(Pkg) of
+        {exists, Filename} -> cmd(io_lib:format("rm -r ~ts", [Filename]));
+        {dne, Filename}    -> tell(error, "package not installed: ~ts", [Pkg])
+    end,
+    case pkg_docsdir(Pkg) of
+        {exists, Filename} -> cmd(io_lib:format("rm -r ~ts", [Filename]));
+        {dne, Filename}    -> tell(error, "documentation not installed: ~ts", [Pkg])
+    end,
     ok.
 
 %%-----------------------------------------------------------------------------
@@ -342,11 +373,15 @@ pull([]) ->
     ok.
 
 pull_dep(Dep) ->
-    Src = pathof(Dep),
-    Dst = filename:join("./src/jex_include", Dep),
-    _ = cmd(io_lib:format("mkdir -p ~ts", [Dst])),
-    %tell(info, "path of ~s: ~s", [Dep, Src]),
-    _ = cmd(io_lib:format("rsync -avv ~ts/ ~ts", [Src, Dst])),
+    case pkg_devdir(Dep) of
+        {exists, Src} ->
+            Dst = filename:join("./src/jex_include", Dep),
+            _ = cmd(io_lib:format("mkdir -p ~ts", [Dst])),
+            %tell(info, "path of ~s: ~s", [Dep, Src]),
+            _ = cmd(io_lib:format("rsync -avv ~ts/ ~ts", [Src, Dst]));
+        DNE ->
+            error(DNE)
+    end,
     ok.
 
 %%-----------------------------------------------------------------------------
@@ -362,7 +397,35 @@ mkdocs() ->
 %%-----------------------------------------------------------------------------
 
 pushdocs() ->
-    _ = cmd(["rsync -avv docs/ ", pkg_docsdir()]),
+    {_Exists, DocsDestDir} = pkg_docsdir(),
+    _ = cmd(["rm -r ", DocsDestDir]),
+    _ = cmd(["rsync -avv docs/ ", DocsDestDir]),
+    ok.
+
+
+%%-----------------------------------------------------------------------------
+%% jex viewdocs
+%%-----------------------------------------------------------------------------
+
+viewdocs(Pkg) ->
+    viewdocs(Pkg, 6969).
+
+viewdocs(Pkg, Port) ->
+    case pkg_docsdir(Pkg) of
+        {exists, DocsPath} -> viewdocs2(DocsPath, Port);
+        DNE                -> error(DNE)
+    end.
+
+viewdocs2(DocsPath, Port) ->
+    spawn_link(fun() -> servedocs(DocsPath, Port) end),
+    firefox(Port).
+
+servedocs(DocsPath, Port) ->
+    _ = cmd(io_lib:format("cd ~ts && python3 -m http.server ~tp", [DocsPath, Port])),
+    ok.
+
+firefox(Port) ->
+    _ = cmd(io_lib:format("firefox localhost:~tp", [Port])),
     ok.
 
 %%-----------------------------------------------------------------------------
