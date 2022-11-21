@@ -257,6 +257,10 @@ mindist(Opts) ->
     _ = cmd("mkdir -p jex_mindist"),
     _ = mindist_cp(Force),
     _ = cmd("rm -r jex_mindist/src/jex_include"),
+    PkgName = pkgname(),
+    _ = cmd(["mv jex_mindist ", PkgName]),
+    _ = cmd(["tar czvf ", PkgName, ".tar.gz ", PkgName]),
+    _ = cmd(["rm -r ", PkgName]),
     ok.
 
 mindist_cp(dont_force) ->
