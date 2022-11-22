@@ -612,6 +612,30 @@ gasoline(TarballPath) ->
 
 
 %%-----------------------------------------------------------------------------
+%% jex get_mindist PACKAGE
+%%-----------------------------------------------------------------------------
+
+get_mindist(PkgName) ->
+    % does package exist
+    case pkg_devdir(PkgName) of
+        {exists, _} -> get_mindist2(PkgName);
+        {dne, _}    -> error({package_not_installed, PkgName})
+    end.
+
+get_mindist2(PkgName) ->
+    DevDir    = devdir(),
+    {ok, CWD} = file:get_cwd(),
+    _ = cmdf("cd ~ts"                       % cd ~/.jex/dev
+             " && tar -czf ~ts.tar.gz ~ts"  %  && tar -czf local-sidekick-0.2.0.tar.gz local-sidekick-0.2.0
+             " && mv ~ts.tar.gz ~ts",       %  && mv local-sidekick-0.2.0 CWD
+             [DevDir,
+              PkgName, PkgName,
+              PkgName, CWD]),
+    ok.
+
+
+
+%%-----------------------------------------------------------------------------
 %% INTERNALS
 %%-----------------------------------------------------------------------------
 
