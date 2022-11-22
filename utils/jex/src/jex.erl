@@ -26,7 +26,7 @@ start(ArgV) ->
     zx:silent_stop().
 
 help() ->
-    io:format("~ts~n", [help_screen()]).
+    tell(info, "~ts~n", [help_screen()]).
 
 
 % TODONE: make tsdocs
@@ -34,11 +34,14 @@ help() ->
 % TODONE: delete before mindist
 % TODONE: delete before push
 % TODONE: delete before pushdocs
-% TODO: jex viewdocs PKG [port]
-% TODO: make fulldist tarballs
+% TODONE: jex viewdocs PKG [port]
+% TODONE: jex fulldist
+% TODO: jex install
+% TODO: jex get_mindist PKG
 
+% TODO: use less than full qualified names (not priority)
+% TODO: make fulldist for arbitrary installed package (requires storing jex.eterms, not hard but also not a priority)
 % TODO: be smart about creating jex_include
-% TODO: make mindist tarballs
 % TODO: tarball shas
 % TODO: tarball signatures
 % TODO: jex install
@@ -46,23 +49,19 @@ help() ->
 help_screen() ->
     ["Jex: simple JavaScript packaging system\n"
      "\n"
-     "COMMANDS:\n"
-     "  man                     show the manual\n"
-     "  dwim-                   init, pull, build\n"
-     "  dwim+                   init, pull, build, mindist, push\n"
-     "  dwim++                  init, pull, build, mindist, push, mkdocs, pushdocs\n"
-     "  cfgbarf                 barf out the jex.eterms file (mostly to make sure it parses correctly)\n"
-     "  echo home               echo $HOME\n"
-     "  echo jexdir             echo $HOME/.jex\n"
-     "  echo devdir             echo $HOME/.jex/dev\n"
-     "  echo docsdir            echo $HOME/.jex/docs\n"
-     "  echo pkgname            name of current package\n"
-     "  echo pkg_devdir         echo $HOME/.jex/dev/realm-name-X.Y.Z\n"
-     "  echo pkg_devdir PKG     echo $HOME/.jex/dev/PKG\n"
-     "  echo pkg_docsdir        echo $HOME/.jex/docs/realm-name-X.Y.Z\n"
-     "  echo pkg_docsdir PKG    echo $HOME/.jex/docs/PKG\n"
-     "  echo deps               list dependencies of current package\n"
-     "  init                    mkdir -p $HOME/.jex/dev\n"
+     "If you have never run jex before, you need to run `jex init` first\n"
+     "\n"
+     "PORCELAIN COMMANDS:\n"
+     "  dwim-                   build project but don't make a release (init, pull, build)\n"
+     "  dwim+                   build and make a minimal release (init, pull, build, mindist, push)\n"
+     "  dwim++                  build and make a full release (init, pull, build, mindist, push, mkdocs, pushdocs)\n"
+     "  ls                      list installed packages\n"
+     "  install [TARBALL_PATH]  install the given package\n"
+     "  viewdocs [PKG [PORT]]   view package docs for PKG in browser\n"
+     "  get_mindist [PKG]       get the mindist tarball for an installed package\n"
+     "\n"
+     "PLUMBING COMMANDS:\n"
+     "  init                    mkdir -p $HOME/.jex/{dev,docs,tmp}\n"
      "  build                   tsc && cp -r ./src/jex_include ./dist/\n"
      "      -w, --weak              continue building even if tsc fails\n"
      "      -f, --force             use cp -rf instead of cp -r\n"
@@ -71,41 +70,66 @@ help_screen() ->
      "  push                    rsync -a jex_mindist/ PKG_DEVDIR\n"
      "  mkdocs                  (maybe run dwim- first) npx typedoc\n"
      "  pushdocs                rsync -a docs/ PKG_DOCSDIR\n"
-     "  viewdocs PKG [PORT]     view package docs in browser\n"
-     "  ls                      ls $HOME/.jex/dev\n"
-     "  tree                    tree $HOME/.jex/\n"
      "  rmpkg PKG               rm -r $HOME/.jex/dev/PKG\n"
      "  pull                    pull each dependency into src/jx_include\n"
+     "  fulldist                make a release tarball for current package\n"
+     "\n"
+     "DEBUG COMMANDS\n"
+     "  man                     show the manual\n"
+     "  tree                    tree $HOME/.jex/\n"
+     "  cfgbarf                 barf out the jex.eterms file (mostly to make sure it parses correctly)\n"
+     "  echo home               echo $HOME\n"
+     "  echo jexdir             echo $HOME/.jex\n"
+     "  echo devdir             echo $HOME/.jex/dev\n"
+     "  echo docsdir            echo $HOME/.jex/docs\n"
+     "  echo tmpdir             echo $HOME/.jex/tmp\n"
+     "  echo pkgname            name of current package\n"
+     "  echo pkg_devdir         echo $HOME/.jex/dev/realm-name-X.Y.Z\n"
+     "  echo pkg_devdir PKG     echo $HOME/.jex/dev/PKG\n"
+     "  echo pkg_docsdir        echo $HOME/.jex/docs/realm-name-X.Y.Z\n"
+     "  echo pkg_docsdir PKG    echo $HOME/.jex/docs/PKG\n"
+     "  echo pkg_tmpdir         echo $HOME/.jex/tmp/realm-name-X.Y.Z\n"
+     "  echo pkg_tmpdir PKG     echo $HOME/.jex/tmp/PKG\n"
+     "  echo deps               list dependencies of current package\n"
+     "  echo serverpid [PORT]   show the pid for the documentation server, if alive\n"
     ].
 
 
-dispatch(["man"])                          -> man();
+%% Porcelain
 dispatch(["dwim-"])                        -> dwim(minus);
 dispatch(["dwim+"])                        -> dwim(plus);
 dispatch(["dwim++"])                       -> dwim(plus_plus);
-dispatch(["cfgbarf"])                      -> cfgbarf();
-dispatch(["echo", "home"])                 -> echo(home);
-dispatch(["echo", "jexdir"])               -> echo(jexdir);
-dispatch(["echo", "devdir"])               -> echo(devdir);
-dispatch(["echo", "docsdir"])              -> echo(docsdir);
-dispatch(["echo", "pkgname"])              -> echo(pkgname);
-dispatch(["echo", "pkg_devdir"])           -> echo(pkg_devdir);
-dispatch(["echo", "pkg_devdir", PkgName])  -> echo({pkg_devdir, PkgName});
-dispatch(["echo", "pkg_docsdir"])          -> echo(pkg_docsdir);
-dispatch(["echo", "pkg_docsdir", PkgName]) -> echo({pkg_docsdir, PkgName});
-dispatch(["echo", "deps"])                 -> echo(deps);
+dispatch(["ls"])                           -> ls();
+dispatch(["viewdocs"])                     -> viewdocs();
+dispatch(["viewdocs", Pkg])                -> viewdocs(Pkg);
+dispatch(["viewdocs", Pkg, Port])          -> viewdocs(Pkg, Port);
+%% plumbing
 dispatch(["init"])                         -> init();
 dispatch(["build" | Opts])                 -> build(Opts);
 dispatch(["mindist" | Opts])               -> mindist(Opts);
 dispatch(["push"])                         -> push();
 dispatch(["mkdocs"])                       -> mkdocs();
 dispatch(["pushdocs"])                     -> pushdocs();
-dispatch(["viewdocs", Pkg])                -> viewdocs(Pkg);
-dispatch(["viewdocs", Pkg, Port])          -> viewdocs(Pkg, Port);
-dispatch(["ls"])                           -> ls();
-dispatch(["tree"])                         -> tree();
 dispatch(["rmpkg", Pkg])                   -> rmpkg(Pkg);
 dispatch(["pull"])                         -> pull();
+dispatch(["fulldist"])                     -> fulldist();
+%% Debug
+dispatch(["man"])                          -> man();
+dispatch(["tree"])                         -> tree();
+dispatch(["cfgbarf"])                      -> cfgbarf();
+dispatch(["echo", "home"])                 -> echo(home);
+dispatch(["echo", "jexdir"])               -> echo(jexdir);
+dispatch(["echo", "devdir"])               -> echo(devdir);
+dispatch(["echo", "docsdir"])              -> echo(docsdir);
+dispatch(["echo", "tmpdir"])               -> echo(tmpdir);
+dispatch(["echo", "pkgname"])              -> echo(pkgname);
+dispatch(["echo", "pkg_devdir"])           -> echo(pkg_devdir);
+dispatch(["echo", "pkg_devdir", PkgName])  -> echo({pkg_devdir, PkgName});
+dispatch(["echo", "pkg_docsdir"])          -> echo(pkg_docsdir);
+dispatch(["echo", "pkg_docsdir", PkgName]) -> echo({pkg_docsdir, PkgName});
+dispatch(["echo", "deps"])                 -> echo(deps);
+dispatch(["echo", "serverpid"])            -> echo(serverpid);
+dispatch(["echo", "serverpid", Port])      -> echo({serverpid, Port});
 dispatch(_)                                -> help().
 
 
@@ -117,7 +141,7 @@ dispatch(_)                                -> help().
 man() ->
     ManFile = filename:join([zx:get_home(), "priv", "MANUAL.txt"]),
     {ok, ManBytes} = file:read_file(ManFile),
-    io:format("~ts~n", [string:chomp(ManBytes)]).
+    tell(info, "~ts~n", [string:chomp(ManBytes)]).
     %os:cmd(io_lib:format("less ~ts", [ManFile])),
     %ok.
 
@@ -145,7 +169,7 @@ dwim(plus_plus) ->
 %%-----------------------------------------------------------------------------
 
 cfgbarf() ->
-    io:format("~tp~n", [file:consult("jex.eterms")]).
+    tell(info, "~tp~n", [file:consult("jex.eterms")]).
 
 
 cfg() ->
@@ -163,6 +187,8 @@ echo(devdir) ->
     tell(info, "~ts", [devdir()]);
 echo(docsdir) ->
     tell(info, "~ts", [docsdir()]);
+echo(tmpdir) ->
+    tell(info, "~ts", [tmpdir()]);
 echo(pkgname) ->
     tell(info, "~ts", [pkgname()]);
 echo(pkg_devdir) ->
@@ -181,9 +207,22 @@ echo({pkg_docsdir, PkgName}) ->
         {exists, Dir} -> tell(info, "~ts", [Dir]);
         Error         -> tell(error, "Error: ~tp", [Error])
     end;
+echo(pkg_tmpdir) ->
+    {_Exists, PkgTmpDir} = pkg_tmpdir(),
+    tell(info, "~ts", [PkgTmpDir]);
+echo({pkg_tmpdir, PkgName}) ->
+    case pkg_tmpdir(PkgName) of
+        {exists, Dir} -> tell(info, "~ts", [Dir]);
+        Error         -> tell(error, "Error: ~tp", [Error])
+    end;
 echo(deps) ->
     PrintDep = fun(Dep) -> tell(info, "~ts", [Dep]) end,
-    lists:foreach(PrintDep, deps()).
+    lists:foreach(PrintDep, deps());
+echo(serverpid) ->
+    tell(info, "~ts~n", [serverpid(6969)]);
+echo({serverpid, PortS}) ->
+    PortN = list_to_integer(PortS),
+    tell(info, "~ts~n", [serverpid(PortN)]).
 
 
 home() ->
@@ -202,12 +241,17 @@ devdir() ->
 docsdir() ->
     filename:join(jexdir(), "docs").
 
+tmpdir() ->
+    filename:join(jexdir(), "tmp").
+
 pkgname() ->
     {ok, Cfg} = cfg(),
     Realm = proplists:get_value(realm, Cfg),
     Name  = proplists:get_value(name, Cfg),
     Vsn   = proplists:get_value(version, Cfg),
     io_lib:format("~tp-~tp-~ts", [Realm, Name, Vsn]).
+
+
 
 pkg_devdir() ->
     pkg_devdir(pkgname()).
@@ -219,6 +263,7 @@ pkg_devdir(Pkg) ->
         false   -> {dne, Filename}
     end.
 
+
 pkg_docsdir() ->
     pkg_docsdir(pkgname()).
 
@@ -228,6 +273,19 @@ pkg_docsdir(PkgName) ->
         true    -> {exists, Filename};
         false   -> {dne, Filename}
     end.
+
+
+
+pkg_tmpdir() ->
+    pkg_tmpdir(pkgname()).
+
+pkg_tmpdir(PkgName) ->
+    Filename = filename:join([tmpdir(), PkgName]),
+    case file_exists(Filename) of
+        true    -> {exists, Filename};
+        false   -> {dne, Filename}
+    end.
+
 
 
 deps() ->
@@ -256,6 +314,7 @@ file_exists(Filename) ->
 init() ->
     _  = cmd(["mkdir -p ", devdir()]),
     _  = cmd(["mkdir -p ", docsdir()]),
+    _  = cmd(["mkdir -p ", tmpdir()]),
     ok.
 
 
@@ -299,7 +358,11 @@ mindist(Opts) ->
                  % flags              if flag         default
     OptsConfig = [{["-f", "--force"], {force, force}, {force, dont_force}}],
     #{force := Force} = parseopts(OptsConfig, Opts),
-    _ = cmd("rm -r jex_mindist"),
+    ok =
+        case file_exists("jex_mindist") of
+            true  -> _ = cmd("rm -r jex_mindist"), ok;
+            false -> ok
+        end,
     _ = cmd("mkdir -p jex_mindist"),
     _ = mindist_cp(Force),
     _ = cmd("rm -r jex_mindist/src/jex_include"),
@@ -321,10 +384,15 @@ mindist_cp(force) ->
 %%-----------------------------------------------------------------------------
 
 push() ->
-    {_Exists, PackageDestination} = pkg_devdir(),
-    _ = cmd(["rm -r ", PackageDestination]),
-    _ = cmd(["rsync -avv jex_mindist/ ", PackageDestination()]),
-    ok.
+    case pkg_devdir() of
+        {exists, Dest} ->
+            _ = cmd(["rm -r ", Dest]),
+            _ = cmd(["rsync -avv jex_mindist/ ", Dest]),
+            ok;
+        {dne, Dest} ->
+            _ = cmd(["rsync -avv jex_mindist/ ", Dest]),
+            ok
+    end.
 
 
 %%-----------------------------------------------------------------------------
@@ -350,11 +418,11 @@ tree() ->
 rmpkg(Pkg) ->
     case pkg_devdir(Pkg) of
         {exists, Filename} -> cmd(io_lib:format("rm -r ~ts", [Filename]));
-        {dne, Filename}    -> tell(error, "package not installed: ~ts", [Pkg])
+        {dne, _ilename}    -> tell(error, "package not installed: ~ts", [Pkg])
     end,
     case pkg_docsdir(Pkg) of
-        {exists, Filename} -> cmd(io_lib:format("rm -r ~ts", [Filename]));
-        {dne, Filename}    -> tell(error, "documentation not installed: ~ts", [Pkg])
+        {exists, Filename2} -> cmd(io_lib:format("rm -r ~ts", [Filename2]));
+        {dne, _ilename2}    -> tell(error, "documentation not installed: ~ts", [Pkg])
     end,
     ok.
 
@@ -407,30 +475,95 @@ pushdocs() ->
 %% jex viewdocs
 %%-----------------------------------------------------------------------------
 
-viewdocs(Pkg) ->
-    viewdocs(Pkg, 6969).
 
-viewdocs(Pkg, Port) ->
-    case pkg_docsdir(Pkg) of
-        {exists, DocsPath} -> viewdocs2(DocsPath, Port);
-        DNE                -> error(DNE)
+viewdocs() ->
+    viewdocs(all, 6969).
+
+viewdocs(PkgName) ->
+    viewdocs(PkgName, 6969).
+
+viewdocs(all, Port) ->
+    ok = ensure_docserver(Port),
+    firefox(all, Port);
+viewdocs(PkgName, Port) ->
+    ok = ensure_docserver(Port),
+    case pkg_docsdir(PkgName) of
+        {exists, _} -> firefox(PkgName, Port);
+        DNE         -> error(DNE)
     end.
 
-viewdocs2(DocsPath, Port) ->
-    spawn_link(fun() -> servedocs(DocsPath, Port) end),
-    firefox(Port).
+% if the server is up, just return, otherwise, spin it up
+ensure_docserver(Port) ->
+    case serverpid(Port) of
+        ""   -> spawn(fun() -> servedocs(docsdir(), Port) end), ok;
+        _Pid -> ok
+    end.
 
 servedocs(DocsPath, Port) ->
-    _ = cmd(io_lib:format("cd ~ts && python3 -m http.server ~tp", [DocsPath, Port])),
+    _  = cmd(io_lib:format("cd ~ts && ~ts", [DocsPath, pythoncmd(Port)])),
     ok.
 
-firefox(Port) ->
+pythoncmd(Port) ->
+    io_lib:format("python3 -m http.server ~tp", [Port]).
+
+
+firefox(all, Port) ->
     _ = cmd(io_lib:format("firefox localhost:~tp", [Port])),
+    ok;
+firefox(PkgName, Port) ->
+    _ = cmd(io_lib:format("firefox localhost:~tp/~ts", [Port, PkgName])),
     ok.
+
+serverpid(Port) ->
+    string:chomp(cmd(io_lib:format("ps ax | grep '~ts' | grep --invert-match grep | awk '{print $1}'", [pythoncmd(Port)]))).
+
+
+%%-----------------------------------------------------------------------------
+%% jex fulldist
+%%-----------------------------------------------------------------------------
+
+fulldist() ->
+    PkgName = pkgname(),
+    PkgTmpDir =
+        case pkg_tmpdir() of
+            {exists, D} ->
+                _ = cmd(io_lib:format("rm -r ~ts", [D])),
+                D;
+            {dne, D} ->
+                D
+        end,
+    ReadmePath = srsly_readme_path(),
+    _ = cmdf("mkdir -p ~ts",          [PkgTmpDir]),
+    _ = cmdf("cp    jex.eterms  ~ts", [PkgTmpDir]),
+    _ = cmdf("cp -r docs        ~ts", [PkgTmpDir]),
+    _ = cmdf("cp -r jex_mindist ~ts", [PkgTmpDir]),
+    _ = cmdf("cp    ~ts         ~ts", [ReadmePath, PkgTmpDir]),
+    GenTmpDir = tmpdir(),
+    {ok, OriginalDir} = file:get_cwd(),
+    _ = cmdf("cd ~ts"
+             "&& tar -czf ~ts.tar.gz ~ts"
+             "&& rm -r ~ts"
+             "&& mv ~ts.tar.gz ~ts",
+             [GenTmpDir,
+              PkgName, PkgName,
+              PkgName,
+              PkgName, OriginalDir]),
+    ok.
+
+
+
+
+srsly_readme_path() ->
+    filename:join([zx:get_home(), "priv", "SERIOUSLY_README.txt"]).
+
 
 %%-----------------------------------------------------------------------------
 %% INTERNALS
 %%-----------------------------------------------------------------------------
+
+cmdf(Format, Args) ->
+    cmd(io_lib:format(Format, Args)).
+
 cmd(Command) ->
     ok = tell("$ ~ts", [Command]),
     S  = os:cmd(Command),
