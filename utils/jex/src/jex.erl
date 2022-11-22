@@ -36,7 +36,7 @@ help() ->
 % TODONE: delete before pushdocs
 % TODONE: jex viewdocs PKG [port]
 % TODONE: jex fulldist
-% TODO: jex install
+% TODONE: jex install
 % TODO: jex get_mindist PKG
 
 % TODO: use less than full qualified names (not priority)
@@ -100,9 +100,11 @@ dispatch(["dwim-"])                        -> dwim(minus);
 dispatch(["dwim+"])                        -> dwim(plus);
 dispatch(["dwim++"])                       -> dwim(plus_plus);
 dispatch(["ls"])                           -> ls();
+dispatch(["install", Path])                -> install(Path);
 dispatch(["viewdocs"])                     -> viewdocs();
 dispatch(["viewdocs", Pkg])                -> viewdocs(Pkg);
 dispatch(["viewdocs", Pkg, Port])          -> viewdocs(Pkg, Port);
+dispatch(["get_mindist", Pkg])             -> get_mindist(Pkg);
 %% plumbing
 dispatch(["init"])                         -> init();
 dispatch(["build" | Opts])                 -> build(Opts);
@@ -394,6 +396,21 @@ push() ->
             ok
     end.
 
+%%-----------------------------------------------------------------------------
+%% jex pushdocs
+%%-----------------------------------------------------------------------------
+
+pushdocs() ->
+    case pkg_docsdir() of
+        {exists, DocsDestDir} ->
+            _ = cmd(["rm -r ", DocsDestDir]),
+            _ = cmd(["rsync -avv docs/ ", DocsDestDir]),
+            ok;
+        {dne, DocsDestDir} ->
+            _ = cmd(["rsync -avv docs/ ", DocsDestDir]),
+            ok
+    end.
+
 
 %%-----------------------------------------------------------------------------
 %% jex ls
@@ -460,15 +477,6 @@ mkdocs() ->
     _ = cmd("npx typedoc --entryPointStrategy expand --sort source-order src"),
     ok.
 
-%%-----------------------------------------------------------------------------
-%% jex pushdocs
-%%-----------------------------------------------------------------------------
-
-pushdocs() ->
-    {_Exists, DocsDestDir} = pkg_docsdir(),
-    _ = cmd(["rm -r ", DocsDestDir]),
-    _ = cmd(["rsync -avv docs/ ", DocsDestDir]),
-    ok.
 
 
 %%-----------------------------------------------------------------------------
@@ -551,10 +559,56 @@ fulldist() ->
     ok.
 
 
-
-
 srsly_readme_path() ->
     filename:join([zx:get_home(), "priv", "SERIOUSLY_README.txt"]).
+
+
+%%-----------------------------------------------------------------------------
+%% jex install TARBALL_PATH
+%%-----------------------------------------------------------------------------
+
+install(TarballPath) ->
+    case file_exists(TarballPath) of
+        false -> error({file_dne, TarballPath});
+        true  -> install2(TarballPath)
+    end.
+
+install2(TarballPath) ->
+    init(),
+    % ~/.jex/tmp
+    GenTmpDir = tmpdir(),
+    % local-sidekick-0.2.0
+    PkgName   = gasoline(TarballPath),
+    % **copy** the tarball to ~/.jex/tmp
+    _ = cmdf("cp ~ts ~ts", [TarballPath, GenTmpDir]),
+    % unpack the tarball
+    _ = cmdf("cd ~ts"                       % cd ~/.jex/tmp
+             " && tar -xzf ~ts.tar.gz",     %  && tar -xzf local-sidekick-0.2.0.tar.gz
+             [GenTmpDir,
+              PkgName]),
+    % actually do the install
+    % ~/.jex/tmp/local-sidekick-0.2.0
+    PkgTmpDir     = filename:join([GenTmpDir, PkgName]),
+    {ok, OrigDir} = file:get_cwd(),
+    ok            = file:set_cwd(PkgTmpDir),
+    ok            = push(),
+    ok            = pushdocs(),
+    % clean up
+    % delete the tmp tarball
+    _ = cmdf("rm ~ts/~ts.tar.gz", [GenTmpDir, PkgName]),
+    % delete the tmp tree
+    _ = cmdf("rm -r ~ts/~ts", [GenTmpDir, PkgName]),
+    % change back to original directory
+    ok = file:set_cwd(OrigDir),
+    % we're done I think
+    ok.
+
+
+% remove slashes and .tar.gz
+gasoline(TarballPath) ->
+    Filename_tar_gz = lists:last(string:split(TarballPath, "/", trailing)),
+    [Filename | _]  = string:split(Filename_tar_gz, ".tar.gz", leading),
+    Filename.
 
 
 %%-----------------------------------------------------------------------------
