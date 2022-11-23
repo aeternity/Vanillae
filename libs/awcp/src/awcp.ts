@@ -140,30 +140,10 @@
  * @module
  */
 
-// TODO: TS code style guide
-// TODO: annotate everything with examples
 // TODONE: enumerate RPC errors
-// TODO: move Safe in here
+// TODO: examples
+
 // TODO: constants for method names
-
-
-//=============================================================================
-// IMPORTS
-//=============================================================================
-
-//import type {
-//    ERROR_TYPE_RpcInvalidTransactionError,
-//    ERROR_TYPE_RpcBroadcastError,
-//    ERROR_TYPE_RpcRejectedByUserError,
-//    ERROR_TYPE_RpcUnsupportedProtocolError,
-//    ERROR_TYPE_RpcConnectionDenyError,
-//    ERROR_TYPE_RpcNotAuthorizeError,
-//    ERROR_TYPE_RpcPermissionDenyError,
-//    ERROR_TYPE_RpcInternalError,
-//    ERROR_TYPE_RpcMethodNotFoundError,
-//} from './errcode.js';
-
-
 
 
 //=============================================================================
@@ -226,6 +206,13 @@ export {
     RpcResp_W2A_tx_sign_noprop,
     EventData_A2W_tx_sign_noprop,
     EventData_W2A_tx_sign_noprop
+    // transaction.sign (do not propagate)
+    Params_A2W_msg_sign,
+    Result_W2A_msg_sign,
+    RpcCall_A2W_msg_sign,
+    RpcResp_W2A_msg_sign,
+    EventData_A2W_msg_sign,
+    EventData_W2A_msg_sign
 };
 
 
@@ -671,6 +658,71 @@ type Params_A2W_tx_sign_noprop
     = {tx           : string,
        returnSigned : true,
        networkId    : string}
+
+
+
+/**
+ * Success result type for "transaction.sign" (do not propagate)
+ *
+ * (layer 4)
+ */
+type Result_W2A_tx_sign_noprop
+    = {signedTransaction : string};
+
+
+/**
+ * Request type for "transaction.sign" (do not propagate)
+ *
+ * (layer 3)
+ */
+type RpcCall_A2W_tx_sign_noprop
+    = RpcCall<"transaction.sign",
+              Params_A2W_tx_sign_noprop>;
+
+
+
+/**
+ * Response type for "transaction.sign" (do not propagate)
+ *
+ * (layer 3)
+ */
+type RpcResp_W2A_tx_sign_noprop
+    = RpcResp<"transaction.sign",
+              Result_W2A_tx_sign_noprop>;
+
+
+
+/**
+ * Event data for aepp-to-waellet "transaction.sign" (do not propagate) message
+ *
+ * (layer 2)
+ */
+type EventData_A2W_tx_sign_noprop
+    = EventData_A2W<RpcCall_A2W_tx_sign_noprop>;
+
+
+
+/**
+ * Event data for aepp-to-waellet "transaction.sign" (do not propagate) response
+ *
+ * (layer 2)
+ */
+type EventData_W2A_tx_sign_noprop
+    = EventData_W2A<RpcResp_W2A_tx_sign_noprop>;
+
+
+//----------------------------------------------------------------------------
+// message.sign
+//----------------------------------------------------------------------------
+
+/**
+ * Parameters for "transaction.sign" (do not propagate)
+ *
+ * (layer 4)
+ */
+type Params_A2W_msg_sign
+    = {message   : string,
+       onAccount : string}
 
 
 
