@@ -716,7 +716,14 @@ type EventData_W2A_tx_sign_noprop
 //----------------------------------------------------------------------------
 
 /**
- * Parameters for "transaction.sign" (do not propagate)
+ * Parameters for "message.sign"
+ *
+ * FIXME: example
+ *
+ * ```ts
+ * {message   : 'hello world',
+ *  onAccount : 'ak_...'}
+ * ```
  *
  * (layer 4)
  */
@@ -727,50 +734,50 @@ type Params_A2W_msg_sign
 
 
 /**
- * Success result type for "transaction.sign" (do not propagate)
+ * Success result type for "message.sign"
  *
  * (layer 4)
  */
-type Result_W2A_tx_sign_noprop
-    = {signedTransaction : string};
+type Result_W2A_msg_sign
+    = {signature : string};
 
 
 /**
- * Request type for "transaction.sign" (do not propagate)
+ * Request type for "message.sign" (do not propagate)
  *
  * (layer 3)
  */
-type RpcCall_A2W_tx_sign_noprop
-    = RpcCall<"transaction.sign",
-              Params_A2W_tx_sign_noprop>;
+type RpcCall_A2W_msg_sign
+    = RpcCall<"message.sign"
+              Params_A2W_msg_sign>;
 
 
 
 /**
- * Response type for "transaction.sign" (do not propagate)
+ * Response type for "message.sign" (do not propagate)
  *
  * (layer 3)
  */
-type RpcResp_W2A_tx_sign_noprop
-    = RpcResp<"transaction.sign",
-              Result_W2A_tx_sign_noprop>;
+type RpcResp_W2A_msg_sign
+    = RpcResp<"message.sign",
+              Result_W2A_msg_sign>;
 
 
 
 /**
- * Event data for aepp-to-waellet "transaction.sign" (do not propagate) message
+ * Event data for aepp-to-waellet "message.sign" (do not propagate) message
  *
  * (layer 2)
  */
-type EventData_A2W_tx_sign_noprop
-    = EventData_A2W<RpcCall_A2W_tx_sign_noprop>;
+type EventData_A2W_msg_sign
+    = EventData_A2W<RpcCall_A2W_msg_sign>;
 
 
 
 /**
- * Event data for aepp-to-waellet "transaction.sign" (do not propagate) response
+ * Event data for aepp-to-waellet "message.sign" (do not propagate) response
  *
  * (layer 2)
  */
-type EventData_W2A_tx_sign_noprop
-    = EventData_W2A<RpcResp_W2A_tx_sign_noprop>;
+type EventData_W2A_msg_sign
+    = EventData_W2A<RpcResp_W2A_msg_sign>;
