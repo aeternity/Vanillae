@@ -206,7 +206,7 @@ export {
     RpcResp_W2A_tx_sign_noprop,
     EventData_A2W_tx_sign_noprop,
     EventData_W2A_tx_sign_noprop
-    // transaction.sign (do not propagate)
+    // message.sign
     Params_A2W_msg_sign,
     Result_W2A_msg_sign,
     RpcCall_A2W_msg_sign,
@@ -216,6 +216,8 @@ export {
 };
 
 
+// TODO: Give examples for everything
+// TODO: Add back in transaction.sign and propagate
 
 //=============================================================================
 // LAYER 2: WHO IS THIS MESSAGE FOR
@@ -227,6 +229,19 @@ export {
 /**
  * This is the data that is sent from the wallet to the aepp through the Event
  * bus
+ *
+ * @example
+ *
+ * ```ts
+ * {type : "to_aepp",
+ *  data : {jsonrpc : "2.0",
+ *          method  : "connection.announcePresence",
+ *          params  : {id        : "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
+ *                     name      : "Superhero",
+ *                     networkId : "ae_mainnet",
+ *                     origin    : "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
+ *                     type      : "extension"}}}
+ * ```
  */
 type EventData_W2A
     <t extends any>
@@ -234,15 +249,25 @@ type EventData_W2A
        data : t};
 
 
+
 /**
  * This is the data that is sent from the aepp to the wallet through the Event
  * bus
+ *
+ * @example
+ * ```ts
+ * {type : "to_waellet",
+ *  data : {jsonrpc : "2.0",
+ *          id      : "ske-connect-1",
+ *          method  : "connection.open",
+ *          params  : {name    : "sidekick examples",
+ *                     version : 1}}}
+ * ```
  */
 type EventData_A2W
     <t extends any>
     = {type : "to_waellet",
        data : t};
-
 
 
 
@@ -325,6 +350,8 @@ const ERROR_CODE_RpcPermissionDenyError = 11;
 /**
  * This is the general "something went wrong, i dunno" negative error.
  *
+ * `const ERROR_CODE_RpcInternalError = 12;`
+ *
  * See https://github.com/aeternity/aepp-sdk-js/blob/1065da9a46b8dbfe60a2c3e5646e7422ee7e495e/src/aepp-wallet-communication/schema.ts#L196-L209
  */
 const ERROR_CODE_RpcInternalError = 12;
@@ -333,13 +360,22 @@ const ERROR_CODE_RpcInternalError = 12;
 /**
  * This is presumably the equivalent of the HTTP 404 error
  *
+ * `const ERROR_CODE_RpcMethodNotFoundError = -32601;`
+ *
  * See https://github.com/aeternity/aepp-sdk-js/blob/1065da9a46b8dbfe60a2c3e5646e7422ee7e495e/src/aepp-wallet-communication/schema.ts#L211-L224
  */
 const ERROR_CODE_RpcMethodNotFoundError = -32601;
 
 
 /**
- * Error data inside the `error` field of a RpcResp_Err
+ * Error data inside the `error` field of a `RpcResp_Err`
+ *
+ * @example
+ * ```ts
+ * {code    : 4,
+ *  data    : {},
+ *  message : "Operation rejected by user"}
+ * ```
  */
 type RpcError
     = {code    : number,
@@ -357,6 +393,17 @@ type RpcError
  * This type is used for "notifications", i.e. messages sent from the client to
  * the server that do not need a response. An example is the wallet announcing
  * it exists.
+ *
+ * @example
+ * ```ts
+ * {jsonrpc : "2.0",
+ *  method  : "connection.announcePresence",
+ *  params  : {id        : "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
+ *             name      : "Superhero",
+ *             networkId : "ae_mainnet",
+ *             origin    : "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
+ *             type      : "extension"}}
+ * ```
  */
 type RpcCast
     <method_s extends string,
@@ -451,12 +498,22 @@ type RpcResp_Any = RpcResp<string, any>;
  * Waellet-to-aepp parameters of "connection.announcePresence" cast
  *
  * (layer 4)
+ *
+ * @example
+ * ```ts
+ * {id        : "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
+ *  name      : "Superhero",
+ *  networkId : "ae_uat",
+ *  origin    : "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
+ *  type      : "extension"}
+ * ```
  */
 type Params_W2A_connection_announcePresence
-    = {id     : string,
-       name   : string,
-       origin : string,
-       type   : "window" | "extension"};
+    = {id        : string,
+       name      : string,
+       networkId : string,
+       origin    : string,
+       type      : "window" | "extension"};
 
 
 
@@ -464,6 +521,17 @@ type Params_W2A_connection_announcePresence
  * Shape of the waellet-to-aepp "connection.announcePresence" RPC cast
  *
  * (layer 3)
+ *
+ * @example
+ * ```ts
+ * {jsonrpc : "2.0",
+ *  method  : "connection.announcePresence",
+ *  params  : {id        : "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
+ *             name      : "Superhero",
+ *             networkId : "ae_mainnet",
+ *             origin    : "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
+ *             type      : "extension"}}
+ * ```
  */
 type RpcCast_W2A_connection_announcePresence
     = RpcCast<"connection.announcePresence",
@@ -476,22 +544,15 @@ type RpcCast_W2A_connection_announcePresence
  * (layer 2)
  *
  * @example
- *
- * ```json
- * {
- *     "type": "to_aepp",
- *     "data": {
- *         "jsonrpc": "2.0",
- *         "method": "connection.announcePresence",
- *         "params": {
- *             "id": "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
- *             "name": "Superhero",
- *             "networkId": "ae_mainnet",
- *             "origin": "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
- *             "type": "extension"
- *         }
- *     }
- * }
+ * ```ts
+ * {type: "to_aepp",
+ *  data: {jsonrpc: "2.0",
+ *         method: "connection.announcePresence",
+ *         params: {id        : "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
+ *                  name      : "Superhero",
+ *                  networkId : "ae_mainnet",
+ *                  origin    : "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
+ *                  type      : "extension"}}}
  * ```
  */
 type EventData_W2A_connection_announcePresence
