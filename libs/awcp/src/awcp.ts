@@ -10,11 +10,76 @@
  * ```
  *
  * You then communicate with the wallet by sending messages back over the
- * `EventTarget`
+ * `EventTarget`. You should probably use the [sidekick
+ * library](https://github.com/aeternity/Vanillae/tree/master/sidekick) to do
+ * this.
+ *
+ * Keep in mind that these messages are not secret. Any browser extension or
+ * foreign page script can intercept these messages.  Imagine as an (imperfect)
+ * analogy that you work in an office.  Everyone's mail is dumped on the floor
+ * in the middle of the office, and you are responsible for picking out which
+ * letters are addressed to you.  Anyone else can pick up letters addressed to
+ * you, and read them.
  *
  * This module defines the shape of the messages that are sent. There are several
  * layers to the onion, each corresponding to natural branch points in the
  * protocol.
+ *
+ * @example
+ * ```ts
+ * // this is a aepp-to-wallet call which is sent to `window` by say sidekick
+ * // layer 2       layer 3                     layer 4
+ * // EventData_A2W<RpcCall<"connection.open", Params_A2W_connection_open>>)
+ * // layer 2: who is the message for
+ * {type : "to_waellet",
+ *         // layer 3: json rpc
+ *  data : {jsonrpc : "2.0",
+ *          id      : "ske-connect-1",
+ *          method  : "connection.open",
+ *                    // layer 4: AWCP-specific semantics
+ *          params  : {name    : "sidekick examples",
+ *                     version : 1}}}
+ *
+ *
+ * // this is the associated wallet-to-aepp response which is sent to `window`
+ * // by Superhero
+ * // layer 2       layer 3                       layer 4
+ * // EventData_W2A<RpcResp_ok<"connection.open", Result_W2A_connection_open>>)
+ * // layer 2: who is the message for
+ * {type : "to_aepp",
+ *         // layer 3: json rpc
+ *  data : {jsonrpc : "2.0",
+ *          id      : "ske-connect-1",
+ *          method  : "connection.open",
+ *                    // layer 4: AWCP-specific semantics
+ *          result  : {id        : "mnhmmkepfddpifjkamaligfeemcbhdne",
+ *                     name      : "Superhero",
+ *                     networkId : "ae_mainnet",
+ *                     origin    : "chrome-extension://mnhmmkepfddpifjkamaligfeemcbhdne",
+ *                     type      : "extension"}}}
+ * ```
+ *
+ * @example
+ * ```ts
+ * // this is a waellet-to-aepp cast (RPC verbiage: "notification"). It does
+ * // not require a response.
+ *
+ * // layer 2       layer 3                                 layer 4
+ * // EventData_W2A<RpcCast<"connection.announcePresence", Params_W2A_connection_announcePresence>>)
+ * // layer 2: who is the message for
+ * {type : "to_aepp",
+ *         // layer 3: json rpc
+ *  data : {jsonrpc : "2.0",
+ *          method  : "connection.announcePresence",
+ *                    // layer 4: AWCP-specific semantics
+ *          params  : {id        : "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
+ *                     name      : "Superhero",
+ *                     networkId : "ae_mainnet",
+ *                     origin    : "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
+ *                     type      : "extension"}}}
+ * ```
+ *
+ *
  *
  * 1.  The `MessageEvent` layer.  This is what is actually sent as an event.
  *     This is an opaque object that is built into every runtime's standard
@@ -26,8 +91,8 @@
  * 2.  The `EventData` layer. This is what goes in `message_event.data`. The
  *     structure that goes in here is one of
  *
- *     1. `EventData_W2A`: waellet-to-aepp
- *     2. `EventData_A2W`: aepp-to-waellet
+ *     1. {@link EventData_W2A}: waellet-to-aepp
+ *     2. {@link EventData_A2W}: aepp-to-waellet
  *
  *     This layer corresponds to the "am I supposed to pay attention to this
  *     event?" branch point.
@@ -108,7 +173,7 @@
  * 2. more accurately represent how it is used in practice
  *
  * The only difference here is that the `params` field of requests is
- * non-optional, and must be an object (the RPC standard allows arrays).
+ * non-optional, and __must be an object__ (the RPC standard allows arrays).
  *
  * ## Requests
  *
@@ -125,8 +190,8 @@
  *     1. __DO__ have an `id` field
  *     2. __AND__ __DO__ require a response.
  *
- * The `RpcCall` and `RpcResp` data structures each have an `id_n` type
- * parameter.
+ * The {@link RpcCall} and {@link RpcResp} data structures each have an `id_n`
+ * type parameter.
  *
  * The purpose of this is to notate (and possibly enforce) at the type level
  * the constraint that, given a call with say `id = 7`, the response must also
@@ -135,14 +200,14 @@
  * # Links
  *
  * - `MessageEvent`s: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent
- * - JSON RPC 2.0 https://www.jsonrpc.org/specification
+ * - JSON RPC 2.0: https://www.jsonrpc.org/specification
  *
  * @module
  */
 
 // TODONE: enumerate RPC errors
 // TODO: examples
-
+// TODO: transaction.sign and propagate
 // TODO: constants for method names
 
 
@@ -205,7 +270,7 @@ export {
     RpcCall_A2W_tx_sign_noprop,
     RpcResp_W2A_tx_sign_noprop,
     EventData_A2W_tx_sign_noprop,
-    EventData_W2A_tx_sign_noprop
+    EventData_W2A_tx_sign_noprop,
     // message.sign
     Params_A2W_msg_sign,
     Result_W2A_msg_sign,
@@ -215,9 +280,6 @@ export {
     EventData_W2A_msg_sign
 };
 
-
-// TODO: Give examples for everything
-// TODO: Add back in transaction.sign and propagate
 
 //=============================================================================
 // LAYER 2: WHO IS THIS MESSAGE FOR
@@ -230,12 +292,16 @@ export {
  * This is the data that is sent from the wallet to the aepp through the Event
  * bus
  *
- * @example
+ * (layer 2)
  *
+ * @example
  * ```ts
+ * // layer 2: who is the message for
  * {type : "to_aepp",
+ *         // layer 3: JSON RPC
  *  data : {jsonrpc : "2.0",
  *          method  : "connection.announcePresence",
+ *                    // layer 4: AWCP-specific semantics
  *          params  : {id        : "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
  *                     name      : "Superhero",
  *                     networkId : "ae_mainnet",
@@ -256,10 +322,13 @@ type EventData_W2A
  *
  * @example
  * ```ts
+ * // layer 2: who is the message for
  * {type : "to_waellet",
+ *         // layer 3: json rpc
  *  data : {jsonrpc : "2.0",
  *          id      : "ske-connect-1",
  *          method  : "connection.open",
+ *                    // layer 4: AWCP-specific semantics
  *          params  : {name    : "sidekick examples",
  *                     version : 1}}}
  * ```
@@ -370,6 +439,8 @@ const ERROR_CODE_RpcMethodNotFoundError = -32601;
 /**
  * Error data inside the `error` field of a `RpcResp_Err`
  *
+ * (layer 3)
+ *
  * @example
  * ```ts
  * {code    : 4,
@@ -394,10 +465,14 @@ type RpcError
  * the server that do not need a response. An example is the wallet announcing
  * it exists.
  *
+ * (layer 3)
+ *
  * @example
  * ```ts
+ * //layer 3: JSON RPC
  * {jsonrpc : "2.0",
  *  method  : "connection.announcePresence",
+ *            // layer 4: AWCP-specific semantics
  *  params  : {id        : "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
  *             name      : "Superhero",
  *             networkId : "ae_mainnet",
@@ -413,10 +488,22 @@ type RpcCast
        params  : params_t};
 
 
-
 /**
  * This type is used for requests from the client to the server that require a
  * response.
+ *
+ * (layer 3)
+ *
+ * @example
+ * ```ts
+ * // layer 3: json rpc
+ * {jsonrpc : "2.0",
+ *  id      : "ske-connect-1",
+ *  method  : "connection.open",
+ *            // layer 4: AWCP-specific semantics
+ *  params  : {name    : "sidekick examples",
+ *             version : 1}}}
+ * ```
  */
 type RpcCall
     <method_s extends string,
@@ -435,6 +522,24 @@ type RpcCall
 
 /**
  * This is the shape of unsuccessful responses
+ *
+ * @example
+ * From a page script, using sidekick, I asked for the user's address.
+ * Superhero popped up the little dialog thing asking if I wanted to connect,
+ * and I hit "deny". This is what was sent back. Code `4` corresponds to
+ * {@link ERROR_CODE_RpcRejectedByUserError}.
+ *
+ * @example
+ * ```ts
+ * // layer 3: RPC
+ * {jsonrpc : "2.0",
+ *  id      : "ske-address-1",
+ *  method  : "address.subscribe",
+ *            // layer 4: AWCP semantics
+ *  error   : {code    : 4,
+ *             data    : {},
+ *             message : "Operation rejected by user"}}
+ * ```
  */
 type RpcResp_error
     <method_s extends string>
@@ -447,6 +552,20 @@ type RpcResp_error
 
 /**
  * This is the shape of successful responses
+ *
+ * @example
+ * ```ts
+ * // layer 3: RPC
+ * {jsonrpc : "2.0",
+ *  id      : "ske-connect-1",
+ *  method  : "connection.open",
+ *            // layer 4: AWCP-specific semantics
+ *  result  : {id        : "mnhmmkepfddpifjkamaligfeemcbhdne",
+ *             name      : "Superhero",
+ *             networkId : "ae_mainnet",
+ *             origin    : "chrome-extension://mnhmmkepfddpifjkamaligfeemcbhdne",
+ *             type      : "extension"}}
+ * ```
  */
 type RpcResp_ok
     <method_s extends string,
@@ -460,6 +579,34 @@ type RpcResp_ok
 
 /**
  * This is the shape of generic responses
+ *
+ * @example
+ * Successful response ({@link RpcResp_ok})
+ * ```ts
+ * // layer 3: RPC
+ * {jsonrpc : "2.0",
+ *  id      : "ske-connect-1",
+ *  method  : "connection.open",
+ *            // layer 4: AWCP-specific semantics
+ *  result  : {id        : "mnhmmkepfddpifjkamaligfeemcbhdne",
+ *             name      : "Superhero",
+ *             networkId : "ae_mainnet",
+ *             origin    : "chrome-extension://mnhmmkepfddpifjkamaligfeemcbhdne",
+ *             type      : "extension"}}
+ * ```
+ *
+ * @example
+ * Unsuccessful response ({@link RpcResp_error})
+ * ```ts
+ * // layer 3: RPC
+ * {jsonrpc : "2.0",
+ *  id      : "ske-address-1",
+ *  method  : "address.subscribe",
+ *            // layer 4: AWCP semantics
+ *  error   : {code    : 4,
+ *             data    : {},
+ *             message : "Operation rejected by user"}}
+ * ```
  */
 type RpcResp
     <method_s extends string,
@@ -471,6 +618,34 @@ type RpcResp
 
 /**
  * Most generic possible response
+ *
+ * @example
+ * Successful response ({@link RpcResp_ok})
+ * ```ts
+ * // layer 3: RPC
+ * {jsonrpc : "2.0",
+ *  id      : "ske-connect-1",
+ *  method  : "connection.open",
+ *            // layer 4: AWCP-specific semantics
+ *  result  : {id        : "mnhmmkepfddpifjkamaligfeemcbhdne",
+ *             name      : "Superhero",
+ *             networkId : "ae_mainnet",
+ *             origin    : "chrome-extension://mnhmmkepfddpifjkamaligfeemcbhdne",
+ *             type      : "extension"}}
+ * ```
+ *
+ * @example
+ * Unsuccessful response ({@link RpcResp_error})
+ * ```ts
+ * // layer 3: RPC
+ * {jsonrpc : "2.0",
+ *  id      : "ske-address-1",
+ *  method  : "address.subscribe",
+ *            // layer 4: AWCP semantics
+ *  error   : {code    : 4,
+ *             data    : {},
+ *             message : "Operation rejected by user"}}
+ * ```
  */
 type RpcResp_Any = RpcResp<string, any>;
 
@@ -486,9 +661,6 @@ type RpcResp_Any = RpcResp<string, any>;
 // enumerated here.  There are many more things that the SDK code appears to
 // use which I did not encounter in the wild.
 //=============================================================================
-
-// TODO: need to do more experimentation with superhero to see what sorts of
-// messages it sends back to the other requests
 
 //----------------------------------------------------------------------------
 // connection.announcePresence
@@ -568,6 +740,12 @@ type EventData_W2A_connection_announcePresence
  * Parameters of aepp-to-waellet "connection.open" call
  *
  * (layer 4)
+ *
+ * @example
+ * ```ts
+ * {name    : "sidekick examples",
+ *  version : 1}
+ * ```
  */
 type Params_A2W_connection_open
     = {name       : string,
@@ -581,6 +759,15 @@ type Params_A2W_connection_open
  * Same as `Params_W2A_connection_open` empirically
  *
  * (layer 4)
+ *
+ * @example
+ * ```ts
+ * {id        : "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
+ *  name      : "Superhero",
+ *  networkId : "ae_uat",
+ *  origin    : "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
+ *  type      : "extension"}
+ * ```
  */
 type Result_W2A_connection_open
     = Params_W2A_connection_announcePresence;
@@ -591,6 +778,16 @@ type Result_W2A_connection_open
  * Shape of aepp-to-waellet "connection.open" RPC call
  *
  * (layer 3)
+ * @example
+ * ```ts
+ * // layer 3: json rpc
+ * {jsonrpc : "2.0",
+ *  id      : "ske-connect-1",
+ *  method  : "connection.open",
+ *            // layer 4: AWCP-specific semantics
+ *  params  : {name    : "sidekick examples",
+ *             version : 1}}}
+ * ```
  */
 type RpcCall_A2W_connection_open
     = RpcCall<"connection.open",
@@ -602,6 +799,22 @@ type RpcCall_A2W_connection_open
  * Shape of waellet-to-aepp "connection.open" RPC response
  *
  * (layer 3)
+ *
+ * @example
+ * ```json
+ * {
+ *     "jsonrpc": "2.0",
+ *     "id": "ske-connect-1",
+ *     "method": "connection.open",
+ *     "result": {
+ *         "id": "mnhmmkepfddpifjkamaligfeemcbhdne",
+ *         "name": "Superhero",
+ *         "networkId": "ae_mainnet",
+ *         "origin": "chrome-extension://mnhmmkepfddpifjkamaligfeemcbhdne",
+ *         "type": "extension"
+ *     }
+ * }
+ * ```
  */
 type RpcResp_W2A_connection_open
     = RpcResp<"connection.open",
@@ -613,6 +826,22 @@ type RpcResp_W2A_connection_open
  * The actual aepp-to-waellet "connection.open" event data passed over the message bus
  *
  * (layer 2)
+ *
+ * @example
+ * ```json
+ * {
+ *     "type": "to_waellet",
+ *     "data": {
+ *         "jsonrpc": "2.0",
+ *         "id": "ske-connect-1",
+ *         "method": "connection.open",
+ *         "params": {
+ *             "name": "sidekick examples",
+ *             "version": 1
+ *         }
+ *     }
+ * }
+ * ```
  */
 type EventData_A2W_connection_open
     = EventData_A2W<RpcCall_A2W_connection_open>;
@@ -623,6 +852,24 @@ type EventData_A2W_connection_open
  * The actual waellet-to-aepp "connection.open" event data passed over the message bus
  *
  * (layer 2)
+ *
+ * @example
+ * ```json
+ * {
+ *     "type": "to_aepp",
+ *     "data": {
+ *         "jsonrpc": "2.0",
+ *         "id": "ske-connect-1",
+ *         "method": "connection.open",
+ *         "result": {
+ *             "id": "mnhmmkepfddpifjkamaligfeemcbhdne",
+ *             "name": "Superhero",
+ *             "networkId": "ae_mainnet",
+ *             "origin": "chrome-extension://mnhmmkepfddpifjkamaligfeemcbhdne",
+ *             "type": "extension"
+ *         }
+ *     }
+ * }
  */
 type EventData_W2A_connection_open
     = EventData_W2A<RpcResp_W2A_connection_open>;
@@ -638,6 +885,14 @@ type EventData_W2A_connection_open
  * Parameter type of aepp-to-waellet "address.subscribe" call
  *
  * (layer 4)
+ *
+ * @example
+ * ```json
+ * {
+ *     "type": "subscribe",
+ *     "value": "connected"
+ * }
+ * ```
  */
 type Params_A2W_address_subscribe
     = {type  : "subscribe",
@@ -651,10 +906,32 @@ type Params_A2W_address_subscribe
  * (layer 4)
  *
  * @example
+ * This is if the user only has a single keypair
  * ```typescript
  * {subscription : ["connected"],
  *  address      : {current   : {"ak_2Wsa8iAmAm917evwDEZjouvPUXKx2nUv5Uz8e8oNXTDfDXnMRN": {}},
  *                  connected : {}}}
+ * ```
+ *
+ * @example
+ * This is if the user has many keypairs. The currently selected one is under
+ * `current`.  Craig, I agree this is stupid, but that's how it works.
+ * ```json
+ * {
+ *     "subscription": [
+ *         "connected"
+ *     ],
+ *     "address": {
+ *         "current": {
+ *             "ak_25C3xaAGQddyKAnaLLMjAhX24xMktH2NNZxY3fMaZQLMGED2Nf": {}
+ *         },
+ *         "connected": {
+ *             "ak_BMtPGuqDhWLnMVL4t6VFfS32y2hd8TSYwiYa2Z3VdmGzgNtJP": {},
+ *             "ak_25BqQuiVCasiqTkXHEffq7XCsuYEtgjNeZFeVFbuRtJkfC9NyX": {},
+ *             "ak_4p6gGoCcwQzLXd88KhdjRWYgd4MfTsaCeD8f99pzZhJ6vzYYV": {}
+ *         }
+ *     }
+ * }
  * ```
  */
 type Result_W2A_address_subscribe
@@ -668,6 +945,19 @@ type Result_W2A_address_subscribe
  * Shape of aepp-to-waellet "address.subscribe" RPC call
  *
  * (layer 3)
+ *
+ * @example
+ * ```json
+ * {
+ *     "jsonrpc": "2.0",
+ *     "id": "ske-address-1",
+ *     "method": "address.subscribe",
+ *     "params": {
+ *         "type": "subscribe",
+ *         "value": "connected"
+ *     }
+ * }
+ * ```
  */
 type RpcCall_A2W_address_subscribe
     = RpcCall<"address.subscribe",
@@ -679,6 +969,52 @@ type RpcCall_A2W_address_subscribe
  * Result of waellet-to-aepp "address.subscribe" response
  *
  * (layer 3)
+ *
+ * @example
+ * Case where the wallet only has one keypair
+ * ```json
+ * {
+ *     "jsonrpc": "2.0",
+ *     "id": "ske-address-1",
+ *     "method": "address.subscribe",
+ *     "result": {
+ *         "subscription": [
+ *             "connected"
+ *         ],
+ *         "address": {
+ *             "current": {
+ *                 "ak_BMtPGuqDhWLnMVL4t6VFfS32y2hd8TSYwiYa2Z3VdmGzgNtJP": {}
+ *             },
+ *             "connected": {}
+ *         }
+ *     }
+ * }
+ * ```
+ *
+ * @example
+ * Case of many keypairs
+ * ```json
+ * {
+ *     "jsonrpc": "2.0",
+ *     "id": "ske-address-1",
+ *     "method": "address.subscribe",
+ *     "result": {
+ *         "subscription": [
+ *             "connected"
+ *         ],
+ *         "address": {
+ *             "current": {
+ *                 "ak_25C3xaAGQddyKAnaLLMjAhX24xMktH2NNZxY3fMaZQLMGED2Nf": {}
+ *             },
+ *             "connected": {
+ *                 "ak_BMtPGuqDhWLnMVL4t6VFfS32y2hd8TSYwiYa2Z3VdmGzgNtJP": {},
+ *                 "ak_25BqQuiVCasiqTkXHEffq7XCsuYEtgjNeZFeVFbuRtJkfC9NyX": {},
+ *                 "ak_4p6gGoCcwQzLXd88KhdjRWYgd4MfTsaCeD8f99pzZhJ6vzYYV": {}
+ *             }
+ *         }
+ *     }
+ * }
+ * ```
  */
 type RpcResp_W2A_address_subscribe
     = RpcResp<"address.subscribe",
@@ -690,6 +1026,22 @@ type RpcResp_W2A_address_subscribe
  * Actual aepp-to-waellet "address.subscribe" event data sent over the message bus
  *
  * (layer 2)
+ *
+ * @example
+ * ```json
+ * {
+ *     "type": "to_waellet",
+ *     "data": {
+ *         "jsonrpc": "2.0",
+ *         "id": "ske-address-1",
+ *         "method": "address.subscribe",
+ *         "params": {
+ *             "type": "subscribe",
+ *             "value": "connected"
+ *         }
+ *     }
+ * }
+ * ```
  */
 type EventData_A2W_address_subscribe
     = EventData_A2W<RpcCall_A2W_address_subscribe>;
@@ -700,6 +1052,30 @@ type EventData_A2W_address_subscribe
  * Actual waellet-to-aepp "address.subscribe" event data sent over the message bus
  *
  * (layer 2)
+ *
+ * @example
+ * This is the case where the wallet only has one keypair:
+ * ```json
+ * {
+ *     "type": "to_aepp",
+ *     "data": {
+ *         "jsonrpc": "2.0",
+ *         "id": "ske-address-1",
+ *         "method": "address.subscribe",
+ *         "result": {
+ *             "subscription": [
+ *                 "connected"
+ *             ],
+ *             "address": {
+ *                 "current": {
+ *                     "ak_BMtPGuqDhWLnMVL4t6VFfS32y2hd8TSYwiYa2Z3VdmGzgNtJP": {}
+ *                 },
+ *                 "connected": {}
+ *             }
+ *         }
+ *     }
+ * }
+ * ```
  */
 type EventData_W2A_address_subscribe
     = EventData_W2A<RpcResp_W2A_address_subscribe>;
@@ -712,6 +1088,8 @@ type EventData_W2A_address_subscribe
 
 /**
  * Parameters for "transaction.sign" (do not propagate)
+ *
+ * If `returnSigned` is `false`, then Superhero will propagate the transaction.
  *
  * (layer 4)
  */
@@ -809,7 +1187,7 @@ type Result_W2A_msg_sign
  * (layer 3)
  */
 type RpcCall_A2W_msg_sign
-    = RpcCall<"message.sign"
+    = RpcCall<"message.sign",
               Params_A2W_msg_sign>;
 
 

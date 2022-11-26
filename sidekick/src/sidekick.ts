@@ -1,124 +1,31 @@
-// tomorrow:
-// message signing
-// examples
-// documentation
-// project organization
-
 /**
- * # How to use this library
+ * # tl;dr
  *
- * This is a library for communicating with a browser wallet extension such as
- * Superhero
+ * 1. {@link detect} the wallet
+ * 2. {@link connect} to the wallet
+ * 3. Get the wallet's {@link address}
  *
- * ## Step 0: Include `sidekick`
+ * From there you can do one of two things
  *
- * ```
- * import * as sk from './path/to/sidekick.js';
- * ```
+ * 1. Have the wallet sign transactions ({@link tx_sign_noprop})
+ * 2. Have the wallet sign arbitrary messages ({@link msg_sign})
  *
- * ## Step 1: Make a `Logger`
+ * Forming the transactions and propagating them into the network is your
+ * problem.
  *
- * All of the entrypoints in sidekick require passing in a `Logger`. The idea
- * is that you can pass in custom logging hooks to log potential errors.
- *
- * There are two built-in loggers exported by this module:
- *
- * 1.  `let my_logger = sk.wsl();`: does nothing
- * 2.  `let my_logger = sk.cl();`: console logger
- * 3.  `let my_logger = new sk.HttpLogger('https://foo.bar/baz')`: sends JSON to
- *     the given endpoint in a POST request, in the following form
- *
- *     ```
- *     {level   : 'debug' | 'info' | 'warning' | 'error',
- *      message : string,
- *      data    : object}
- *     ```
- * 4.  `let my_logger = new sk.SeqLogger([my_logger1, my_logger2]);`: a helper
- *     for composing several loggers sequentially.
- * 5.  You can define anything that satisfies the `Logger` interface and pass
- *     that in instead.
- *
- * ```
- * interface Logger {
- *     debug   : (message : string, data : object) => Promise<void>;
- *     info    : (message : string, data : object) => Promise<void>;
- *     warning : (message : string, data : object) => Promise<void>;
- *     error   : (message : string, data : object) => Promise<void>;
- * }
- * ```
- *
- * ## Step 2: Detect the wallet
- *
- * ```
- * //                                   timeout                 error message       logger
- * let maybe_detected = await sk.detect(sk.TIMEOUT_DEF_DETECT, 'detect: timeout', my_logger);
- * ```
- *
- * Function:
- *
- * ```
- * async function
- * detect
- *     (timeout_ms  : number,
- *      timeout_msg : string,
- *      logger      : Logger)
- *     : Promise<Safe<awcp.Params_W2A_connection_announcePresence, SkTimeoutError>>
- * ```
- *
- * This returns some garbage that doesn't matter in a `Safe` type.
- * The `Safe` type does matter
- *
- * ```
- * type Safe<ok_t, err_t>
- *     = Ok<ok_t>
- *     | Error<err_t>;
- *
- * type Ok<ok_t>
- *     = {ok     : true,
- *        result : ok_t};
- *
- * type Error<err_t>
- *     = {ok    : false,
- *        error : err_t};
- * ```
- *
- * The motivation here is that when talking to the wallet, there are many
- * possible sources of errors.  For instance, if you ask the wallet to sign a
- * transaction, the transaction might be malformed, maybe the user declines,
- * maybe it times out, whatever. All you care about is "did it work?" and you
- * don't want to deal with try/catch bullshit.
- *
- * The most straightforward way to extract the return value is with branching:
- *
- * ```
- * if (maybe_detected.ok) {
- *     // ok is true in this case, so the field `result` exists
- *     let awcp_crap = maybe_detected.result;
- * }
- * else {
- *     // ok is false in this case, so the field `error` exists
- *     let the_error = maybe_detected.error;
- * }
- * ```
- *
- * ## Step 3: Connect to the wallet
- *
- *
- *
- * ## Step 4: Get the user address
- *
- * ## Step 5: Sign a transaction
- *
+ * You need a {@link Logger} for most calls. Probably you want {@link cl}. You
+ * can write your own if you want but why would you complicate your life like
+ * that.
  *
  * @module
  */
 
 // TODONE: add standardized logging interface
 // TODONE: logging hooks
-// TODO: invoice
-// TODO: get connect done
-// TODO: make the message queue for responses a map, fill the message queue properly
-// TODO: get it working with superhero
+// TODONE: invoice
+// TODONE: get connect done
+// TODONE: make the message queue for responses a map, fill the message queue properly
+// TODONE: get it working with superhero
 // TODO: jrx
 
 // like: console, http, etc

@@ -38,6 +38,8 @@ help() ->
 % TODONE: jex fulldist
 % TODONE: jex install
 % TODO: jex get_mindist PKG
+% TODO: jex dwim++ = install
+% TODO: --name option for docs
 
 % TODO: use less than full qualified names (not priority)
 % TODO: make fulldist for arbitrary installed package (requires storing jex.eterms, not hard but also not a priority)
@@ -55,8 +57,9 @@ help_screen() ->
      "  dwim-                   build project but don't make a release (init, pull, build)\n"
      "  dwim+                   build and make a minimal release (init, pull, build, mindist, push)\n"
      "  dwim++                  build and make a full release (init, pull, build, mindist, push, mkdocs, pushdocs)\n"
-     "  ls                      list installed packages\n"
+     "  install                 synonym for dwim++\n"
      "  install [TARBALL_PATH]  install the given package\n"
+     "  ls                      list installed packages\n"
      "  viewdocs [PKG [PORT]]   view package docs for PKG in browser\n"
      "  get_mindist [PKG]       get the mindist tarball for an installed package\n"
      "\n"
@@ -99,8 +102,9 @@ help_screen() ->
 dispatch(["dwim-"])                        -> dwim(minus);
 dispatch(["dwim+"])                        -> dwim(plus);
 dispatch(["dwim++"])                       -> dwim(plus_plus);
-dispatch(["ls"])                           -> ls();
+dispatch(["install"])                      -> install();
 dispatch(["install", Path])                -> install(Path);
+dispatch(["ls"])                           -> ls();
 dispatch(["viewdocs"])                     -> viewdocs();
 dispatch(["viewdocs", Pkg])                -> viewdocs(Pkg);
 dispatch(["viewdocs", Pkg, Port])          -> viewdocs(Pkg, Port);
@@ -566,6 +570,9 @@ srsly_readme_path() ->
 %%-----------------------------------------------------------------------------
 %% jex install TARBALL_PATH
 %%-----------------------------------------------------------------------------
+
+install() ->
+    dwim(plus_plus).
 
 install(TarballPath) ->
     case file_exists(TarballPath) of
