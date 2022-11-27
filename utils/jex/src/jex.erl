@@ -37,26 +37,31 @@ help() ->
 % TODONE: jex viewdocs PKG [port]
 % TODONE: jex fulldist
 % TODONE: jex install
-% TODO: jex get_mindist PKG
-% TODO: jex dwim++ = install
-% TODO: --name option for docs
+% TODONE: jex get_mindist PKG
+% TODONE: jex dwim++ = install
 
 % TODO: use less than full qualified names (not priority)
+% TODO: --name option for docs (not priority)
 % TODO: make fulldist for arbitrary installed package (requires storing jex.eterms, not hard but also not a priority)
 % TODO: be smart about creating jex_include
 % TODO: tarball shas
 % TODO: tarball signatures
-% TODO: jex install
 
 help_screen() ->
     ["Jex: simple JavaScript packaging system\n"
      "\n"
-     "If you have never run jex before, you need to run `jex init` first\n"
+     "QUICK REFERENCE\n"
+     "  You have a package tarball and want to install it ->\n"
+     "      jex install foo-bar-X.Y.Z.tar.gz\n"
+     "  You are in the current directory of a project and want to build it ->\n"
+     "      jex install\n"
+     "  There is a package installed and you need its mindist to put on a server or something ->\n"
+     "      jex get_mindist foo-bar-X.Y.Z   # must use fully qualified package name\n"
      "\n"
      "PORCELAIN COMMANDS:\n"
-     "  dwim-                   build project but don't make a release (init, pull, build)\n"
-     "  dwim+                   build and make a minimal release (init, pull, build, mindist, push)\n"
-     "  dwim++                  build and make a full release (init, pull, build, mindist, push, mkdocs, pushdocs)\n"
+     "  dwim-                   build project but don't make a release (init, clean, pull, build)\n"
+     "  dwim+                   build and make a minimal release (init, clean, pull, build, mindist, push)\n"
+     "  dwim++                  build and make a full release (init, clean, pull, build, mindist, push, mkdocs, pushdocs)\n"
      "  install                 synonym for dwim++\n"
      "  install [TARBALL_PATH]  install the given package\n"
      "  ls                      list installed packages\n"
@@ -65,6 +70,7 @@ help_screen() ->
      "\n"
      "PLUMBING COMMANDS:\n"
      "  init                    mkdir -p $HOME/.jex/{dev,docs,tmp}\n"
+     "  clean                   rm -r ./src/jex_include && rm -r dist\n"
      "  build                   tsc && cp -r ./src/jex_include ./dist/\n"
      "      -w, --weak              continue building even if tsc fails\n"
      "      -f, --force             use cp -rf instead of cp -r\n"
@@ -111,6 +117,7 @@ dispatch(["viewdocs", Pkg, Port])          -> viewdocs(Pkg, Port);
 dispatch(["get_mindist", Pkg])             -> get_mindist(Pkg);
 %% plumbing
 dispatch(["init"])                         -> init();
+dispatch(["clean"])                        -> clean();
 dispatch(["build" | Opts])                 -> build(Opts);
 dispatch(["mindist" | Opts])               -> mindist(Opts);
 dispatch(["push"])                         -> push();
@@ -158,6 +165,7 @@ man() ->
 
 dwim(minus) ->
     init(),
+    clean(),
     pull(),
     build([]);
 dwim(plus) ->
@@ -640,6 +648,15 @@ get_mindist2(PkgName) ->
               PkgName, CWD]),
     ok.
 
+
+%%-----------------------------------------------------------------------------
+%% jex clean
+%%-----------------------------------------------------------------------------
+
+clean() ->
+    _ = cmdf("rm -r ./src/jex_include", []),
+    _ = cmdf("rm -r ./dist", []),
+    ok.
 
 
 %%-----------------------------------------------------------------------------

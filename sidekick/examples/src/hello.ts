@@ -1,3 +1,3 @@
-import * as sk from './jex_include/local-sidekick-0.1.0/dist/sidekick.js';
+import * as sk from './jex_include/local-sidekick-0.2.0/dist/sidekick.js';
 
 sk.hello();

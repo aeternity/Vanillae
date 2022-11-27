@@ -206,7 +206,7 @@
  */
 
 // TODONE: enumerate RPC errors
-// TODO: examples
+// TODONE: examples
 // TODO: transaction.sign and propagate
 // TODO: constants for method names
 
@@ -529,7 +529,6 @@ type RpcCall
  * and I hit "deny". This is what was sent back. Code `4` corresponds to
  * {@link ERROR_CODE_RpcRejectedByUserError}.
  *
- * @example
  * ```ts
  * // layer 3: RPC
  * {jsonrpc : "2.0",
@@ -756,7 +755,7 @@ type Params_A2W_connection_open
 /**
  * Result type of "connection.open" call
  *
- * Same as `Params_W2A_connection_open` empirically
+ * Same as {@link Params_W2A_connection_announcePresence} empirically
  *
  * (layer 4)
  *
@@ -1076,6 +1075,34 @@ type EventData_A2W_address_subscribe
  *     }
  * }
  * ```
+ *
+ * @example
+ * Case of many keypairs, the current one will be in `current`.
+ * ```json
+ * {
+ *     "type": "to_aepp",
+ *     "data": {
+ *         "jsonrpc": "2.0",
+ *         "id": "ske-address-1",
+ *         "method": "address.subscribe",
+ *         "result": {
+ *             "subscription": [
+ *                 "connected"
+ *             ],
+ *             "address": {
+ *                 "current": {
+ *                     "ak_2RT9RPbcX8RtjBpMWqsKtVRVKASAbj8V4c3f7cCdJfuVdihhyL": {}
+ *                 },
+ *                 "connected": {
+ *                     "ak_sMM2sUiyeBeMiRAj8viHVCVDxevmCacALhoHdrkobyhoqnR85": {},
+ *                     "ak_o355SAx4n1V6xbrYv4Zaxm7GAYaZwEFXwgKBVEQTSm8MPnwjn": {},
+ *                     "ak_2Up7dDMVBbPc4xAequf41zyzBqwWpUcVTYvcGF1ApAcCy7nGfA": {}
+ *                 }
+ *             }
+ *         }
+ *     }
+ * }
+ * ```
  */
 type EventData_W2A_address_subscribe
     = EventData_W2A<RpcResp_W2A_address_subscribe>;
@@ -1092,6 +1119,15 @@ type EventData_W2A_address_subscribe
  * If `returnSigned` is `false`, then Superhero will propagate the transaction.
  *
  * (layer 4)
+ *
+ * @example
+ * ```json
+ * {
+ *     "tx": "tx_+FgMAaEBuzbuuWjOzR7ecjOY8+u7HdNk0KoxTQcCDerZELEQ+UShAXtm5sMFBwg25Ol5IFI9w+pZy7/YbFi6BwPqi80KuKdsCoYPJvVhyAAAAYdoYWluYW5h9uAnNQ==",
+ *     "returnSigned": true,
+ *     "networkId": "ae_uat"
+ * }
+ * ```
  */
 type Params_A2W_tx_sign_noprop
     = {tx           : string,
@@ -1104,6 +1140,11 @@ type Params_A2W_tx_sign_noprop
  * Success result type for "transaction.sign" (do not propagate)
  *
  * (layer 4)
+ *
+ * @example
+ * {
+ *     "signedTransaction": "tx_+KILAfhCuEDxWnvffMvyrkFWnrImYej38rh99vM9f6pORl/yWTvU97nvUcY8/ck8lgtPA8w5odGSDb9LGY/JSZXsmsXhgKkHuFr4WAwBoQG7Nu65aM7NHt5yM5jz67sd02TQqjFNBwIN6tkQsRD5RKEBe2bmwwUHCDbk6XkgUj3D6lnLv9hsWLoHA+qLzQq4p2wKhg8m9WHIAAABh2hhaW5hbmF7X54G"
+ * }
  */
 type Result_W2A_tx_sign_noprop
     = {signedTransaction : string};
@@ -1113,6 +1154,20 @@ type Result_W2A_tx_sign_noprop
  * Request type for "transaction.sign" (do not propagate)
  *
  * (layer 3)
+ *
+ * @example
+ * ```json
+ * {
+ *     "jsonrpc": "2.0",
+ *     "id": "sk-tx-sign-1",
+ *     "method": "transaction.sign",
+ *     "params": {
+ *         "tx": "tx_+FgMAaEBuzbuuWjOzR7ecjOY8+u7HdNk0KoxTQcCDerZELEQ+UShAXtm5sMFBwg25Ol5IFI9w+pZy7/YbFi6BwPqi80KuKdsCoYPJvVhyAAAAYdoYWluYW5h9uAnNQ==",
+ *         "returnSigned": true,
+ *         "networkId": "ae_uat"
+ *     }
+ * }
+ * ```
  */
 type RpcCall_A2W_tx_sign_noprop
     = RpcCall<"transaction.sign",
@@ -1124,6 +1179,18 @@ type RpcCall_A2W_tx_sign_noprop
  * Response type for "transaction.sign" (do not propagate)
  *
  * (layer 3)
+ *
+ * @example
+ * ```json
+ * {
+ *     "jsonrpc": "2.0",
+ *     "id": "sk-tx-sign-1",
+ *     "method": "transaction.sign",
+ *     "result": {
+ *         "signedTransaction": "tx_+KILAfhCuEDxWnvffMvyrkFWnrImYej38rh99vM9f6pORl/yWTvU97nvUcY8/ck8lgtPA8w5odGSDb9LGY/JSZXsmsXhgKkHuFr4WAwBoQG7Nu65aM7NHt5yM5jz67sd02TQqjFNBwIN6tkQsRD5RKEBe2bmwwUHCDbk6XkgUj3D6lnLv9hsWLoHA+qLzQq4p2wKhg8m9WHIAAABh2hhaW5hbmF7X54G"
+ *     }
+ * }
+ * ```
  */
 type RpcResp_W2A_tx_sign_noprop
     = RpcResp<"transaction.sign",
@@ -1135,6 +1202,23 @@ type RpcResp_W2A_tx_sign_noprop
  * Event data for aepp-to-waellet "transaction.sign" (do not propagate) message
  *
  * (layer 2)
+ *
+ * @example
+ * ```json
+ * {
+ *     "type": "to_waellet",
+ *     "data": {
+ *         "jsonrpc": "2.0",
+ *         "id": "sk-tx-sign-1",
+ *         "method": "transaction.sign",
+ *         "params": {
+ *             "tx": "tx_+FgMAaEBuzbuuWjOzR7ecjOY8+u7HdNk0KoxTQcCDerZELEQ+UShAXtm5sMFBwg25Ol5IFI9w+pZy7/YbFi6BwPqi80KuKdsCoYPJvVhyAAAAYdoYWluYW5h9uAnNQ==",
+ *             "returnSigned": true,
+ *             "networkId": "ae_uat"
+ *         }
+ *     }
+ * }
+ * ```
  */
 type EventData_A2W_tx_sign_noprop
     = EventData_A2W<RpcCall_A2W_tx_sign_noprop>;
@@ -1142,9 +1226,24 @@ type EventData_A2W_tx_sign_noprop
 
 
 /**
- * Event data for aepp-to-waellet "transaction.sign" (do not propagate) response
+ * Event data for waellet-to-aepp "transaction.sign" (do not propagate) response
  *
  * (layer 2)
+ *
+ * @example
+ * ```json
+ * {
+ *     "type": "to_aepp",
+ *     "data": {
+ *         "jsonrpc": "2.0",
+ *         "id": "sk-tx-sign-1",
+ *         "method": "transaction.sign",
+ *         "result": {
+ *             "signedTransaction": "tx_+KILAfhCuEDxWnvffMvyrkFWnrImYej38rh99vM9f6pORl/yWTvU97nvUcY8/ck8lgtPA8w5odGSDb9LGY/JSZXsmsXhgKkHuFr4WAwBoQG7Nu65aM7NHt5yM5jz67sd02TQqjFNBwIN6tkQsRD5RKEBe2bmwwUHCDbk6XkgUj3D6lnLv9hsWLoHA+qLzQq4p2wKhg8m9WHIAAABh2hhaW5hbmF7X54G"
+ *         }
+ *     }
+ * }
+ * ```
  */
 type EventData_W2A_tx_sign_noprop
     = EventData_W2A<RpcResp_W2A_tx_sign_noprop>;
@@ -1157,14 +1256,15 @@ type EventData_W2A_tx_sign_noprop
 /**
  * Parameters for "message.sign"
  *
- * FIXME: example
- *
- * ```ts
- * {message   : 'hello world',
- *  onAccount : 'ak_...'}
- * ```
- *
  * (layer 4)
+ *
+ * @example
+ * ```json
+ * {
+ *     "onAccount": "ak_2RT9RPbcX8RtjBpMWqsKtVRVKASAbj8V4c3f7cCdJfuVdihhyL",
+ *     "message": "MESSSSSSSSSSAGGGGGGGGGGGGGGGGGGGGGGGGGGGE"
+ * }
+ * ```
  */
 type Params_A2W_msg_sign
     = {message   : string,
@@ -1176,15 +1276,35 @@ type Params_A2W_msg_sign
  * Success result type for "message.sign"
  *
  * (layer 4)
+ *
+ * @example
+ * ```json
+ * {
+ *     "signature": "3ec195484965a60dd4179fbb616947a85e4e9961cb468816a2a22870382954bc374f8569e4ddc729dfc1b14e09e670b7d2c70c33c592caca29ff6c212f1f8b0f"
+ * }
+ * ```
  */
 type Result_W2A_msg_sign
     = {signature : string};
 
 
 /**
- * Request type for "message.sign" (do not propagate)
+ * Request type for "message.sign"
  *
  * (layer 3)
+ *
+ * @example
+ * ```json
+ * {
+ *     "jsonrpc": "2.0",
+ *     "id": "sk-msg-sign-1",
+ *     "method": "message.sign",
+ *     "params": {
+ *         "onAccount": "ak_2RT9RPbcX8RtjBpMWqsKtVRVKASAbj8V4c3f7cCdJfuVdihhyL",
+ *         "message": "MESSSSSSSSSSAGGGGGGGGGGGGGGGGGGGGGGGGGGGE"
+ *     }
+ * }
+ * ```
  */
 type RpcCall_A2W_msg_sign
     = RpcCall<"message.sign",
@@ -1193,9 +1313,21 @@ type RpcCall_A2W_msg_sign
 
 
 /**
- * Response type for "message.sign" (do not propagate)
+ * Response type for "message.sign"
  *
  * (layer 3)
+ *
+ * @example
+ * ```json
+ * {
+ *     "jsonrpc": "2.0",
+ *     "id": "sk-msg-sign-1",
+ *     "method": "message.sign",
+ *     "result": {
+ *         "signature": "3ec195484965a60dd4179fbb616947a85e4e9961cb468816a2a22870382954bc374f8569e4ddc729dfc1b14e09e670b7d2c70c33c592caca29ff6c212f1f8b0f"
+ *     }
+ * }
+ * ```
  */
 type RpcResp_W2A_msg_sign
     = RpcResp<"message.sign",
@@ -1204,9 +1336,25 @@ type RpcResp_W2A_msg_sign
 
 
 /**
- * Event data for aepp-to-waellet "message.sign" (do not propagate) message
+ * Event data for aepp-to-waellet "message.sign"
  *
  * (layer 2)
+ *
+ * @example
+ * ```json
+ * {
+ *     "type": "to_waellet",
+ *     "data": {
+ *         "jsonrpc": "2.0",
+ *         "id": "sk-msg-sign-1",
+ *         "method": "message.sign",
+ *         "params": {
+ *             "onAccount": "ak_2RT9RPbcX8RtjBpMWqsKtVRVKASAbj8V4c3f7cCdJfuVdihhyL",
+ *             "message": "MESSSSSSSSSSAGGGGGGGGGGGGGGGGGGGGGGGGGGGE"
+ *         }
+ *     }
+ * }
+ * ```
  */
 type EventData_A2W_msg_sign
     = EventData_A2W<RpcCall_A2W_msg_sign>;
@@ -1214,9 +1362,24 @@ type EventData_A2W_msg_sign
 
 
 /**
- * Event data for aepp-to-waellet "message.sign" (do not propagate) response
+ * Event data for waellet-to-aepp "message.sign"
  *
  * (layer 2)
+ *
+ * @example
+ * ```json
+ * {
+ *     "type": "to_aepp",
+ *     "data": {
+ *         "jsonrpc": "2.0",
+ *         "id": "sk-msg-sign-1",
+ *         "method": "message.sign",
+ *         "result": {
+ *             "signature": "3ec195484965a60dd4179fbb616947a85e4e9961cb468816a2a22870382954bc374f8569e4ddc729dfc1b14e09e670b7d2c70c33c592caca29ff6c212f1f8b0f"
+ *         }
+ *     }
+ * }
+ * ```
  */
 type EventData_W2A_msg_sign
     = EventData_W2A<RpcResp_W2A_msg_sign>;

@@ -44,6 +44,8 @@ export {
         unsafe,
         ok,
         error,
+        Ok,
+        Error,
     // timeout errors
         ERROR_CODE_SkTimeoutError,
         SkTimeoutError,
@@ -69,6 +71,7 @@ export {
         TIMEOUT_DEF_CONNECT_MS,
         TIMEOUT_DEF_ADDRESS_MS,
         TIMEOUT_DEF_TX_SIGN_NOPROP_MS,
+        TIMEOUT_DEF_MSG_SIGN_MS,
     // API
         // detect
         detect,
@@ -89,7 +92,7 @@ export {
 // IMPORTS
 //-----------------------------------------------------------------------------
 
-import * as awcp from './jex_include/local-awcp-0.1.0/dist/awcp.js';
+import * as awcp from './jex_include/local-awcp-0.2.0/dist/awcp.js';
 
 
 //-----------------------------------------------------------------------------
@@ -97,20 +100,104 @@ import * as awcp from './jex_include/local-awcp-0.1.0/dist/awcp.js';
 //-----------------------------------------------------------------------------
 
 /**
- * Use for debugging/to check if import worked correctly
+ * Just `console.log`s `hello`. Use for debugging/to check if import worked correctly
  */
 function
 hello
     ()
     : void
 {
-    console.log('hællo');
+    console.log('hello');
 }
 
 
 
 /**
- * Type that catches positive errors
+ * The idea behind this type is that some errors are known to be likely (e.g.
+ * the user rejects a transaction request, or something times out, etc).  These
+ * errors (called "positive errors") should not generate exceptions. Exceptions
+ * should occur when exceptional behavior occurs (e.g. hardware faults,
+ * dividing by zero).  Exceptions should not occur on events that are known to
+ * be likely.  Instead, branching is the correct idiom.
+ *
+ * Furthermore, there are often many possible sources of errors.  What this
+ * provides is a single "did it work or not" branch point.
+ *
+ * Further, in practice, all errors (either {@link SkTimeoutError} or {@link
+ * awcp.RpcError}) have a field called `code` which uniquely identifies the
+ * error, so it's easy to algorithmically respond to specific positive errors.
+ * For instance, if the user rejects a request in a popup, that is `code: 4`
+ * (see {@link awcp.ERROR_CODE_RpcRejectedByUserError}).  If the user does not
+ * do anything within the timeout parameter you specify, that generates a
+ * {@link SkTimeoutError} which has `code: 420`.
+ *
+ * There are two branches: {@link Ok} and {@link Error}
+ *
+ * ```ts
+ * type Ok<ok_t>
+ *     = {ok     : true,
+ *        result : ok_t};
+ *
+ * type Error<err_t>
+ *     = {ok    : false,
+ *        error : err_t};
+ *
+ * type Safe<ok_t, err_t>
+ *     = Ok<ok_t>
+ *     | Error<err_t>;
+ * ```
+ *
+ * @example
+ * Suppose you are trying to get the user's {@link address}. This pops up a
+ * confirmation dialog asking the user if he wants to connect to your
+ * application.  There's a good chance the user says no.  There's also a
+ * possibility he just doesn't do anything and things just time out.
+ *
+ * ```ts
+ * // there is a button in the document that when pressed triggers this function
+ * async function address(logger: sk.Logger): Promise<void>
+ * {
+ *     let h4 = document.getElementById("addressed")!;
+ *     let pre = document.getElementById("address-info")!;
+ *
+ *     h4.innerHTML = 'addressing...';
+ *     h4.style.color = 'GoldenRod';
+ *
+ *     // try to address to the wallet
+ *     // will fail on timeout error
+ *     let maybe_wallet_info = await sk.address(
+ *             'ske-address-1',
+ *             {type: 'subscribe',
+ *              value: 'connected'},
+ *             sk.TIMEOUT_DEF_ADDRESS_MS,
+ *             "failed to address to wallet",
+ *             logger
+ *         );
+ *
+ *     console.log(maybe_wallet_info);
+ *
+ *     // ok means wallet was addressed
+ *     if (maybe_wallet_info.ok)
+ *     {
+ *         h4.innerHTML   = "addressed";
+ *         h4.style.color = "green";
+ *         pre.innerHTML  = JSON.stringify(maybe_wallet_info.result, undefined, 4);
+ *         // update global variable
+ *         let the_address = Object.keys(maybe_wallet_info.result.address.current)[0];
+ *         set_pv_address(the_address);
+ *     }
+ *     else
+ *     {
+ *         h4.innerHTML = "error";
+ *         h4.style.color = "crimson";
+ *         pre.innerHTML  = JSON.stringify(maybe_wallet_info.error, undefined, 4);
+ *     }
+ * }
+ * ```
+ *
+ * The important part is the `if/else`.  That branch point corresponds to "did
+ * it work or not?"  The `else` branch corresponds to the subset of "not" that
+ * you know is likely: timeouts, rejections, etc.
  */
 type Safe<ok_t, err_t>
     = Ok<ok_t>
@@ -119,7 +206,25 @@ type Safe<ok_t, err_t>
 
 
 /**
- * Ok type
+ * See {@link Safe} for context
+ *
+ * @example
+ * ```json
+ * {
+ *     "ok": true,
+ *     "result": {
+ *         "type": "to_aepp",
+ *         "data": {
+ *             "jsonrpc": "2.0",
+ *             "id": "sk-msg-sign-1",
+ *             "method": "message.sign",
+ *             "result": {
+ *                 "signature": "3ec195484965a60dd4179fbb616947a85e4e9961cb468816a2a22870382954bc374f8569e4ddc729dfc1b14e09e670b7d2c70c33c592caca29ff6c212f1f8b0f"
+ *             }
+ *         }
+ *     }
+ * }
+ * ```
  */
 type Ok<ok_t>
     = {ok     : true,
@@ -128,7 +233,19 @@ type Ok<ok_t>
 
 
 /**
- * Err type
+ * See {@link Safe} for context
+ *
+ * @example
+ * ```json
+ * {
+ *     "ok": false,
+ *     "error": {
+ *         "code": 4,
+ *         "data": {},
+ *         "message": "Operation rejected by user"
+ *     }
+ * }
+ * ```
  */
 type Error<err_t>
     = {ok    : false,
@@ -399,6 +516,14 @@ const TIMEOUT_DEF_ADDRESS_MS = 5*MIN;
 const TIMEOUT_DEF_TX_SIGN_NOPROP_MS = 5*MIN;
 
 
+/**
+ * In the general case, this pops up the modal that requires the user to
+ * manually confirm, so is set to 5 minutes. This is an instance where you as
+ * the developer need to exercise some discretion.
+ */
+const TIMEOUT_DEF_MSG_SIGN_MS = 5*MIN;
+
+
 // Ah ok
 //
 // so for connection.announcePresence, we just listen and recieve, unwrap, send back
@@ -421,41 +546,42 @@ const TIMEOUT_DEF_TX_SIGN_NOPROP_MS = 5*MIN;
  *
  * Wait for wallet to announce itself, and then return.
  *
- * Example message data:
+ * @example
+ * ```ts
+ * // document has a button with id=detect
+ * // this is the function that is triggered when the button is clicked
+ * async function detect(logger: sk.Logger): Promise<void> {
+ *     let h4 = document.getElementById("detected")!;
+ *     let pre = document.getElementById("detect-info")!;
  *
- * ```json
- * {
- *     "type": "to_aepp",
- *     "data": {
- *         "jsonrpc": "2.0",
- *         "method": "connection.announcePresence",
- *         "params": {
- *             "id": "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
- *             "name": "Superhero",
- *             "networkId": "ae_mainnet",
- *             "origin": "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
- *             "type": "extension"
- *         }
+ *     h4.innerHTML = 'detecting...';
+ *     h4.style.color = 'GoldenRod';
+ *
+ *     // try to detect the wallet
+ *     // will fail on timeout error
+ *     // console logger
+ *     let maybe_wallet_info =//: sk.Safe<awcp.EventData_W2A_connection_announcePresence, sk.TimeoutError> =
+ *             await sk.detect(sk.TIMEOUT_DEF_DETECT_MS, "failed to detect wallet", logger);
+ *
+ *     console.log(maybe_wallet_info);
+ *
+ *     // ok means wallet was detected
+ *     if (maybe_wallet_info.ok) {
+ *         h4.innerHTML   = "detected";
+ *         h4.style.color = "green";
+ *         pre.innerHTML  = JSON.stringify(maybe_wallet_info.result, undefined, 4);
+ *     }
+ *     else {
+ *         h4.innerHTML = "error";
+ *         h4.style.color = "crimson";
+ *         pre.innerHTML  = JSON.stringify(maybe_wallet_info.error, undefined, 4);
  *     }
  * }
- * ```
  *
- * Example return data:
- *
- * ```json
- * {
- *     "id": "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
- *     "name": "Superhero",
- *     "networkId": "ae_mainnet",
- *     "origin": "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
- *     "type": "extension"
- * }
- * ```
- *
- * Example usage:
- *
- * ```typescript
- * let wallet_info = await sk.detect(sk.TIMEOUT_DEF_DETECT_MS, "wallet timed out", sk.cl());
+ * // want to create a logger down here
+ * let logger = sk.cl();
+ * // detect button
+ * document.getElementById('detect')!.onclick = function() { detect(logger); } ;
  * ```
  */
 async function
@@ -617,6 +743,58 @@ class CAPListener
 
 
 
+/**
+ * Connect to the wallet. This is a necessary step if you want {@link address}
+ * to work. You **must** wait for Superhero to announce itself (see {@link
+ * detect}) before attempting to connect. This has the same return data as
+ * {@link detect}. This does not pop up the confirmation dialog for the user.
+ * Superhero never rejects the connection request. This call is instantaneous
+ * in practice.
+ *
+ * @example
+ * ```ts
+ * // document has a button with id=connect
+ * // this is the function that is triggered when the button is clicked
+ * // you want your user to do the detect sequence first
+ * async function connect (logger: sk.Logger) : Promise<void> {
+ *     let h4 = document.getElementById("connected")!;
+ *     let pre = document.getElementById("connect-info")!;
+ *
+ *     h4.innerHTML = 'connecting...';
+ *     h4.style.color = 'GoldenRod';
+ *
+ *     // try to connect to the wallet
+ *     // will fail on timeout error
+ *     let maybe_wallet_info = await sk.connect(
+ *             'ske-connect-1',
+ *             {name: 'sidekick examples',
+ *              version: 1},
+ *             sk.TIMEOUT_DEF_CONNECT_MS,
+ *             "failed to connect to wallet",
+ *             logger
+ *         );
+ *
+ *     console.log(maybe_wallet_info);
+ *
+ *     // ok means wallet was connected
+ *     if (maybe_wallet_info.ok)
+ *     {
+ *         h4.innerHTML   = "connected";
+ *         h4.style.color = "green";
+ *         pre.innerHTML  = JSON.stringify(maybe_wallet_info.result, undefined, 4);
+ *     }
+ *     else
+ *     {
+ *         h4.innerHTML = "error";
+ *         h4.style.color = "crimson";
+ *         pre.innerHTML  = JSON.stringify(maybe_wallet_info.error, undefined, 4);
+ *     }
+ * }
+ *
+ * let logger = sk.cl();
+ * document.getElementById('connect')!.onclick = function() { connect(logger); };
+ * ```
+ */
 async function
 connect
     (id          : number | string,
@@ -639,13 +817,16 @@ connect
     return result;
 }
 
+
+
 //-----------------------------------------------------------------------------
 // API: get address
 //-----------------------------------------------------------------------------
 
 
-
-
+/**
+ * 
+ */
 async function
 address
     (id          : number | string,
@@ -669,12 +850,10 @@ address
 }
 
 
+
 //-----------------------------------------------------------------------------
 // API: message sign
 //-----------------------------------------------------------------------------
-
-
-
 async function
 msg_sign
     (id             : number | string,
@@ -683,9 +862,9 @@ msg_sign
      timeout_ms     : number,
      timeout_msg    : string,
      logger         : Logger)
-    : Promise<Safe<any, awcp.RpcError | SkTimeoutError>>
+    : Promise<Safe<awcp.Result_W2A_msg_sign, awcp.RpcError | SkTimeoutError>>
 {
-    logger.debug('address', {id:id, account_pubkey:account_pubkey, message:message, timeout_ms:timeout_ms, timeout_msg:timeout_msg});
+    logger.debug('msg_sign', {id:id, account_pubkey:account_pubkey, message:message, timeout_ms:timeout_ms, timeout_msg:timeout_msg});
     let msgr = new MsgR(logger);
     // FIXME: for type purposes, making the correct RPC message should be up here
     // this way we can enforce that it's a correct RPC call with typescript
@@ -693,17 +872,16 @@ msg_sign
     // let result = await msgr.send_raseev(id, awcp.METHOD_CONNECTION_OPEN, params, target, timeout_ms, timeout_msg);
     let result =
         await msgr.send_raseev
-                <any, any, any>
+                <"message.sign", awcp.Params_A2W_msg_sign, awcp.Result_W2A_msg_sign>
                 (id, "message.sign", {onAccount: account_pubkey, message: message}, timeout_ms, timeout_msg);
     return result;
 }
 
+
+
 //-----------------------------------------------------------------------------
 // API: tx sign (no prop)
 //-----------------------------------------------------------------------------
-
-
-
 async function
 tx_sign_noprop
     (id          : number | string,
