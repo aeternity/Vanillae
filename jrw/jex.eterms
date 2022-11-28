@@ -1,0 +1,5 @@
+{type, site}.
+{realm, local}.
+{name, jrw}.
+{version, "0.1.0"}.
+{deps, ["local-awcp-0.2.0"]}.

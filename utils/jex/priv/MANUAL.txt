@@ -1,267 +1,60 @@
-=====================================================================
-tl;dr
-=====================================================================
+INTRODUCTION
+    Jex is a simple packaging/dependency system for TypeScript/JavaScript
+    projects.
 
-You can get this by running jex --help
+    As of now, Jex is a glorified shell script that automates a lot of the
+    tedium in building sidekick, JR, etc.  Jex is very much a work in progress,
+    so these instructions are subject to change.
 
-COMMANDS:
-  man             show the manual
-  dwim-           init, pull, build
-  dwim+           init, pull, build, mindist, push
-  cfgbarf         barf out the jex.eterms file (mostly to make sure it parses correctly)
-  echo home       echo $HOME
-  echo jexdir     echo $HOME/.jex
-  echo devdir     echo $HOME/.jex/dev
-  echo pkgname    name of current package
-  echo pkgdir     echo $HOME/.jex/dev/realm-name-X.Y.Z
-  echo deps       list dependencies of current package
-  echo pathof PKG list the path to PKG or 
-  init            mkdir -p $HOME/.jex/dev
-  build           tsc && cp -r ./src/jex_include ./dist/
-      -w, --weak      continue building even if tsc fails
-      -f, --force     use cp -rf instead of cp -r
-  mindist         mkdir jex_mindist && cp -r src jex_mindist && cp -r dist jex_mindist && rm -r jex_mindist/src/jex_include
-      -f, --force     use cp -rf instead of cp -r
-  push            rsync -a jex_mindist/ PKGDIR
-  ls              ls $HOME/.jex/dev
-  tree            tree $HOME/.jex/
-  rmpkg PKG       rm -r $HOME/.jex/dev/PKG
-  pull            pull each dependency into src/jx_include
+    Jex is currently hyper-specialized to our use cases inside of Vanillae, and
+    is probably (currently) unsuitable for your use case.  For instance, Jex
+    assumes you are running a UNIX-like system with standard UNIX programs
+    installed (e.g. tree, rsync, tar, etc).  It also makes very strong
+    assumptions about your project structure and how you want to distribute
+    your project.
 
+    Our long-term goal is to build Jex out into a proper secure packaging
+    system, and completely remove any dependency on NPM.  NPM comes with a lot
+    of unfixable security issues that present an unacceptable risk in a
+    business context.  Developing software for the business context is the
+    focus of the Vanillae project.
 
-=====================================================================
-JEX MANUAL
-=====================================================================
+jex.eterms CONFIG FILE
+    Every project requires a file called `jex.eterms` in the root of the
+    project.
 
-Jex is a simple packaging/dependency system for TypeScript/JavaScript
-projects.
+    The config file is a list of Erlang terms separated by `.`s
 
-As of now, Jex is a glorified shell script that automates a lot of
-the tedium in building sidekick, JR, etc.  Jex is very much a work in
-progress, so these instructions are subject to change.
+    The following keys must exist, the rest are ignored
 
-Jex is currently hyper-specialized to our use cases inside of
-Vanillae, and is probably (currently) unsuitable for your use case.
-For instance, Jex assumes you are running a UNIX-like system with
-standard UNIX programs installed (e.g. tree, rsync, tar, etc).  It
-also makes very strong assumptions about your project structure and
-how you want to distribute your project.
+        {type, library | external | extension}.
+            This key implies other settings in the build process
 
-Our long-term goal is to build Jex out into a proper secure packaging
-system, and completely remove any dependency on NPM.  NPM comes with
-a lot of unfixable security issues that present an unacceptable risk
-in a business context.  Developing software for the business context
-is the focus of the Vanillae project.
+            library ->
+                The standard option. Pulls in dependencies and builds them,
+                assuming normal project layout. This is what you want in most
+                cases, even for things that are not libraries.
 
-You'll see how it works and what the philosophy is if you keep
-reading.
+            external ->
+                This is for external pre-built packages that we didn't develop,
+                such as TweetNaCl. This does not run `tsc`, etc. Jex assumes
+                the project has already been built, and so "install" etc just
+                copies stuff.
 
+            extension ->
+                Used for Jack Russell. Extensions have a much more complicated
+                build process because there are three different execution
+                contexts with three different constraint sets.
 
-=====================================================================
-HOW IT WORKS
-=====================================================================
+        {realm, atom()}.
+        {name, atom()}.
+        {version, string()}.
+        {deps, [string()]}.
 
-To start off, we run `jex init`
+PROJECT STRUCTURE
+    Jex makes very strong assumptions about your project structure
 
-    [~] % jex init
-    $ mkdir -p /home/pharpend/.jex/dev
-
-As I said above, jex is currently a glorified shell script. Much like
-`make`, jex prints the command it's running with a `$` at the
-beginning of the line.
-
-We can get a sense of what will go in this directory by running `jex
-tree` (yours will not look like this):
-
-    [~] % jex tree
-    $ tree /home/pharpend/.jex
-    /home/pharpend/.jex
-    └── dev
-        ├── local-awcp-0.1.0
-        │   ├── dist
-        │   │   ├── awcp.d.ts
-        │   │   ├── awcp.js
-        │   │   ├── awcp.js.map
-        │   │   └── jex_include
-        │   └── src
-        │       └── awcp.ts
-        ├── local-parasite-0.1.0
-        │   ├── dist
-        │   │   ├── ae_compiler.d.ts
-        │   │   ├── ae_compiler.js
-        │   │   ├── ae_compiler.js.map
-        │   │   ├── ae_node.d.ts
-        │   │   ├── ae_node.js
-        │   │   ├── ae_node.js.map
-        │   │   ├── jex_include
-        │   │   ├── net.d.ts
-        │   │   ├── net.js
-        │   │   └── net.js.map
-        │   └── src
-        │       ├── ae_compiler.ts
-        │       ├── ae_node.ts
-        │       └── net.ts
-        └── local-sidekick-0.1.0
-            ├── dist
-            │   ├── jex_include
-            │   │   └── local-awcp-0.1.0
-            │   │       ├── dist
-            │   │       │   ├── awcp.d.ts
-            │   │       │   ├── awcp.js
-            │   │       │   ├── awcp.js.map
-            │   │       │   └── jex_include
-            │   │       └── src
-            │   │           └── awcp.ts
-            │   ├── sidekick.d.ts
-            │   ├── sidekick.js
-            │   └── sidekick.js.map
-            └── src
-                └── sidekick.ts
-
-    17 directories, 24 files
-
-Currently, Jex is managing 3 packages for me:
-
-1. awcp
-2. parasite
-3. sidekick
-
-In a secure context, we want to avoid opaque rewrites whenever
-possible. This rules out bundling or minifying tools such as
-browserify.  We want the code that is running in the user's browser
-to be human-readable and to have a straightforward mapping to
-the original source.
-
-Let's start with the simplest package which is `awcp`.  This is the
-source directory listing
-
-    [v/libs pharpend/develop] % tree awcp
-    awcp
-    ├── dist
-    │   ├── awcp.d.ts
-    │   ├── awcp.js
-    │   ├── awcp.js.map
-    │   └── jex_include
-    ├── erl_crash.dump
-    ├── jex.eterms
-    ├── jex_mindist
-    │   ├── dist
-    │   │   ├── awcp.d.ts
-    │   │   ├── awcp.js
-    │   │   ├── awcp.js.map
-    │   │   └── jex_include
-    │   └── src
-    │       └── awcp.ts
-    ├── LICENSE
-    ├── Makefile
-    ├── README.md
-    ├── src
-    │   ├── awcp.ts
-    │   └── jex_include
-    └── tsconfig.json
-
-    8 directories, 14 files
-
-There is only one source file: `/src/awcp.ts`. There is a directory
-called `/src/jex_include/` which is empty.  If awcp had dependencies,
-this is where they would go.
-
-The file tree that ends up in `~/.jex/dev` is the `jex_mindist`
-directory. Let's focus on that
-
-    [v/libs pharpend/develop] % tree awcp/jex_mindist
-    awcp/jex_mindist
-    ├── dist
-    │   ├── awcp.d.ts
-    │   ├── awcp.js
-    │   ├── awcp.js.map
-    │   └── jex_include
-    └── src
-        └── awcp.ts
-
-    3 directories, 4 files
-
-As you can see, it's the same tree
-
-    [v/libs pharpend/develop] % tree ~/.jex/dev/local-awcp-0.1.0
-    /home/pharpend/.jex/dev/local-awcp-0.1.0
-    ├── dist
-    │   ├── awcp.d.ts
-    │   ├── awcp.js
-    │   ├── awcp.js.map
-    │   └── jex_include
-    └── src
-        └── awcp.ts
-
-    3 directories, 4 files
-
-Briefly, jex is built around the assumptions that you want simplicity,
-transparency, and composability, possibly at the expense of some
-duplication.
-
-It's assumed that you are developing JS to execute in the context of
-a website, that you are writing only a small amount of JS (i.e. NOT
-framework JS or a single-page-application), and that serving a
-JavaScript file tree does not present a bandwidth issue.  Everything
-has a version number, so that you can properly take advantage of
-caching.
-
-The idea is that you want to be able to take that file tree above,
-make it into a tarball, drop it on your server, and have it "just
-work".  Or, you can drop the whole tree into your existing project
-and have it "just work".  We want the source map to work properly, so
-the TypeScript source is included in the bundle.
-
-For more context, let's switch over to the Sidekick project. Sidekick
-depends on AWCP.
-
-    [src/v pharpend/develop] % tree sidekick/src
-    sidekick/src
-    ├── jex_include
-    │   └── local-awcp-0.1.0
-    │       ├── dist
-    │       │   ├── awcp.d.ts
-    │       │   ├── awcp.js
-    │       │   ├── awcp.js.map
-    │       │   └── jex_include
-    │       └── src
-    │           └── awcp.ts
-    └── sidekick.ts
-
-    5 directories, 5 files
-
-Jex automates the process of pulling awcp from the local repository
-and including it in a predictable file path in the source tree.
-
-To import AWCP, `sidekick.ts` contains this line
-
-    import * as awcp from './jex_include/local-awcp-0.1.0/dist/awcp.js';
-
-Notice that we're importing the JS file, not the TS file.  TypeScript
-gets its type information from the `dist/awcp.d.ts` file, not from
-the `src/awcp.ts` file.  The `src/awcp.ts` file is only included so
-the source map works properly in the browser's debugger.
-
-The next step is to compile sidekick. To do this, we run `jex dwim-`.
-This is shorthand for `jex init && jex pull && jex build`
-
-    dwim(minus) ->
-        % make the ~/.jex/dev directory
-        init(),
-        % pull the dependencies into src/jex_include
-        pull(),
-        % run tsc
-        build([]);
-    dwim(plus) ->
-        dwim(minus),
-        % make the jex_mindist folder
-        mindist([]),
-        % push to local repo
-        push().
-
-This is the essential flow of using Jex.  Suppose we update AWCP and
-want to see that result reflected in sidekick.
-
-1. In the AWCP repository, we run `jex dwim+`. This makes a new
-   distribution tarball and pushes it to the local repository.
-2. In the sidekick repository, we run `jex dwim-`. This pulls the new 
+        README.md       used by documentation tool `typedoc`
+        jex.eterms      explained above
+        tsconfig.json   needed for tsc
+        src/            typescript source code

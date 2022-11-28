@@ -40,6 +40,10 @@ help() ->
 % TODONE: jex get_mindist PKG
 % TODONE: jex dwim++ = install
 
+% TODO: jex directory based on version
+% TODO: "external" install
+%   - pull only on library
+
 % TODO: use less than full qualified names (not priority)
 % TODO: --name option for docs (not priority)
 % TODO: make fulldist for arbitrary installed package (requires storing jex.eterms, not hard but also not a priority)
@@ -183,11 +187,45 @@ dwim(plus_plus) ->
 %%-----------------------------------------------------------------------------
 
 cfgbarf() ->
-    tell(info, "~tp~n", [file:consult("jex.eterms")]).
-
+    tell(info, "~tp~n", [cfg(unsafe)]).
 
 cfg() ->
-    file:consult("jex.eterms").
+    cfg(safe).
+
+
+
+-spec cfg(MaybeSafe) -> Result
+    when MaybeSafe :: safe | unsafe
+         Result    :: {ok, Cfg :: proplist()}
+                    | {error, Reason :: term()}.
+% @doc "safe" means it checks to make sure the
+
+cfg(unsafe) ->
+    {ok, Terms} = file:consult("jex.eterms");
+    Terms;
+cfg(safe) ->
+    case file:consult("jex.eterms") of
+        {ok, Terms} -> cfg2(Terms);
+        Error       -> Error
+    end.
+
+cfg2(Cfg) ->
+    % allowed values:
+    %   - library
+    %   - external
+    %   - extension
+    case proplists:get_value(type, Cfg) of
+        % allowed values
+        library   -> {ok, Cfg};
+        external  -> {ok, Cfg};
+        extension -> {ok, Cfg};
+        % no key
+        undefined -> {error, {no_key, type}};
+        % bad value
+        BadType   -> {error, {bad_type, BadType}}
+    end.
+
+
 
 %%-----------------------------------------------------------------------------
 %% jex echo
