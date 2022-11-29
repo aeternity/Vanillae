@@ -195,14 +195,14 @@ cfg() ->
 
 
 -spec cfg(MaybeSafe) -> Result
-    when MaybeSafe :: safe | unsafe
-         Result    :: {ok, Cfg :: proplist()}
+    when MaybeSafe :: safe | unsafe,
+         Result    :: {ok, Cfg :: proplists:proplist()}
                     | {error, Reason :: term()}.
 % @doc "safe" means it checks to make sure the
 
 cfg(unsafe) ->
-    {ok, Terms} = file:consult("jex.eterms");
-    Terms;
+    {ok, Terms} = file:consult("jex.eterms"),
+    {ok, Terms};
 cfg(safe) ->
     case file:consult("jex.eterms") of
         {ok, Terms} -> cfg2(Terms);

@@ -854,6 +854,24 @@ address
 //-----------------------------------------------------------------------------
 // API: message sign
 //-----------------------------------------------------------------------------
+
+
+/**
+ * Sign the given message, return the message signature
+ *
+ * @example
+ * This function is triggered when a "sign message" button is pressed. A text
+ * input with `id="message-text"` contains the message to be signed.
+ * ```ts
+ * async function sign_msg (logger: sk.Logger) : Promise<void> {
+ *     let acc_pubkey : string = pv_address;
+ *     // @ts-ignore value property exists because i say so
+ *     let msg_text   : string = document.getElementById('message-text').value;
+ *     let signed_msg = await sk.msg_sign('sk-msg-sign-1', acc_pubkey, msg_text, sk.TIMEOUT_DEF_MSG_SIGN_MS, 'message signing took too long', logger);
+ *     console.log('signed message:', signed_msg);
+ * }
+ * ```
+ */
 async function
 msg_sign
     (id             : number | string,
