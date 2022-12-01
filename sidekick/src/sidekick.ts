@@ -857,7 +857,81 @@ address
 
 
 /**
- * Sign the given message, return the message signature
+ * Sign the given message, return the **HASHED AND SALTED** message signature
+ * (see IMPORTANT CAVEAT section), encoded in hexadecimal
+ *
+ * ## IMPORTANT CAVEAT: HASHING AND SALTING
+ *
+ * In order to exclude the possibility of someone using this functionality to
+ * trick the user into signing a transaction, the wallet salts and hashes the
+ * message, and *then* signs the salted/hashed message.
+ *
+ * Therefore, naively attempting to verify the signature will not work. You
+ * must apply the same preprocessing steps as the wallet, **THEN** check the
+ * signature against the salted/hashed message.
+ *
+ * ```erlang
+ * -spec hashed_salted_msg(Message) -> HashedSaltedMessage
+ *     when Message             :: binary(),
+ *          HashedSaltedMessage :: binary().
+ * % @doc Salt the message then hash with blake2b. See:
+ * % 1. https://github.com/aeternity/aepp-sdk-js/blob/370f1e30064ad0239ba59931908d9aba0a2e86b6/src/utils/crypto.ts#L83-L85
+ * % 2. https://github.com/aeternity/eblake2/blob/60a079f00d72d1bfcc25de8e6996d28f912db3fd/src/eblake2.erl#L23-L25
+ *
+ * hashed_salted_msg(Msg) ->
+ *     {ok, HSMsg} = eblake2:blake2b(32, salted_msg(Msg)),
+ *     HSMsg.
+ *
+ *
+ *
+ * -spec salted_msg(Message) -> SaltedMessage
+ *     when Message       :: binary(),
+ *          SaltedMessage :: binary().
+ * % @doc Salt the message the way Superhero does before signing.
+ * %
+ * % See: https://github.com/aeternity/aepp-sdk-js/blob/370f1e30064ad0239ba59931908d9aba0a2e86b6/src/utils/crypto.ts#L171-L175
+ *
+ * salted_msg(Msg) when is_binary(Msg) ->
+ *     P = <<"aeternity Signed Message:\n">>,
+ *     {ok, SP}   = btc_varuint_encode(byte_size(P)),
+ *     {ok, SMsg} = btc_varuint_encode(byte_size(Msg)),
+ *     <<SP/binary,
+ *       P/binary,
+ *       SMsg/binary,
+ *       Msg/binary>>.
+ *
+ *
+ *
+ * -spec btc_varuint_encode(Integer) -> Result
+ *     when Integer :: integer(),
+ *          Result  :: {ok, Encoded :: binary()}
+ *                   | {error, Reason :: term()}.
+ * % @doc Bitcoin varuint encode
+ * %
+ * % See: https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
+ *
+ * btc_varuint_encode(N) when N < 0 ->
+ *     {error, {negative_N, N}};
+ * btc_varuint_encode(N) when N < 16#FD ->
+ *     {ok, <<N>>};
+ * btc_varuint_encode(N) when N =< 16#FFFF ->
+ *     NBytes = eu(N, 2),
+ *     {ok, <<16#FD, NBytes/binary>>};
+ * btc_varuint_encode(N) when N =< 16#FFFF_FFFF ->
+ *     NBytes = eu(N, 4),
+ *     {ok, <<16#FE, NBytes/binary>>};
+ * btc_varuint_encode(N) when N < (2 bsl 64) ->
+ *     NBytes = eu(N, 8),
+ *     {ok, <<16#FF, NBytes/binary>>}.
+ *
+ * % eu = encode unsigned (little endian with a given byte width)
+ * % means add zero bytes to the end as needed
+ * eu(N, Size) ->
+ *     Bytes = binary:encode_unsigned(N, little),
+ *     NExtraZeros = Size - byte_size(Bytes),
+ *     ExtraZeros = << <<0>> || _ <- lists:seq(1, NExtraZeros) >>,
+ *     <<Bytes/binary, ExtraZeros/binary>>.
+ * ```
  *
  * @example
  * This function is triggered when a "sign message" button is pressed. A text
