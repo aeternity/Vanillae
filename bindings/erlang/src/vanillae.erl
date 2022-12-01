@@ -69,7 +69,10 @@
          contract_create/8,
          prepare_contract/1,
          contract_call/5,
-         contract_call/10]).
+         contract_call/6,
+         contract_call/10,
+         verify_signature/3]).
+
 
 % OTP Application Interface
 %-export([start/0, stop/0]).
@@ -78,7 +81,7 @@
 
 %%% Types
 
--export_type([ae_node/0, network_id/0]).
+-export_type([ae_node/0, network_id/0, ae_error/0]).
 
 
 -type ae_node()             :: {inet:ip_address(), inet:port_number()}.
@@ -530,8 +533,14 @@ acc_pending_txs(AccountID) ->
 %% Retrieve the next nonce for the given account
 
 next_nonce(AccountID) ->
-    case request(["/v2/accounts/", AccountID, "/next-nonce"]) of
-        {ok, #{"next_nonce" := Nonce}}           -> {ok, Nonce};
+%   case request(["/v2/accounts/", AccountID, "/next-nonce"]) of
+%       {ok, #{"next_nonce" := Nonce}}           -> {ok, Nonce};
+%       {ok, #{"reason" := "Account not found"}} -> {ok, 1};
+%       {ok, #{"reason" := Reason}}              -> {error, Reason};
+%       Error                                    -> Error
+%   end.
+    case request(["/v2/accounts/", AccountID]) of
+        {ok, #{"nonce"  := Nonce}}               -> {ok, Nonce + 1};
         {ok, #{"reason" := "Account not found"}} -> {ok, 1};
         {ok, #{"reason" := Reason}}              -> {error, Reason};
         Error                                    -> Error
@@ -753,7 +762,7 @@ result(Received)                    -> Received.
 %% @doc
 %% This function reads the source of a Sophia contract (an .aes file)
 %% and returns the unsigned create contract call data with default values.
-%% For more control over exactly what those values are, use create_contract/9.
+%% For more control over exactly what those values are, use create_contract/8.
 
 contract_create(CreatorID, Path, InitArgs) ->
     case next_nonce(CreatorID) of
@@ -935,7 +944,9 @@ contract_create4(OwnerID, Nonce,
                  Amount, Gas, GasPrice, Fee,
                  Compiled, CallData) ->
     Code = aeser_contract_code:serialize(Compiled),
-    CTVersion = 2,
+    VM = 7,
+    ABI = 3,
+    <<CTVersion:32>> = <<VM:16, ABI:16>>,
     ContractCreateVersion = 1,
     TTL = 0,
     Type = contract_create_tx,
@@ -1024,6 +1035,33 @@ read_aci(Path) ->
 contract_call(CallerID, AACI, ConID, Fun, Args) ->
     {ok, Nonce} = next_nonce(CallerID),
     Gas = min_gas(),
+    GasPrice = min_gas_price(),
+    Fee = min_fee(),
+    Amount = 0,
+    contract_call(CallerID, Nonce,
+                  Gas, GasPrice, Fee, Amount,
+                  AACI, ConID, Fun, Args).
+
+
+-spec contract_call(CallerID, Gas, AACI, ConID, Fun, Args) -> Result
+    when CallerID :: unicode:chardata(),
+         Gas      :: pos_integer(),
+         AACI     :: map(),
+         ConID    :: unicode:chardata(),
+         Fun      :: string(),
+         Args     :: [string()],
+         Result   :: {ok, CallTX} | {error, Reason},
+         CallTX   :: binary(),
+         Reason   :: term().
+%% @doc
+%% Just like contract_call/5, but allows you to specify the amount of gas
+%% without getting into a major adventure with the other arguments.
+%%
+%% For details on the meaning of these and other argument values see the doc comment
+%% for contract_call/10.
+
+contract_call(CallerID, Gas, AACI, ConID, Fun, Args) ->
+    {ok, Nonce} = next_nonce(CallerID),
     GasPrice = min_gas_price(),
     Fee = min_fee(),
     Amount = 0,
@@ -1363,6 +1401,43 @@ encode_call_data3(ArgDef, Fun, Args) ->
             {error, {args, lists:reverse(Errors)}}
     end.
 
+
+verify_signature(Sig, Message, PubKey) ->
+    case aeser_api_encoder:decode(PubKey) of
+        {account_pubkey, PK} -> verify_signature2(Sig, Message, PK);
+        Other                -> {error, {bad_key, Other}}
+    end.
+
+verify_signature2(Sig, Message, PK) ->
+    Prefix = <<"aeternity Signed Message:\n">>,
+    {ok, PSize} = vencode(byte_size(Prefix)),
+    {ok, MSize} = vencode(byte_size(Message)),
+    Smashed = iolist_to_binary([PSize, Prefix, MSize, Message]),
+    {ok, Hashed} = eblake2:blake2b(32, Smashed),
+    Signature = <<(binary_to_integer(Sig, 16)):(64 * 8)>>,
+    Result = enacl:sign_verify_detached(Signature, Hashed, PK),
+    {ok, Result}.
+
+
+vencode(N) when N < 0 ->
+    {error, {negative_N, N}};
+vencode(N) when N < 16#FD ->
+    {ok, <<N>>};
+vencode(N) when N =< 16#FFFF ->
+    NBytes = eu(N, 2),
+    {ok, <<16#FD, NBytes/binary>>};
+vencode(N) when N =< 16#FFFF_FFFF ->
+    NBytes = eu(N, 4),
+    {ok, <<16#FE, NBytes/binary>>};
+vencode(N) when N < (2 bsl 64) ->
+    NBytes = eu(N, 8),
+    {ok, <<16#FF, NBytes/binary>>}.
+
+eu(N, Size) ->
+    Bytes = binary:encode_unsigned(N, little),
+    NExtraZeros = Size - byte_size(Bytes),
+    ExtraZeros = << <<0>> || _ <- lists:seq(1, NExtraZeros) >>,
+    <<Bytes/binary, ExtraZeros/binary>>.
 
 
 %%% Debug functionality

@@ -37,7 +37,7 @@
 -record(fetcher,
         {pid  = none :: none | pid(),
          mon  = none :: none | reference(),
-         time = none :: none | erlang:timestamp(),
+         time = none :: none | integer(), % nanosecond timestamp
          node = none :: none | vanilae:ae_node(),
          from = none :: none | gen_server:from(),
          req  = none :: none | binary()}).
