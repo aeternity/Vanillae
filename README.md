@@ -16,10 +16,6 @@ Vanillae is just a knife.
 
 ## Flagship Tools
 
--   Jaeck Russell
-
-    A minimal browser wallet extension. Not included in this repository yet.
-
 -   [Sidekick](./sidekick/)
 
     A library to talk to a browser wallet extension from the perspective of a
@@ -48,25 +44,6 @@ out.
     This is just type definitions and constants (error codes). Type definitions
     consist of what data the waellet expects from the aepp, and what data the
     aepp expects from the waellet.
-
--   [Parasite](./libs/parasite/)
-
-    **NOT FOR PRODUCTION USE**
-
-    This is a library for talking to Aeternity HTTP nodes from the perspective
-    of a page script.  Used in example/documentation code for things that your
-    backend should do.
-
-    This may eventually be polished and repackaged as a production quality
-    library.
-
--   libjr
-
-    This is a library to talk to a page script ("aepp") from the perspective of
-    the wallet ("waellet"). It essentially is sidekick from the perspective of
-    the wallet.
-
-    Not yet included in this repository.
 
 
 ## Utilities
