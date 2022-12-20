@@ -96,13 +96,14 @@ help_screen() ->
      "  echo devdir             echo $HOME/.jex/dev\n"
      "  echo docsdir            echo $HOME/.jex/docs\n"
      "  echo tmpdir             echo $HOME/.jex/tmp\n"
-     "  echo pkgname            name of current package\n"
      "  echo pkg_devdir         echo $HOME/.jex/dev/realm-name-X.Y.Z\n"
      "  echo pkg_devdir PKG     echo $HOME/.jex/dev/PKG\n"
      "  echo pkg_docsdir        echo $HOME/.jex/docs/realm-name-X.Y.Z\n"
      "  echo pkg_docsdir PKG    echo $HOME/.jex/docs/PKG\n"
-     "  echo pkg_tmpdir         echo $HOME/.jex/tmp/realm-name-X.Y.Z\n"
-     "  echo pkg_tmpdir PKG     echo $HOME/.jex/tmp/PKG\n"
+     "  echo pkg_name           name of current package\n"
+     % "  echo pkg_tmpdir         echo $HOME/.jex/tmp/realm-name-X.Y.Z\n"
+     % "  echo pkg_tmpdir PKG     echo $HOME/.jex/tmp/PKG\n"
+     "  echo pkg_type           type of current package\n"
      "  echo deps               list dependencies of current package\n"
      "  echo serverpid [PORT]   show the pid for the documentation server, if alive\n"
     ].
@@ -139,11 +140,12 @@ dispatch(["echo", "jexdir"])               -> echo(jexdir);
 dispatch(["echo", "devdir"])               -> echo(devdir);
 dispatch(["echo", "docsdir"])              -> echo(docsdir);
 dispatch(["echo", "tmpdir"])               -> echo(tmpdir);
-dispatch(["echo", "pkgname"])              -> echo(pkgname);
 dispatch(["echo", "pkg_devdir"])           -> echo(pkg_devdir);
 dispatch(["echo", "pkg_devdir", PkgName])  -> echo({pkg_devdir, PkgName});
 dispatch(["echo", "pkg_docsdir"])          -> echo(pkg_docsdir);
 dispatch(["echo", "pkg_docsdir", PkgName]) -> echo({pkg_docsdir, PkgName});
+dispatch(["echo", "pkg_name"])             -> echo(pkg_name);
+dispatch(["echo", "pkg_type"])             -> echo(pkg_type);
 dispatch(["echo", "deps"])                 -> echo(deps);
 dispatch(["echo", "serverpid"])            -> echo(serverpid);
 dispatch(["echo", "serverpid", Port])      -> echo({serverpid, Port});
@@ -210,6 +212,7 @@ cfg(safe) ->
     end.
 
 cfg2(Cfg) ->
+    % see pkg_type/0, relies on this for validation
     % allowed values:
     %   - library
     %   - external
@@ -241,8 +244,6 @@ echo(docsdir) ->
     tell(info, "~ts", [docsdir()]);
 echo(tmpdir) ->
     tell(info, "~ts", [tmpdir()]);
-echo(pkgname) ->
-    tell(info, "~ts", [pkgname()]);
 echo(pkg_devdir) ->
     {_Exists, PkgDevDir} = pkg_devdir(),
     tell(info, "~ts", [PkgDevDir]);
@@ -259,6 +260,8 @@ echo({pkg_docsdir, PkgName}) ->
         {exists, Dir} -> tell(info, "~ts", [Dir]);
         Error         -> tell(error, "Error: ~tp", [Error])
     end;
+echo(pkg_name) ->
+    tell(info, "~ts", [pkg_name()]);
 echo(pkg_tmpdir) ->
     {_Exists, PkgTmpDir} = pkg_tmpdir(),
     tell(info, "~ts", [PkgTmpDir]);
@@ -266,6 +269,13 @@ echo({pkg_tmpdir, PkgName}) ->
     case pkg_tmpdir(PkgName) of
         {exists, Dir} -> tell(info, "~ts", [Dir]);
         Error         -> tell(error, "Error: ~tp", [Error])
+    end;
+echo(pkg_type) ->
+    case pkg_type() of
+        {ok, PkgType} ->
+            tell(info, "~tp", [PkgType]);
+        {error, Error} ->
+            error(Error)
     end;
 echo(deps) ->
     PrintDep = fun(Dep) -> tell(info, "~ts", [Dep]) end,
@@ -296,17 +306,10 @@ docsdir() ->
 tmpdir() ->
     filename:join(jexdir(), "tmp").
 
-pkgname() ->
-    {ok, Cfg} = cfg(),
-    Realm = proplists:get_value(realm, Cfg),
-    Name  = proplists:get_value(name, Cfg),
-    Vsn   = proplists:get_value(version, Cfg),
-    io_lib:format("~tp-~tp-~ts", [Realm, Name, Vsn]).
-
 
 
 pkg_devdir() ->
-    pkg_devdir(pkgname()).
+    pkg_devdir(pkg_name()).
 
 pkg_devdir(Pkg) ->
     Filename = filename:join(devdir(), Pkg),
@@ -316,8 +319,9 @@ pkg_devdir(Pkg) ->
     end.
 
 
+
 pkg_docsdir() ->
-    pkg_docsdir(pkgname()).
+    pkg_docsdir(pkg_name()).
 
 pkg_docsdir(PkgName) ->
     Filename = filename:join([docsdir(), PkgName]),
@@ -328,14 +332,39 @@ pkg_docsdir(PkgName) ->
 
 
 
+pkg_name() ->
+    {ok, Cfg} = cfg(),
+    Realm = proplists:get_value(realm, Cfg),
+    Name  = proplists:get_value(name, Cfg),
+    Vsn   = proplists:get_value(version, Cfg),
+    io_lib:format("~tp-~tp-~ts", [Realm, Name, Vsn]).
+
+
+
+
 pkg_tmpdir() ->
-    pkg_tmpdir(pkgname()).
+    pkg_tmpdir(pkg_name()).
 
 pkg_tmpdir(PkgName) ->
     Filename = filename:join([tmpdir(), PkgName]),
     case file_exists(Filename) of
         true    -> {exists, Filename};
         false   -> {dne, Filename}
+    end.
+
+
+
+-spec pkg_type() -> Result
+    when Result  :: {ok, PkgType}
+                  | {error, Reason :: term()},
+         PkgType :: library | external | extension.
+
+pkg_type() ->
+    % cfg errors if package type is invalid
+    % see cfg2/1
+    case cfg() of
+        {ok, Cfg} -> {ok, proplists:get_value(type, Cfg)};
+        Error     -> Error
     end.
 
 
@@ -375,6 +404,7 @@ init() ->
 %% jex build
 %%-----------------------------------------------------------------------------
 
+% need to branch on if type is external
 build(Opts) ->
                  % flags              if flag         default
     OptsConfig = [{["-w", "--weak"],  {weak, weak},   {weak, strict}},
@@ -581,7 +611,7 @@ serverpid(Port) ->
 %%-----------------------------------------------------------------------------
 
 fulldist() ->
-    PkgName = pkgname(),
+    PkgName = pkg_name(),
     PkgTmpDir =
         case pkg_tmpdir() of
             {exists, D} ->
