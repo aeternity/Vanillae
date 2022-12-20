@@ -406,6 +406,17 @@ init() ->
 
 % need to branch on if type is external
 build(Opts) ->
+    case pkg_type() of
+        {ok, PkgType}  -> build(PkgType, Opts);
+        {error, Error} -> error(Error)
+    end.
+
+
+-spec build(PkgType, Opts) -> ok
+    when PkgType :: library | external | extension,
+         Opts    :: [string()].
+
+build(library, Opts) ->
                  % flags              if flag         default
     OptsConfig = [{["-w", "--weak"],  {weak, weak},   {weak, strict}},
                   {["-f", "--force"], {force, force}, {force, dont_force}}],
@@ -413,8 +424,13 @@ build(Opts) ->
     _  = cmd("mkdir -p src/jex_include"),
     ok = tsc(Weak),
     ok = cp_jex_include(Force),
-    ok.
-    %ok.
+    ok;
+build(external, Opts) ->
+    % difference is we're not running tsc
+    % no deps to pull
+    ok;
+build(extension, Opts) ->
+    error(nyi).
 
 tsc(strict) ->
     "" = cmd("tsc"),
@@ -481,6 +497,13 @@ push() ->
 %%-----------------------------------------------------------------------------
 
 pushdocs() ->
+    case pkg_type() of
+        {ok, library} -> pushdocs2();
+        {ok, Other}   -> error({nyi, {pushdocs_pkg_type, Other}});
+        {error, E}    -> error(E)
+    end.
+
+pushdocs2() ->
     case pkg_docsdir() of
         {exists, DocsDestDir} ->
             _ = cmd(["rm -r ", DocsDestDir]),
@@ -554,6 +577,12 @@ pull_dep(Dep) ->
 %%-----------------------------------------------------------------------------
 
 mkdocs() ->
+    case pkg_type() of
+        {ok, library} -> mkdocs2();
+        Other         -> error({nyi, {mkdocs_pkg_type, Other}})
+    end.
+
+mkdocs2() ->
     _ = cmd("npx typedoc --entryPointStrategy expand --sort source-order src"),
     ok.
 
@@ -721,11 +750,20 @@ get_mindist2(PkgName) ->
 %% jex clean
 %%-----------------------------------------------------------------------------
 
+
+% TODO: branch here on package type
 clean() ->
+    {ok, PkgType} = pkg_type(),
+    clean(PkgType).
+
+clean(library) ->
     _ = cmdf("rm -r ./src/jex_include", []),
     _ = cmdf("rm -r ./dist", []),
-    ok.
-
+    ok;
+clean(external) ->
+    ok;
+clean(extension) ->
+    error(nyi).
 
 %%-----------------------------------------------------------------------------
 %% INTERNALS
