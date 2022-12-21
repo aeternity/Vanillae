@@ -4,7 +4,6 @@
 %%%               Just for usage when speed isn't crucial...
 %%% Created     : 22 Dec 2021 by Hans Svensson
 -module(ecu_secp256k1).
--vsn("1.0.0").
 
 -define(P, 16#FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F).
 -define(A, 16#00).
