@@ -17,19 +17,16 @@ start(ArgV) ->
 %%
 %% WHEN back: get decompose to work
 
-go(["help"]) ->
-    help();
-go(["--help"]) ->
-    help();
-go(["generate", "keypair"]) ->
-    error(nyi);
-go(["decompose", TxStr]) ->
-    decompose(TxStr);
-go(_) ->
-    error(invalid_subcommand).
+go(["help"])                -> help();
+go(["--help"])              -> help();
+go(["decompose", TxStr])    -> decompose(TxStr);
+go(["generate", "keypair"]) -> generate_keypair();
+go(X)                       -> error({invalid_subcommand, X}).
+
 
 help() ->
     io:format("you can't help people who won't help themselves~n", []).
+
 
 decompose(TxStr) ->
     case vd:decompose(TxStr) of
@@ -38,3 +35,10 @@ decompose(TxStr) ->
         {error, Error} ->
             io:format("ERROR: ~tp~n", [Error])
     end.
+
+
+generate_keypair() ->
+    #{public := PublicKey,
+      secret := SecretKey} = ecu_eddsa:sign_keypair(),
+    io:format("Public Key: ~w~n", [PublicKey]),
+    io:format("Secret Key: ~w~n", [SecretKey]).
