@@ -869,6 +869,7 @@ type EventData_A2W_connection_open
  *         }
  *     }
  * }
+ * ```
  */
 type EventData_W2A_connection_open
     = EventData_W2A<RpcResp_W2A_connection_open>;
