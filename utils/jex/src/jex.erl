@@ -425,11 +425,11 @@ build(library, Opts) ->
     ok = tsc(Weak),
     ok = cp_jex_include(Force),
     ok;
-build(external, Opts) ->
+build(external, _Opts) ->
     % difference is we're not running tsc
     % no deps to pull
     ok;
-build(extension, Opts) ->
+build(extension, _Opts) ->
     error(nyi).
 
 tsc(strict) ->
