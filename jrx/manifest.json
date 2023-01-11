@@ -8,4 +8,5 @@
                         "js"      : ["content.js"]}],
  "browser_action"   : {"default_icon"  : "icons/jrx-icon-32.png",
                        "default_title" : "Jaeck Russell",
-                       "default_popup" : "popup.html"}}
+                       "default_popup" : "popup.html"},
+ "permissions"      : ["storage"]}

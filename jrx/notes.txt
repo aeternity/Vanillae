@@ -1,0 +1,12 @@
+MODEL
+
+popup.html/popup.js
+    - this is our user interface, generally
+    raseev loops:
+        - raseevs data from the content script
+        - raseevs click events from end-user
+
+content.js
+    - this is basically a process that 
+
+background script

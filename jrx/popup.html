@@ -5,8 +5,25 @@
 </head>
 
 <body>
-<button id="mk-detectable">Make Wallet Detectable</button>
+
+<h1>Jack Russell</h1>
+
+<button id="mk-detectable">Make Wallet Detectable for 2 minutes</button>
 <br>
+
+<h2>Keypairs</h2>
+    <p id="no-keypairs" hidden>No keypairs yet. Click the button below to generate one.
+    </p>
+    <ul id="keypairs" hidden>
+    </ul>
+    <button id="generate">Generate new keypair</button>
+
+<h2>Log</h2>
+    <pre id="log"></pre>
+
+
+<!-- including nacl here -->
+<script src="nacl.js"></script>
 
 <script type="module" src="popup.js"></script>
 </body>
