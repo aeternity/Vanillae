@@ -28,7 +28,7 @@ async function mk_detectable() {
     }
 }
 
-function sleep(ms) {
+function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
@@ -36,7 +36,7 @@ function sleep(ms) {
 /**
  * This handles messages from *other parts of the extension*
  */
-function handler(msg) {
+function handler(msg: any) {
     console.error('message: ', msg);
     switch(msg) {
         case 'mk-detectable':
@@ -50,7 +50,7 @@ function handler(msg) {
 /**
  * This handles messages from page scripts
  */
-function window_message_handler(msg) {
+function window_message_handler(msg: {data: any}) {
     console.error('the science is coming', msg);
     // example science:
     // {
@@ -86,7 +86,7 @@ function window_message_handler(msg) {
  * The bottom line is this is the function that *actually* handles messages
  * from the window
  */
-function the_science_is_good(awcp_rcp_data) {
+function the_science_is_good(awcp_rcp_data: {id: string|number, method: string, params: object}) {
     // example science data:
     // // layer 3: json rpc
     // {jsonrpc : "2.0",
@@ -123,7 +123,7 @@ function the_science_is_good(awcp_rcp_data) {
  *
  * FIXME: this should query the user to see if he wants to connect
  */
-function post_connect_msg(msg_ident) {
+function post_connect_msg(msg_ident: string|number) {
     // : EventData_W2A_connection_open
     // http://localhost:6969/local-awcp-0.2.1/types/EventData_W2A_connection_open.html
     let connect_response =
@@ -141,7 +141,7 @@ function post_connect_msg(msg_ident) {
  *
  * this is to get the wallet's address
  */
-function bg_address_subscribe(msg_ident) {
+function bg_address_subscribe(msg_ident: string|number) {
 }
 
 
@@ -150,7 +150,7 @@ function bg_address_subscribe(msg_ident) {
  *
  * user wants us to sign a transaction
  */
-function bg_tx_sign(msg_ident, params) {
+function bg_tx_sign(msg_ident: string|number, params: object) {
 }
 
 /**
@@ -158,9 +158,10 @@ function bg_tx_sign(msg_ident, params) {
  *
  * user wants us to sign a message
  */
-function bg_msg_sign(msg_ident, params) {
+function bg_msg_sign(msg_ident: string|number, params: object) {
 }
 
+// @ts-ignore browser
 browser.runtime.onMessage.addListener(handler);
 window.addEventListener('message', window_message_handler);
 //window.addEventListener('message', function(evt) { console.error('BYYYYYYYYYYYYYYY', evt) });
