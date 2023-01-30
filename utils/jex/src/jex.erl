@@ -357,7 +357,10 @@ pkg_tmpdir(PkgName) ->
 -spec pkg_type() -> Result
     when Result  :: {ok, PkgType}
                   | {error, Reason :: term()},
-         PkgType :: library | external | extension.
+         PkgType :: library
+                  | external
+                  | extension
+                  | website.
 
 pkg_type() ->
     % cfg errors if package type is invalid
