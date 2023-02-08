@@ -34,7 +34,6 @@ detuctable
     : Promise<void>
 {
     let ati = await active_tab_id();
-    // @ts-ignore browser api unknown
     browser.tabs.sendMessage(ati,               // active tab
                              'mk-detectable');  // message
     // @ts-ignore disabled exists on this
@@ -51,7 +50,6 @@ active_tab_id
     ()
     : Promise<number>
 {
-    // @ts-ignore browser api unkown
     let active_tabs = await browser.tabs.query({active: true, currentWindow: true});
     return active_tabs[0].id;
 }
@@ -70,7 +68,6 @@ relist_keypairs
     // delete all list items
     pfizer(document.getElementById('keypairs')!);
     // look for keypairs then relist
-    // @ts-ignore browser api
     let obj = await browser.storage.local.get('keypairs');
     await handle_keypairs(obj);
 }
@@ -174,7 +171,6 @@ generate_keypair
     : Promise<void>
 {
     logln('generating a keypair');
-    // @ts-ignore namespace nacl
     let keypair       : keypair       = nacl.sign.keyPair();
     // @ts-ignore changing type
     keypair.name = "Untitled Keypair 1";

@@ -1,15 +1,15 @@
-let detect_msg =
-        {id        : "urmom",
-         name      : "JR",
-         networkId : "ae_uat",
-         origin    : "ur dads balls",
-         type      : "extension"};
+let detect_msg
+    = {id        : "urmom",
+       name      : "JR",
+       networkId : "ae_uat",
+       origin    : "ur dads balls",
+       type      : "extension"};
 
-let detect_awcp_msg =
-        {type: "to_aepp",
-         data: {jsonrpc: "2.0",
-                method: "connection.announcePresence",
-                params: detect_msg}};
+let detect_awcp_msg
+    = {type : "to_aepp",
+       data : {jsonrpc : "2.0",
+               method  : "connection.announcePresence",
+               params  : detect_msg}};
 
 
 

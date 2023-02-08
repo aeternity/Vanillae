@@ -20,7 +20,6 @@ async function main() {
  */
 async function detuctable() {
     let ati = await active_tab_id();
-    // @ts-ignore browser api unknown
     browser.tabs.sendMessage(ati, // active tab
     'mk-detectable'); // message
     // @ts-ignore disabled exists on this
@@ -31,7 +30,6 @@ async function detuctable() {
  * gets the id of the current tab
  */
 async function active_tab_id() {
-    // @ts-ignore browser api unkown
     let active_tabs = await browser.tabs.query({ active: true, currentWindow: true });
     return active_tabs[0].id;
 }
@@ -44,7 +42,6 @@ async function relist_keypairs() {
     // delete all list items
     pfizer(document.getElementById('keypairs'));
     // look for keypairs then relist
-    // @ts-ignore browser api
     let obj = await browser.storage.local.get('keypairs');
     await handle_keypairs(obj);
 }
@@ -117,7 +114,6 @@ function no_keypairs() {
  */
 async function generate_keypair() {
     logln('generating a keypair');
-    // @ts-ignore namespace nacl
     let keypair = nacl.sign.keyPair();
     // @ts-ignore changing type
     keypair.name = "Untitled Keypair 1";

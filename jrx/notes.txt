@@ -10,3 +10,22 @@ content.js
     - this is basically a process that 
 
 background script
+
+
+------------------------------------------------
+
+-> background
+    -> controller
+    -> "impure component"
+        -> fetching data
+        -> writing to disk
+    -> "pure component"
+        -> business logic
+            -> migrating data from version N to version N+1
+        -> all allowable mutations to the data within a specific version
+-> content script
+    - talking to page scripts
+    - intermediary between the background script and a page script
+    - raseev requests
+    - send responses back to page
+- 
