@@ -4,6 +4,10 @@
 
 //import {default as nacl} from './nacl.js';
 
+console.log('poop');
+import {z} from '../node_modules/zod/lib/index.js';
+console.log('pee');
+
 main();
 
 /**
@@ -14,6 +18,10 @@ main
     ()
     : Promise<void>
 {
+    //const foo = z.string();
+    //console.log(foo.parse('naggers'));
+    //console.log(foo.parse(3));
+
     // detect button action
     document.getElementById('mk-detectable')!.onclick = detuctable;
     document.getElementById('generate')!.onclick = generate_keypair;
@@ -51,7 +59,7 @@ active_tab_id
     : Promise<number>
 {
     let active_tabs = await browser.tabs.query({active: true, currentWindow: true});
-    return active_tabs[0].id;
+    return active_tabs[0].id as number;
 }
 
 

@@ -1,0 +1,9 @@
+{"name"            : "jrx",
+ "version"         : "0.1.0",
+ "description"     : "Simple Aeternity browser wallet",
+ "keywords"        : [],
+ "author"          : "Peter Harpending",
+ "license"         : "ISC",
+ "scripts"         : {"build": "tsc"},
+ "devDependencies" : {"typescript": "^4.7.4"},
+ "dependencies"    : { "zod": "^3.20.6"}}
