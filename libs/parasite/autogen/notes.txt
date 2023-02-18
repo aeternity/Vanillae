@@ -1,0 +1,121 @@
+I got the swagger api from wgetting it from
+https://mainnet.aeternity.io/api?oas3
+
+Keys in the swagger api
+
+"components" ->
+    these are the types
+    super relevant
+    two keys:
+
+    "parameters" ->
+        these are the possible input type parameters for each endpoint
+        super relevant
+        parameters are ordered... ok
+        only 9 different types so could possibly handle them by hand
+
+        ah... each one has a "required" field
+            e.g. "accountPubkey" will *always* be a required field in the url
+
+            /accounts/{pubkey}/height/{height}
+
+                3 parameters:
+                    int-as-string:
+                        refers to "#components/parameters/intAsString"
+                        this will *always* be optional, and is always a query-string
+                    pubkey:
+                        same but will *always* be required and part of URL
+                    height:
+                        same but will always be an integer
+
+    "schemas" ->
+        these are the possible output types
+        super relevant
+        96 so need to handle automatically
+        Example
+            33> maps:get(<<"Account">>, maps:get(<<"schemas">>, maps:get(<<"components">>, M))).
+            #{<<"properties">> => #{<<"auth_fun">>    => #{<<"description">> => <<"Name of authorization function for generalized account">>,
+                                                           <<"type">>        => <<"string">>},
+                                    <<"balance">>     => #{<<"$ref">> => <<"#/components/schemas/UInt">>},
+                                    <<"contract_id">> => #{<<"$ref">> => <<"#/components/schemas/EncodedPubkey">>},
+                                    <<"id">>          => #{<<"$ref">> => <<"#/components/schemas/EncodedPubkey">>},
+                                    <<"kind">>        => #{<<"enum">> => [<<"basic">>,<<"generalized">>],
+                                                           <<"type">> => <<"string">>},
+                                    <<"nonce">>       => #{<<"$ref">> => <<"#/components/schemas/UInt64">>},
+                                    <<"payable">>     => #{<<"description">> => <<"Payable">>,
+                                                            <<"type">>       => <<"boolean">>}},
+              <<"required">>   => [<<"id">>,
+                                   <<"balance">>,
+                                   <<"nonce">>],
+              <<"type">>       => <<"object">>}
+
+            recursive so
+
+"externalDocs" ->
+    advertising for aeternity
+    not immediately relevant
+
+"info" ->
+    this is like contact info for the authors of the json file
+    not immediately relevant
+
+"openapi" -> "3.0.0"
+    appears to just be swagger metadata
+    possibly relevant later
+
+"paths" ->
+    super relevant
+    This is all of the endpoints
+
+    key->value
+        key is the URL (which has {params} in it which need to be parsed)
+            each {param} is one of our 9 parameters above, and each one has a name
+
+    so function name will be the "operationId"
+    each parameter is one of our 9 parameter types (no optional parameters, that's so annoying)
+    response is by http code (dumb but whatever)
+
+    Alright so these are our functions...
+
+    the bread and butter of monkeypox will be going through these and autogenerating a function
+    it takes these input parameters, parses them with zod
+
+
+    Example:
+        41> maps:get(<<"/accounts/{pubkey}/hash/{hash}">>, maps:get(<<"paths">>, M)).
+        #{<<"get">> =>
+              #{<<"description">> => <<"Get an account by public key after the block indicated by hash. Can be either a micro block or a keyblock ha"...>>,
+                <<"operationId">> => <<"GetAccountByPubkeyAndHash">>,
+                <<"parameters">>  => [#{<<"$ref">> => <<"#/components/parameters/intAsString">>},
+                                      #{<<"$ref">> => <<"#/components/parameters/accountPubkey">>},
+                                      #{<<"$ref">> => <<"#/components/parameters/blockHash">>}],
+                <<"responses">>   => #{<<"200">> =>
+                                           #{<<"content">> =>
+                                                 #{<<"application/json">> =>
+                                                       #{<<"schema">> =>
+                                                             #{<<"$ref">> => <<"#/components/schemas/Account">>}}},
+                                             <<"description">> => <<"Successful operation">>},
+                                       <<"400">> =>
+                                           #{<<"content">> =>
+                                                 #{<<"application/json">> => 
+                                                       #{<<"schema">> =>
+                                                             #{<<"$ref">> => <<"#/components/schemas/Error">>}}},
+                                             <<"description">> =>
+                                                 <<"Invalid public key or invalid hash">>},
+                                       <<"404">> =>
+                                           #{<<"content">> =>
+                                                 #{<<"application/json">> =>
+                                                       #{<<"schema">> =>
+                                                             #{<<"$ref">> => <<"#/components/schemas/Error">>}}},
+                                             <<"description">> =>
+                                                 <<"Account not found or hash not available">>}},
+                <<"tags">> => [<<"external">>,<<"account">>]}}
+
+
+"servers" key ->
+    {"url": "/v3"}
+    possibly useful later
+
+"tags" ->
+    human tags like "chain", "name", "oracle" etc, potentially useful for
+    sorting, but not obviously/immediately relevant
