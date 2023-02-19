@@ -57,7 +57,7 @@ test_paths() ->
                              ResponseTypeName :: binary(),
                              ResponseDesc     :: binary()}],
          url            :: binary(),
-         method         :: binary()}).
+         method         :: get | post | delete}).
 
 
 -type endpoint() :: #ep{}.
