@@ -111,6 +111,37 @@ Keys in the swagger api
                                                  <<"Account not found or hash not available">>}},
                 <<"tags">> => [<<"external">>,<<"account">>]}}
 
+    current status:
+
+        70> mpox:main().
+        [{ep,<<"GetPendingAccountTransactionsByPubkey">>,
+             <<"Get pending account transactions by public key">>,
+             [<<"intAsString">>,<<"accountPubkey">>],
+             [{200,<<"SignedTxs">>,<<"Successful operation">>},
+              {400,<<"Error">>,<<"Invalid public key">>},
+              {404,<<"Error">>,<<"Account not found">>}],
+             <<"/accounts/{pubkey}/transactions/pending">>,get}]
+        71> mpox:parse_paths(mpox:paths()).
+        ** exception error: no function clause matching
+                            mpox:parse_parameter(#{<<"description">> =>
+                                                       <<"What strategy to use in order to determine the next nonce: shall it check for continuity or return the large"...>>,
+                                                   <<"in">> => <<"query">>,<<"name">> => <<"strategy">>,
+                                                   <<"required">> => false,
+                                                   <<"schema">> =>
+                                                       #{<<"default">> => <<"max">>,
+                                                         <<"enum">> => [<<"max">>,<<"continuity">>],
+                                                         <<"example">> => <<"max">>,<<"type">> => <<"string">>}}) (mpox.erl, line 122)
+             in function  lists:map/2 (lists.erl, line 1243)
+             in call from lists:map/2 (lists.erl, line 1243)
+             in call from mpox:parse3/1 (mpox.erl, line 114)
+             in call from mpox:parse2/1 (mpox.erl, line 102)
+             in call from mpox:parse/1 (mpox.erl, line 87)
+             in call from lists:map/2 (lists.erl, line 1243)
+             in call from lists:map/2 (lists.erl, line 1243)
+
+    not done, but good progress.
+
+
 
 "servers" key ->
     {"url": "/v3"}
