@@ -141,6 +141,8 @@ Keys in the swagger api
 
     not done, but good progress.
 
+    Alright, we parse all endpoints now...
+
 
 
 "servers" key ->

@@ -77,7 +77,8 @@ test_paths() ->
         {function_name     :: binary(),
          description       :: binary(),
          parameters        :: [ParamTypeName :: binary()],
-%         request_body_type :: {ref, TypeName :: binary()},
+         request_body_type :: none
+                            | {ref, TypeName :: binary()},
          response_types    :: [{HttpCode         :: integer(),
                                 ResponseType     :: {ref, TypeName :: binary()}
                                                   | {inline, Type :: map()}
@@ -128,21 +129,20 @@ parse({URL, #{<<"post">> := Map}}) ->
              parameters        = Params,
              request_body_type = ReqBodyType,
              response_types    = RTs,
-             url               = URL}.
+             url               = URL};
+parse({URL, #{<<"delete">> := Map}}) ->
+    #{function_name      := FunName,
+       description       := Desc,
+       parameters        := Params,
+       request_body_type := RBT,
+       response_types    := RTs} = parse2_delete(Map),
+    #ep_delete{function_name     = FunName,
+               description       = Desc,
+               parameters        = Params,
+               request_body_type = RBT,
+               response_types    = RTs,
+               url               = URL}.
 
-%% AHh.... hmm need to think about the keys... this case-splitting thing isn't 
-%parse({URL, #{<<"delete">> := Map}}) ->
-%    #{function_name      := FunName,
-%       description       := Desc,
-%       parameters        := Params,
-%       response_types    := RTs} = parse2_delete(Map),
-%    #ep_delete{function_name     = FunName,
-%               description       = Desc,
-%               parameters        = Params,
-%               request_body_type = ReqBodyType,
-%               response_types    = RTs,
-%               url               = URL}.
-%
 
 parse2_get(#{<<"operationId">> := FunctionName,
              <<"description">> := Desc,
@@ -192,6 +192,30 @@ parse2_post(#{<<"operationId">> := FunctionName,
       response_types    => parse_response_types(Resps)}.
 
 
+
+parse2_delete(#{<<"operationId">> := FunctionName,
+                <<"description">> := Desc,
+                <<"parameters">>  := Params,
+                <<"requestBody">> := RB,
+                <<"responses">>   := Resps}) ->
+    #{function_name     => FunctionName,
+      description       => Desc,
+      parameters        => parse_parameters(Params),
+      request_body_type => parse_request_body_type(RB),
+      response_types    => parse_response_types(Resps)};
+%% no 'requestbody' field
+parse2_delete(#{<<"operationId">> := FunctionName,
+                <<"description">> := Desc,
+                <<"parameters">>  := Params,
+                <<"responses">>   := Resps}) ->
+    #{function_name     => FunctionName,
+      description       => Desc,
+      parameters        => parse_parameters(Params),
+      request_body_type => none,
+      response_types    => parse_response_types(Resps)}.
+
+
+
 parse_request_body_type(#{<<"content">> := #{<<"application/json">> := #{<<"schema">> := #{<<"$ref">> := <<"#/components/schemas/", Name/binary>>}}}}) ->
     {ref, Name}.
 
@@ -221,8 +245,8 @@ parse_response_type({HttpCode_bin, #{<<"content">>    := #{<<"application/json">
      {ref, ResponseTypeName},
      ResponseDesc};
 % no response success type
-parse_response_type({<<"200">>, #{<<"description">> := ResponseDesc}}) ->
-    {200, none, ResponseDesc}.
+parse_response_type({N, #{<<"description">> := ResponseDesc}}) ->
+    {erlang:binary_to_integer(N), none, ResponseDesc}.
 
 
 %% current status:
