@@ -4,9 +4,7 @@
 
 //import {default as nacl} from './nacl.js';
 
-console.log('poop');
-import {z} from '../node_modules/zod/lib/index.js';
-console.log('pee');
+import * as bg from './background.js'
 
 main();
 
