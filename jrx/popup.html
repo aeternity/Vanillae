@@ -8,15 +8,22 @@
 
 <h1>Jack Russell</h1>
 
-<button id="mk-detectable">Make Wallet Detectable for 2 minutes</button>
+<button id="mk-detectable">Make Wallet Detectable for 2 Minutes</button>
 <br>
 
 <h2>Keypairs</h2>
-    <p id="no-keypairs" hidden>No keypairs yet. Click the button below to generate one.
-    </p>
-    <ul id="keypairs" hidden>
-    </ul>
-    <button id="generate">Generate new keypair</button>
+
+    <p id="no-keypairs" hidden>No keypairs yet. Click the button below to generate one.</p>
+    <br>
+
+    <ul id="keypairs" hidden></ul>
+    <br>
+
+    <button id="generate">Generate New Keypair</button>
+    <br>
+
+    <button id="recover" disabled>Recover Key Tree from Seed Phrase (NYI)</button>
+
 
 <h2>Log</h2>
     <pre id="log"></pre>
@@ -24,7 +31,8 @@
 
 <!-- including nacl here -->
 <script src="nacl.js"></script>
-
 <script type="module" src="dist/popup.js"></script>
+
+
 </body>
 </html>
