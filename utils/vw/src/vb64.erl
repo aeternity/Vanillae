@@ -89,7 +89,7 @@ enc(<<A:6, B:6, C:4>>) ->
 %
 % 12345678 ->
 % 123456   78____
-%    A     B bsl 2
+%    A     B bsl 4
 % convert to chars ->
 %   CA      CB     =    =
 enc(<<A:6, B:2>>) ->
@@ -118,7 +118,7 @@ dec(Base64_String) ->
 % convert to numbers ->
 %       abcdef gh____   =    =
 %         NW      NX
-% decompose ->
+% regroup ->
 %          abcdefgh  ____        abcdef   gh____
 %       <<LastByte:8, 0:4>> = <<  NW:6,    NX:6   >>
 dec([W, X, $=, $=], Acc) ->
@@ -133,7 +133,7 @@ dec([W, X, $=, $=], Acc) ->
 % convert to numbers ->
 %       abcdef gh1234  5678__  =
 %         NW      NX    NY
-% decompose ->
+% regroup ->
 %          abcdefgh  12345678   __          abcdef    gh1234   5678__
 %       <<   B1:8,     B2:8,   0:2  >> = <<  NW:6,     NX:6     NY:6   >>
 dec([W, X, Y, $=], Acc) ->
