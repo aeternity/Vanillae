@@ -30,40 +30,42 @@ elem({xy, X, Y}, #ec{a = A, b = B, mod = M}) ->
     modeq(Y*Y, X*X*X + A*X + B, M).
 
 
-%
-%-spec grop(Point, Point, Curve) -> NewPoint
-%    when Point    :: ecpoint(),
-%         Curve    :: ec(),
-%         NewPoint :: Point.
-%%% @doc
-%%% Elliptic curve group operation
-%%%
-%%% See Paar & Pelzl, p. 244
-%%% @end
-%
-%%% point doubling
-%grop(Point = {xy, X, Y}, Point, Curve = #ec{a=A, b=B, mod=P}) ->
-%    true     = elem(Point, Curve),
-%    S        = modulo_divide(3*X*X + A,
-%                             2*Y,
-%                             P);
-%    NewX     = modulo(S*S - 2*X,        P),
-%    NewY     = modulo(S*(X - NewX) - Y, P),
-%    NewPoint = {xy, NewX, NewY},
-%    true     = elem(NewPoint, Curve),
-%    NewPoint;
-%%% point "addition" (stupid name)
-%grop(Point1 = {xy, X1, Y1}, Point2 = {xy, X2, Y2}, Curve = #ec{a=A, b=B, mod=P}) ->
-%    true     = elem(Point1, Curve),
-%    true     = elem(Point2, Curve),
-%    S        = modulo_divide(Y2 - Y1,
-%                             X2 - X1,
-%                             P);
-%    NewX     = modulo(S*S - X1 - X2,      P),
-%    NewY     = modulo(S*(X1 - NewX) - Y1, P),
-%    NewPoint = {xy, NewX, NewY},
-%    true     = elem(NewPoint, Curve),
-%    NewPoint.
+
+-spec grop(Point, Point, Curve) -> NewPoint
+    when Point    :: ecpoint(),
+         Curve    :: ec(),
+         NewPoint :: Point.
+%% @doc
+%% Elliptic curve group operation
+%%
+%% See Paar & Pelzl, p. 244
+%% @end
+
+%% point doubling
+grop(Point = {xy, X, Y}, Point, Curve = #ec{a=A, mod=P}) ->
+    %io:format("grop(~p, ~p, ~p)~n", [Point, Point, Curve]),
+    true     = elem(Point, Curve),
+    S        = modulo_divide(3*X*X + A,
+                             2*Y,
+                             P),
+    NewX     = modulo(S*S - 2*X,        P),
+    NewY     = modulo(S*(X - NewX) - Y, P),
+    NewPoint = {xy, NewX, NewY},
+    %io:format("NewPoint: ~p~n", [NewPoint]),
+    true     = elem(NewPoint, Curve),
+    NewPoint;
+%% point "addition" (stupid name)
+grop(Point1 = {xy, X1, Y1}, Point2 = {xy, X2, Y2}, Curve = #ec{mod=P}) ->
+    true     = elem(Point1, Curve),
+    true     = elem(Point2, Curve),
+    S        = modulo_divide(Y2 - Y1,
+                             X2 - X1,
+                             P),
+    NewX     = modulo(S*S - X1 - X2,      P),
+    NewY     = modulo(S*(X1 - NewX) - Y1, P),
+    NewPoint = {xy, NewX, NewY},
+    true     = elem(NewPoint, Curve),
+    NewPoint.
 
 
 %% issue: -3 rem 5 = -3 (should be: 2)
@@ -78,10 +80,14 @@ modeq(A, B, M) ->
 %% the 'rem' operator will return a negative result if X < 0
 %%
 modulo(X, M) when X < 0 ->
-    M - (X rem M);
+    % x rem m < 0
+    Result = M + (X rem M),
+    %io:format("modulo(~p, ~p) = ~p~n", [X, M, Result]),
+    Result;
 modulo(X, M) ->
-    X rem M.
-
+    Result = X rem M,
+    %io:format("modulo(~p, ~p) = ~p~n", [X, M, Result]),
+    Result.
 
 modulo_divide(A, B, M) ->
     modulo(A * mod_inverse(B, M), M).
