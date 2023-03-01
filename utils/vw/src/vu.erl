@@ -27,8 +27,7 @@ encode(N) when N < (2 bsl 64) ->
 eu(N, Size) ->
     Bytes = binary:encode_unsigned(N, little),
     NExtraZeros = Size - byte_size(Bytes),
-    ExtraZeros = << <<0>> || _ <- lists:seq(1, NExtraZeros) >>,
-    <<Bytes/binary, ExtraZeros/binary>>.
+    <<Bytes/binary, (0:NExtraZeros)>>.
 
 
 
