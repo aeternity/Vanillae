@@ -2,8 +2,8 @@
 
 by Peter Harpending
 
-In the context of cryptography, all numbers are integers unless stated
-otherwise.
+In the context of cryptography, all numbers are integers (math integers that
+is, not machine integers) unless stated otherwise.
 
 ## How cryptography works in general
 
@@ -41,6 +41,8 @@ unstructured "hashing").  A case where this property is useful would be storing
 passwords in a database: you want to be able to check whether or not a given
 password attempt is correct, but you don't want to expose your users' passwords
 in the event of a data breach.
+
+### Example: Diffie Hellman
 
 An example of where structure might be useful is the **Diffie-Hellmann**
 system:
@@ -103,7 +105,7 @@ choice of `E`, and your public key would be the number `2^E mod 13`.
 
 The interesting thing is that if I have my own private key `F`, and I publish
 `2^F` as my public key, both of us can compute `2^(F*E)`, without knowing each
-other's private keys. 
+other's private keys.
 
 - I take your public key `2^E` and raise it to the power `F`
 - You take my public key `2^F` and raise it to the power `E`
@@ -111,8 +113,9 @@ other's private keys.
 And crucially, *nobody else can compute this secret key*.
 
 My friend summarized this as "commutative hashes allow the establishment of
-shared secrets."  If we have a shared secret, then we have a cryptography
-scheme (more later).
+shared secrets."  If you and I have a shared secret, then we also have any
+number of ways of encrypting messages between the two of us where only we can
+decode them.
 
 
 ## What are elliptic curves?
@@ -132,15 +135,16 @@ If we plot an elliptic curve over the real numbers, it looks like this
 [diagram]
 
 The operation that we care about on elliptic curves is the "elliptic curve
-\[group\] operation", which we will call `ec_grop`.
+\[group\] operation", which we will call `ec_grop(Pt1: ec_point, Pt2: ec_point) -> ec_point`.
 
-What matters is that we can take any two points on the curve (including the
-same point with itself) and produce a new point on the curve.
+What matters is that we can `ec_grop` any two points on the curve (including
+the same point with itself) and produce a new point on the curve.
 
 [diagram]
 
 If the curve is chosen correctly, there will be (at least one) special point
 on the curve which is called a **\[generator\]**. This generator point (let's
-call it `G`) has the property that if we `ec_grop` it with itself repeatedly,
-the resulting **\[orbit\]** cycles through every point on the curve.
+call it `G`) has the property that if we `ec_grop` it with itself repeatedly
+(`ec_grop(G, ec_grop(G, ec_grop(G, ...)))`), the resulting **\[orbit\]** cycles
+through every point on the curve.
 
