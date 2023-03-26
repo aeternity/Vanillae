@@ -148,3 +148,6 @@ call it `G`) has the property that if we `ec_grop` it with itself repeatedly
 (`ec_grop(G, ec_grop(G, ec_grop(G, ...)))`), the resulting **\[orbit\]** cycles
 through every point on the curve.
 
+### The EC group operation
+
+### Projective Geometry
