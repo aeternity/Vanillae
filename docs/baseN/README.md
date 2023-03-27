@@ -1,10 +1,39 @@
-# Base58/Base64 Number Encoding Schema in Detail
+# Base58/Base64 Bytestring Encoding Schemas
 
-Base64 and Base58 are two algorithms for encoding byte arrays in plain text. I
+Base64 and Base58 are two algorithms for encoding byte arrays to plain text. I
 initially assumed these were two instances of the same "Base N" algorithm. **This
 is not the case. These are two fundamentally different algorithms.**
 
+Base64 is simpler. It treats your byte array as a stream of bytes. It encodes 3
+bytes at a time, into 4 characters (`3 bytes -> 24 bits -> 4 groups of 6 bits
+-> 4 letters`). There is a table to convert 6-bit integers to letters which you
+can look up on wikipedia. There is also a padding rule to deal with bytestrings
+whose byte length is not a multiple of 3.
+
+Base58 is more complex. Roughly, base58 thinks of the byte array as a very long
+unsigned integer, and then encodes that integer into base58 using the normal
+quotient-remainder algorithm (will explain below if unfamiliar). Notionally, it
+is
+
+```
+%% NOTIONAL code
+b58_enc(ByteArray) ->
+    <<N:(bit_size(ByteArray))>> = ByteArray,
+    erlang:integer_to_list(N, 58).
+```
+
+There's a different padding rule in Base58, this time for the case where the
+byte array contains leading `0`s (the strings `000123` and `123` point to the
+same integer, but are different byte arrays).
+
+
 ## tldr
+
+- Base64 Erlang
+- Base64 TypeScript
+- Base58 Erlang
+- Base58 TypeScript
+
 
 ```erlang
 -spec b64_enc(Bytes) -> Base64
@@ -155,7 +184,7 @@ b58_dec(Str) ->
 
 %% this is basically the oppsite of split_zeros/2 above
 split_ones([$1 | Rest], LeadingZeros) ->
-    split_ones(Rest, <<LeadingZeros/binary, 1>>);
+    split_ones(Rest, <<LeadingZeros/binary, $1>>);
 split_ones(B58Str, LeadingZeros) ->
     {LeadingZeros, B58Str}.
 
@@ -178,4 +207,179 @@ bignum_to_binary_bige(N, Acc) ->
     R = N rem 256,
     NewAcc = <<R, Acc/binary>>,
     bignum_to_binary_bige(Q, NewAcc).
+```
+
+
+## The quotient-remainder algorithm
+
+Let's write the number `1234` in base `10`
+
+```
+1234  = 123*10 + 4
+quotient        remainder
+123             4
+-----------     -----------
+1234 div 10     1234 rem 10
+
+
+123 = 12*10 + 3
+quotient        remainder
+12              3
+-----------     -----------
+123  div 10     123  rem 10
+
+
+12 = 1*10 + 2
+quotient        remainder
+1               2
+-----------     -----------
+12   div 10     12   rem 10
+
+
+1 = 0*10 + 1
+quotient        remainder
+0               1
+-----------     -----------
+1    div 10     1    rem 10
+```
+
+The algorithm in general is pretty simple
+
+```erlang
+%% Base 1 makes no sense
+digits(N, Base) when N > 0, Base > 1 ->
+    digits(N, Base, []);
+%% have to handle 0 specially because digits/3 will return [] in this case
+digits(0, _Base) ->
+    [0].
+
+
+%% general case
+digits(N, Base, DigitsAcc) when N > 0 ->
+    Q            = N div Base,
+    R            = N rem Base,
+    NewN         = Q,
+    NewDigitsAcc = [R | DigitsAcc],
+    digits(NewN, Base, NewDigitsAcc);
+%% terminate when N = 0
+digits(0, _Base, Digits) ->
+    Digits.
+```
+
+Let's walk through the call chain for `digits(1234, 10)`
+
+```
+%% first case is successful on digits/2
+digits(1234, 10) when 1234 > 0, 10 > 1 ->
+    digits(1234, 10, [])
+
+%% general case of digits/3
+digits(1234, 10, []) when 1234 > 0 ->
+    Q            = 123 = 1234 div 10
+    R            =   4 = 1234 rem 10
+    NewN         = 123 = Q,
+    NewDigitsAcc = [4] = [R | []],
+    digits(123, 10, [4])
+
+%% general case of digits/3
+digits(123, 10, [4]) when 123 > 0 ->
+    Q            = 12  = 123 div 10
+    R            =  3  = 123 rem 10
+    NewN         = 12  = Q,
+    NewDigitsAcc = [3, 4] = [R | [4]],
+    digits(12, 10, [3, 4])
+
+%% general case of digits/3
+digits(12, 10, [3, 4]) when 12 > 0 ->
+    Q            = 1   = 12 div 10
+    R            = 2   = 12 rem 10
+    NewN         = 1   = Q,
+    NewDigitsAcc = [2, 3, 4] = [R | [3, 4]],
+    digits(1, 10, [2, 3, 4])
+
+%% general case of digits/3
+digits(1, 10, [2, 3, 4]) when 1 > 0 ->
+    Q            = 0            = 1 div 10
+    R            = 1            = 1 rem 10
+    NewN         = 0            = Q,
+    NewDigitsAcc = [1, 2, 3, 4] = [R | [2, 3, 4]],
+    digits(0, 10, [1, 2, 3, 4])
+
+%% terminal case of digits/3
+digits(0, 10, [1, 2, 3, 4]) ->
+    [1, 2, 3, 4].
+```
+
+If we convert `1234` into base 58, it is
+
+```
+%% first case is successful on digits/2
+digits(1234, 58) when 1234 > 0, 58 > 1 ->
+    digits(1234, 58, [])
+
+%% general case of digits/3
+digits(1234, 58, []) when 1234 > 0 ->
+    %% 1234 = 21*58 + 16
+    Q            = 21   = 1234 div 58
+    R            = 16   = 1234 rem 58
+    NewN         = Q    = 21,
+    NewDigitsAcc = [16] = [R | []],
+    digits(21, 58, [16])
+
+%% general case of digits/3
+digits(21, 58, [16]) when 21 > 0 ->
+    %% 21 = 0*58 + 21
+    Q            = 0        = 21 div 58
+    R            = 21       = 21 rem 58
+    NewN         = 0        = Q,
+    NewDigitsAcc = [21, 16] = [R | [16]],
+    digits(0, 58, [21, 16])
+
+%% terminal case of digits/3
+digits(0, 58, [21, 16]) ->
+    [21, 16]
+```
+
+## Miscellany
+
+Notice that with the larger base, the algorithm terminates in fewer steps (i.e.
+requires fewer digits).  This is why we use large bases like `64` and `58`.
+
+Converting the "digits" to the proper base58 text representation is a matter of
+looking up `21` and `16` in a table.
+
+```
+9> vb58:enc(<<1234:16>>).
+"NH"
+10> vb58:dec("N").
+<<21>>
+11> vb58:dec("H").
+<<16>>
+```
+
+In the special case where the bytestring contains no leading `0` bytes and its
+byte length is a multiple of `3`, then these are indeed two instances of the
+same "base N" algorithm. Base 64 is considerably faster because `64` is a power
+of 2, and therefore the algorithm can be written using bit operations (i.e.
+without integer division).
+
+The idea of Base58 is to be Base64 that guards against manual entry errors. So
+it excludes characters with visual ambiguity (e.g. `0O`, `lI1`), or characters
+where text display programs might break long lines (e.g. `-/`).
+
+Because Base58 is so computationally expensive, it is generally only used for
+bytestrings that have a small, fixed size, and where manual entry is likely
+to be a concern; for instance, Aeternity public keys are *always* 32 bytes
+long, and are likely to be communicated over email or on paper.  Base64 is
+used for bytestrings with a large/variable/unknown size; for instance,
+Aeternity transactions can have arbitrary payloads, and are in some sense
+ephemeral, unlikely to be written on paper.
+
+Moreover, in practice, we will add a 4-byte checksum to the end of bytestrings
+before doing BaseN encoding to guard against manual entry or copy/paste errors.
+
+```erlang
+encode_account(PubKey_Bytes) ->
+    <<CheckBytes:4/binary, _/binary>> = crypto:hash(sha256, crypto:hash(sha256, Pubkey_Bytes)),
+    "ak_" ++ base58:encode(<<Pubkey_Bytes, CheckBytes>>).
 ```
