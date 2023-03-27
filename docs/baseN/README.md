@@ -26,14 +26,17 @@ There's a different padding rule in Base58, this time for the case where the
 byte array contains leading `0`s (the strings `000123` and `123` point to the
 same integer, but are different byte arrays).
 
-
 ## tldr
 
-- Base64 Erlang
-- Base64 TypeScript
-- Base58 Erlang
-- Base58 TypeScript
+Full working/tested examples:
 
+- [Base64 Erlang](https://github.com/aeternity/Vanillae/blob/829dd2930ff20ea0473cf2ad562e0a1c2aba0411/utils/vw/src/vb64.erl)
+- [Base64 TypeScript](https://github.com/aeternity/Vanillae/blob/pharpend/develop/bindings/typescript/src/b64.ts)
+- [Base58 Erlang](https://github.com/aeternity/Vanillae/blob/829dd2930ff20ea0473cf2ad562e0a1c2aba0411/utils/vw/src/vb58.erl)
+- [Base58 TypeScript](https://github.com/aeternity/Vanillae/blob/829dd2930ff20ea0473cf2ad562e0a1c2aba0411/bindings/typescript/src/b58.ts)
+
+If you're doing this in a language that doesn't have bignum arithmetic... good
+luck friend.
 
 ```erlang
 -spec b64_enc(Bytes) -> Base64
@@ -212,6 +215,11 @@ bignum_to_binary_bige(N, Acc) ->
 
 ## The quotient-remainder algorithm
 
+This is the algorithm for converting a "pure" integer into an arbitrary base.
+[There is a version of this algorithm that computes the decimal representation
+of a fraction, called "long division", which you probably learned in
+school.](https://www.bitchute.com/video/Jfk13sfYnxKI/)
+
 Let's write the number `1234` in base `10`
 
 ```
@@ -363,9 +371,9 @@ same "base N" algorithm. Base 64 is considerably faster because `64` is a power
 of 2, and therefore the algorithm can be written using bit operations (i.e.
 without integer division).
 
-The idea of Base58 is to be Base64 that guards against manual entry errors. So
-it excludes characters with visual ambiguity (e.g. `0O`, `lI1`), or characters
-where text display programs might break long lines (e.g. `-/`).
+The idea of Base58 is to be "Base64 that guards against manual entry errors."
+So it excludes characters with visual ambiguity (e.g. `0O`, `lI1`), or
+characters where text display programs might break long lines (e.g. `-/`).
 
 Because Base58 is so computationally expensive, it is generally only used for
 bytestrings that have a small, fixed size, and where manual entry is likely
@@ -383,3 +391,32 @@ encode_account(PubKey_Bytes) ->
     <<CheckBytes:4/binary, _/binary>> = crypto:hash(sha256, crypto:hash(sha256, Pubkey_Bytes)),
     "ak_" ++ base58:encode(<<Pubkey_Bytes, CheckBytes>>).
 ```
+
+### Base58 is a two step conversion
+
+We like to think of `binary()` as a sequence of `1`s and `0`s (i.e. **bits**).
+But... strictly speaking, it's more correct to think of a `binary()` as a
+sequence of **bytes**. A **byte** has a value between `0` and `255`, which
+conventionally we think of as 8 bits. But really, the bytes are what is real
+and the bits are a chimp brain fantasy.
+
+So, when we're converting a bytestring to "base 58", really, it's a two step
+conversion:
+
+```
+                     ---------- "encode" ------->
+erlang type : binary()  <-> integer()       <-> string()
+math type   : Base256   <-> "pure integer"  <-> Base58
+                     <--------- "decode" --------
+```
+
+Now, of course, under the hood, everything is really binary. And I mean
+`binary()`... bytes, not bits.  But at the Erlang (and TypeScript) level of
+fakery, the correct (or at least simple) way to think about Base58 is as a
+two-step conversion: `bytestring <-> integer <-> text`.
+
+I provided examples in TypeScript and Erlang because those are the two
+languages we use most commonly in Aeternity. Luckily, both have built-in bignum
+(arbitrary size integer) arithmetic.  If you're doing this in a language like C
+that doesn't have bignum arithmetic, you're going to have to interleave in the
+bignum logic yourself.  Have fun.
