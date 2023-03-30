@@ -1,5 +1,7 @@
 # Base58/Base64 Bytestring Encoding Schemas
 
+![Image explainer](./baseN-thumb.png)
+
 Base64 and Base58 are two algorithms for encoding byte arrays to plain text. I
 initially assumed these were two instances of the same "Base N" algorithm. **This
 is not the case. These are two fundamentally different algorithms.**
