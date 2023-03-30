@@ -3,8 +3,8 @@
 The default `nodejs` package on Ubuntu installs an ancient version of Node/NPM
 that often doesn't work properly with contemporary code.
 
-As of the time of writing, Ubuntu's repository contains Node 8.10.0, which is 6
-years out of date.
+As of the time of writing (October 12, 2022), Ubuntu's repository contains Node
+8.10.0, which is 6 years out of date.
 
 To install the latest version of Node (currently: 18.10.0)
 
