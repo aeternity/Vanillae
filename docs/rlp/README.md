@@ -1,5 +1,7 @@
 # Ethereum Recursive-Length-Prefix (RLP) Encoding, with code in Erlang and TypeScript
 
+![RLP diagram](./rlp-thumb.png)
+
 This is a standard for encoding arbitrary(ish)-depth lists of lists of ... of
 lists of bytestrings, as a single bytestring.
 
