@@ -629,7 +629,8 @@ rnd(RoundIdx0, Sponge) ->
 The Greek letter steps will often reference "the column to the front" or some
 such.  The details of this are described in the [coordinate system
 section][coord-system].  For now, trust that the function `left/1` correctly
-fetches the X-coordinate to our left, and worry about the details later.
+fetches the X-coordinate to our left (and so forth for `front/1`, `up/1`, etc),
+and worry about the details later.
 
 ![NIST standard, p.8](./spongeparts.png)
 
@@ -719,6 +720,12 @@ parity(<<0:1, Rest/bitstring>>, NOnes) -> parity(Rest, NOnes);
 parity(<<1:1, Rest/bitstring>>, NOnes) -> parity(Rest, NOnes + 1);
 parity(<<>>                   , NOnes) -> NOnes rem 2.
 ```
+
+### Inner Keccak: rho stage
+### Inner Keccak: pi stage
+### Inner Keccak: chi stage
+### Inner Keccak: iota stage
+### Inner Keccak: coordinate system
 
 [coord-system]: #inner-keccak-coordinate-system
 [greek-letter-pitfall]: #pitfall-greek-letter-steps-require-two-copies-of-the-sponge-to-compute
