@@ -137,14 +137,13 @@ algorithms is that they are all-or-nothing and are hard to decompose.  Usually
 when your code doesn't work, you can do some trial and error to figure out
 which part of the code is wrong.  Not so with hashing.
 
-This requires a lot of context to explain, and it will make sense when you get
-to the point in the document.  This algorithm has state, which is a 1600-bit
-bit array.  And that state gets updated a lot.  The updating procedure involves
-a lot of `xor`ing this bit against that bit, and computing the parity of this
-string of bits, etc.
+This algorithm has state, which is a 1600-bit bit array called the "sponge".
+And that state gets updated a lot.  The updating procedure involves a lot of
+`xor`ing this bit against that bit, and computing the parity of this string of
+bits, etc.
 
 A lot of it involves crawling down the bit array one bit at a time, and xoring
-the current bit against certain bits from *the original bit array*, and then
+the current bit against certain bits from **the original bit array**, and then
 keeping a separate copy that has the modifications.
 
 The mistake I was making was as follows. Let's say that the update to bit 55
@@ -560,6 +559,10 @@ really_squeeze(WetSponge, OutputBitLength, BitRate, ResultAcc)->
 
 This is the `f` function that you see in all the documentation.  In inner
 keccak, the 1600-bit sponge is now thought of as a 5x5x64 3-dimensional array.
+
+Go re-read the [Greek letter pitfall
+section](#pitfall-greek-letter-steps-require-two-copies-of-the-sponge-to-compute)
+before continuing.
 
 ![NIST standard, page 11](./spongecoords.png)
 
