@@ -2,11 +2,16 @@
 
 ![I can't make a diagram for this one, fellas.[^sponge]](./sponge.jpg)
 
-Keccak is a hashing algorithm used for the SHA-3 standard. [The
+Keccak is a hashing algorithm used for the SHA-3 standard. [The NIST
 standard][nist-standard] is semi-readable math clownery. Hashing algorithms by
-nature have to be complicated and somewhat obfuscated. But, at the end of the
-day, all Keccak does is take in some input bits, process them in a
-deterministic way, and hand you output bits.
+nature have to be complicated and somewhat obfuscated, so this is kind of par
+for the course.
+
+I found [this lecture][german-lecture] and the [accompanying
+notes][german-lecture-notes] indispensable when writing kek.
+
+At the end of the day, all Keccak does is take in some input bits, process them
+in a deterministic way, and hand you output bits.
 
 The goal of this document is just to explain what the processing steps are as
 straightforwardly as possible.
@@ -22,8 +27,8 @@ special cases of Keccak.
 
 #### References
 
-1. [Helpful lecture](https://www.youtube.com/watch?v=JWskjzgiIa4)
-2. [Notes for that lecture](https://www.crypto-textbook.com/download/Understanding-Cryptography-Keccak.pdf)
+1. [Helpful lecture][german-lecture]
+2. [Notes for that lecture][german-lecture-notes]
 3. [NIST standard][nist-standard] (btw: the double bar notation means "concatenate")
 4. [SHA-3 Wikipedia](https://en.wikipedia.org/wiki/SHA-3)
 
@@ -275,5 +280,7 @@ keccak(Capacity = _c, Message, OutputBitLength) ->
 The padding part is kind of dumb. `absorb/4` and `squeeze/3` both call
 `inner_keccak/1`, which like I said is where all the real bit-churning happens.
 
+[german-lecture]: https://www.youtube.com/watch?v=JWskjzgiIa4
+[german-lecture-notes]: https://www.crypto-textbook.com/download/Understanding-Cryptography-Keccak.pdf
 [nist-standard]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
 [^sponge]: Source for photo: https://www.flickr.com/photos/30478819@N08/46410395345
