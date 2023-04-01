@@ -129,9 +129,9 @@ shake(ShakeNumber, Message, OutputBitLength) ->
 ## SHA-s and SHAKE-s
 
 These are the "porcelain" functions that we show to the outside world.  These
-are just rewrites, in front of Keccak.  Another way to think about it is that
-Keccak has tons of settings, and that each of these "algorithms" are just
-different settings presets.
+are just rewrites in front of Keccak.  Another way to think about it is that
+Keccak has tons of settings, and each of these "algorithms" are just different
+settings presets.
 
 ```erlang
 %% From: https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L26-L134
@@ -292,7 +292,7 @@ keccak(Capacity = _c, Message, OutputBitLength) ->
 The padding part is kind of dumb. `absorb/4` and `squeeze/3` both call
 `inner_keccak/1`, which like I said is where all the real bit-churning happens.
 
-### Padding
+### Outer Keccak: Padding
 
 The absorption phase is "chunked", meaning
 
@@ -388,6 +388,60 @@ pad(Message, BitRate = _r) ->
     NumberOfNewZerosNeeded            = NumberOfNewBitsNeeded - 2,
     NewMessage                        = <<Message/bitstring, 1:1, 0:NumberOfNewZerosNeeded, 1:1>>,
     NewMessage.
+```
+
+### Outer Keccak: Absorption phase
+
+As I mentioned above, absorption is "chunked", and the chunk size is the bit
+rate.  Absorption comes after padding.  So in our absorb procedure, we can
+*assume* the length of the `PaddedMessage` is an integer multiple of `BitRate`.
+
+The procedure is
+
+1.  Consume `BitRate` bits off the input `PaddedMessage` and put these bits
+    into `ThisRWord`
+2.  Bitwise xor `ThisRWord` against the `Sponge`
+
+    Let's suppose `BitRate = 10` as before
+
+    ```
+    PaddedMessage : 0000011110 1011000100 1111100001
+    ThisRWord     : 0000011110
+    Sponge        : 1111110000 0100011010 1001111010 ... (1600 bits)
+    AugRWord      : 0000011110 0000000000 0000000000 ... (1600 bits)
+    InnerKekInput : 1111101110 0100011010 1001111010 ... (1600 bits, result of xoring the two previous lines)
+    ```
+
+3.  Take the freshly xored sponge and pass it to `inner_keccak/1`
+4.  Repeat until you run out of `PaddedMessage` bits.
+
+
+```erlang
+-spec absorb(PaddedMessage, BitRate, Capacity, SpongeAcc) -> WetSponge
+    when PaddedMessage :: bitstring(),
+         BitRate       :: pos_integer(),
+         Capacity      :: pos_integer(),
+         SpongeAcc     :: <<_:1600>>,
+         WetSponge     :: <<_:1600>>.
+%% @private
+%% Assumptions:
+%%  1. BitRate + Capacity = 1600,
+%%  2. BitRate divides the PaddedMessage length (i.e. already have done padding)
+%% @end
+
+% can pull off r bits from the start of the message
+absorb(PaddedMessageBits, BitRate = _r, Capacity = _c, Sponge) when BitRate =< bit_size(PaddedMessageBits) ->
+    <<ThisRWord:BitRate, Rest/bitstring>> = PaddedMessageBits,
+    % we bitwise xor the sponge against the r word followed by a bunch of 0s
+    <<SpongeInt:1600>> = Sponge,
+    <<Foo:1600>>       = <<ThisRWord:BitRate, 0:Capacity>>,
+    FInputInt          = SpongeInt bxor Foo,
+    FInputBits         = <<FInputInt:1600>>,
+    NewSponge          = inner_keccak(FInputBits),
+    absorb(Rest, BitRate, Capacity, NewSponge);
+% empty string, return the sponge
+absorb(<<>>, _r, _c, FinalSponge) ->
+    FinalSponge.
 ```
 
 
