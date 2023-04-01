@@ -1,5 +1,7 @@
 # Keccak, SHA-3, and SHAKE-N algorithms explained, with code in Erlang
 
+![I can't make a diagram for this one fellas, sorry.[^sponge]](./sponge.jpg)
+
 Keccak is a hashing algorithm used for the SHA-3 standard. [The
 standard][nist-standard] is semi-readable math clownery. Hashing algorithms by
 nature have to be complicated and somewhat obfuscated. But, at the end of the
@@ -240,4 +242,16 @@ shake(ShakeNumber, Message, OutputBitLength) ->
     keccak(Capacity, ShakeMessage, OutputBitLength).
 ```
 
+## Outer Keccak
+
+Keccak uses this "sponge" metaphor.  If you think of the bits as water, the
+state type of Keccak is somewhat analagous to a sponge. In this analogy, the
+Keccak algorithm consists of "absorbing" the bits into the sponge, and then
+"squeezing" the bits out.
+
+Both the absorption and squeezing phases invoke "inner keccak", which is where
+all the real bit-churning happens. (These are the Greek letter steps in the
+standard).
+
 [nist-standard]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
+[^sponge]: Source https://www.flickr.com/photos/30478819@N08/46410395345
