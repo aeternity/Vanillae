@@ -254,4 +254,4 @@ all the real bit-churning happens. (These are the Greek letter steps in the
 standard).
 
 [nist-standard]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
-[^sponge]: Source https://www.flickr.com/photos/30478819@N08/46410395345
+[^sponge]: Source for photo: https://www.flickr.com/photos/30478819@N08/46410395345
