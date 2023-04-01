@@ -14,3 +14,4 @@ Most of these have code examples in Erlang and/or TypeScript.
 - [How to install NPM without getting AIDS](./npm-misc/)
 - [Base64 versus Base58 with code in Erlang and TypeScript](./baseN/)
 - [Ethereum Recursive Length Prefix (RLP) Encoding, with code in Erlang and TypeScript](./rlp/)
+- [Keccak, SHA-3, and SHAKE-N, with code in Erlang](./kek/)
