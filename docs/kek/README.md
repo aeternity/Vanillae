@@ -25,12 +25,14 @@ special cases of Keccak.
 - [Erlang code (fast)](https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek_fast.erl)
 - [erlang-sha3 library (uses fast version of kek)](https://github.com/zxq9/erlang-sha3/blob/63193654e3c05d8031300ffcd52092f75e8b5c2f/src/sha3.erl#L85-L112)
 
-#### References
+### References
 
 1. [Helpful lecture][german-lecture]
 2. [Notes for that lecture][german-lecture-notes]
 3. [NIST standard][nist-standard] (btw: the double bar notation means "concatenate")
 4. [SHA-3 Wikipedia](https://en.wikipedia.org/wiki/SHA-3)
+
+### Pitfalls
 
 #### Pitfall: "fast keccak" versus "clear keccak"
 
@@ -125,6 +127,37 @@ shake(ShakeNumber, Message, OutputBitLength) ->
     ShakeMessage = <<Message/bitstring, (2#1111):4>>,
     keccak(Capacity, ShakeMessage, OutputBitLength).
 ```
+
+#### Pitfall: Greek letter steps require two copies of the sponge to compute
+
+This is the pitfall I ran into, and it stalled this project for months. I
+couldn't figure out what the issue was, and the project was only saved because
+Hans took the time to figure out the issue and fix it. The nature of hashing
+algorithms is that they are all-or-nothing and are hard to decompose.  Usually
+when your code doesn't work, you can do some trial and error to figure out
+which part of the code is wrong.  Not so with hashing.
+
+This requires a lot of context to explain, and it will make sense when you get
+to the point in the document.  This algorithm has state, which is a 1600-bit
+bit array.  And that state gets updated a lot.  The updating procedure involves
+a lot of `xor`ing this bit against that bit, and computing the parity of this
+string of bits, etc.
+
+A lot of it involves crawling down the bit array one bit at a time, and xoring
+the current bit against certain bits from *the original bit array*, and then
+keeping a separate copy that has the modifications.
+
+The mistake I was making was as follows. Let's say that the update to bit 55
+requires xoring it against bit 30. It generally requires xoring against the
+**un-updated** bit 30.  I didn't catch that detail, and was xoring against the
+adulterated bit 30.
+
+There's simply no way to find this mistake from trial and error.  It's too
+subtle.
+
+You can see the commit where Hans fixed my mistake
+[here](https://github.com/pharpend/kek/commit/7d67c40e6e1280f4abd4fce9122a71034ebcc142).
+
 
 ## SHA-s and SHAKE-s
 
@@ -525,7 +558,69 @@ really_squeeze(WetSponge, OutputBitLength, BitRate, ResultAcc)->
 
 ## Inner Keccak: the kek operation
 
+This is the `f` function that you see in all the documentation.  In inner
+keccak, the 1600-bit sponge is now thought of as a 5x5x64 3-dimensional array.
 
+![NIST standard, page 11](./spongecoords.png)
+
+- The input is the 1600-bit sponge.
+- The output is a new 1600-bit sponge.
+- The sponge is sent through 24 "rounds".
+- Each round consists of the 5 greek letter steps.
+- Each Greek letter which is a fairly straightforward transformation to the
+  input bit array.
+- The Greek letter steps are called theta, rho, pi, chi, and iota.
+- The iota step depends on which round we are in (indexed `0..23`)
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L324-L368
+
+-spec inner_keccak(Sponge) -> NewSponge
+    when Sponge    :: <<_:1600>>,
+         NewSponge :: <<_:1600>>.
+%% @private
+%% the "inner keccak" function, or the 'f' function
+%% a bunch of bit bullshit
+%% @end
+
+inner_keccak(Sponge) ->
+    rounds(Sponge, 24).
+
+
+-spec rounds(Sponge, NumRoundsLeft) -> ResultSponge
+    when Sponge        :: <<_:1600>>,
+         NumRoundsLeft :: non_neg_integer(),
+         ResultSponge  :: <<_:1600>>.
+%% @private
+%% do however many rounds
+%% @end
+
+% no rounds left
+rounds(FinalSponge, 0) ->
+    FinalSponge;
+rounds(Sponge, NumRoundsLeft) ->
+    % NRoundsLeft = 24
+    % idx0 = 0
+    % NRoundsLeft = 1
+    % idx0 = 23
+    RoundIdx0        = 24 - NumRoundsLeft,
+    NewSponge        = rnd(RoundIdx0, Sponge),
+    NewNumRoundsLeft = NumRoundsLeft - 1,
+    rounds(NewSponge, NewNumRoundsLeft).
+
+
+
+-spec rnd(RoundIdx0, Sponge) -> NewSponge
+    when RoundIdx0 :: 0..23,
+         Sponge    :: <<_:1600>>,
+         NewSponge :: <<_:1600>>.
+%% @private
+%% do a single round
+%% @private
+
+rnd(RoundIdx0, Sponge) ->
+    iota(RoundIdx0, chi(pi(rho(theta(Sponge))))).
+```
 
 [german-lecture]: https://www.youtube.com/watch?v=JWskjzgiIa4
 [german-lecture-notes]: https://www.crypto-textbook.com/download/Understanding-Cryptography-Keccak.pdf
