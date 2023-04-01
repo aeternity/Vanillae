@@ -590,6 +590,7 @@ inner_keccak(Sponge) ->
     rounds(Sponge, 24).
 
 
+
 -spec rounds(Sponge, NumRoundsLeft) -> ResultSponge
     when Sponge        :: <<_:1600>>,
          NumRoundsLeft :: non_neg_integer(),
@@ -625,6 +626,102 @@ rnd(RoundIdx0, Sponge) ->
     iota(RoundIdx0, chi(pi(rho(theta(Sponge))))).
 ```
 
+The Greek letter steps will often reference "the column to the front" or some
+such.  The details of this are described in the [coordinate system
+section][coord-system].  For now, trust that the function `left/1` correctly
+fetches the X-coordinate to our left, and worry about the details later.
+
+![NIST standard, p.8](./spongeparts.png)
+
+### Inner Keccak: Theta stage
+
+Keep [the Greek letter pitfall][greek-letter-pitfall] in mind.
+
+For each bit in the sponge:
+
+1.  take
+
+    - the bit
+    - the 5-bit column to the left
+    - the 5-bit column to the front right
+
+    in **the original array** (beware the [Greek letter pitfall][greek-letter-pitfall]!)
+
+2.  compute the parity of the concatenation; that is, in the concatenated
+    bitstring
+
+    - if the total number of `1`s is even, the parity is `0`
+    - if the total number of `1`s is odd, the parity is `1`
+
+3.  set the bit to that parity value from step (2)
+
+![NIST standard, pp. 12](./theta.png)
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L372-L444
+
+-spec theta(Array) -> NewArray
+    when Array    :: <<_:1600>>,
+         NewArray :: <<_:1600>>.
+%% @private
+%% the theta step
+%% go bit by bit, applying a weird transformation to each bit
+%% @end
+
+theta(Array) ->
+    theta(Array, Array, 0).
+
+
+-spec theta(Array, OldArray, Idx0) -> NewArray
+    when Array    :: <<_:1600>>,
+         OldArray :: <<_:1600>>,
+         Idx0     :: 0..1599,
+         NewArray :: <<_:1600>>.
+%% @private
+%% the theta step
+%% go bit by bit, applying a weird transformation to each bit
+%% @end
+
+% done
+theta(ResultArray, _, 1600) ->
+    ResultArray;
+% do the weird permutation
+% x = left/right             -/+
+% y = down/up                -/+
+% z = outOfScreen/intoScreen -/+
+%     front/behind           -/+
+% left-handed coordinate system but what can you do
+theta(ArrayBits, OrigArray, ThisIdx0) ->
+    <<Before:ThisIdx0, ThisBit:1, Rest/bitstring>> = ArrayBits,
+    {xyz, ThisX, _ThisY, ThisZ} = idx0_to_xyz(ThisIdx0),
+    XToTheLeft                  = left(ThisX),
+    XToTheRight                 = right(ThisX),
+    ZToTheFront                 = front(ThisZ),
+    ColumnToTheLeft             = xzth({xz, XToTheLeft, ThisZ}, OrigArray),
+    ColumnToTheFrontRight       = xzth({xz, XToTheRight, ZToTheFront}, OrigArray),
+    NewBit                      = parity(<<ColumnToTheLeft/bitstring, ColumnToTheFrontRight/bitstring, ThisBit:1>>),
+    NewBits                     = <<Before:ThisIdx0, NewBit:1, Rest/bitstring>>,
+    NewIdx0                     = ThisIdx0 + 1,
+    theta(NewBits, OrigArray, NewIdx0).
+
+
+-spec parity(Bits) -> Parity
+    when Bits   :: bitstring(),
+         Parity :: 0 | 1.
+%% @private
+%% Count the number of 1s in the given bitstring. Return 0 if even, 1 if odd.
+%% @end
+
+parity(Bits) ->
+    parity(Bits, 0).
+
+parity(<<0:1, Rest/bitstring>>, NOnes) -> parity(Rest, NOnes);
+parity(<<1:1, Rest/bitstring>>, NOnes) -> parity(Rest, NOnes + 1);
+parity(<<>>                   , NOnes) -> NOnes rem 2.
+```
+
+[coord-system]: #inner-keccak-coordinate-system
+[greek-letter-pitfall]: #pitfall-greek-letter-steps-require-two-copies-of-the-sponge-to-compute
 [german-lecture]: https://www.youtube.com/watch?v=JWskjzgiIa4
 [german-lecture-notes]: https://www.crypto-textbook.com/download/Understanding-Cryptography-Keccak.pdf
 [nist-standard]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
