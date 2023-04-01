@@ -258,6 +258,12 @@ Both the absorption and squeezing phases invoke "inner keccak", which is where
 all the real bit-churning happens. (These are the Greek letter steps in the
 standard).
 
+`inner_keccak/1` is a 1-arity function, and the input is just the sponge. It
+scrambles the bits and does some `xor`ing and what not.  The operation of
+applying `inner_keccak/1` to a sponge to get a new sponge is called
+**kekking**.  This is vocabulary I invented and have found useful (you will not
+find this in the official docs).
+
 Just pay attention to the flow for now.
 
 - We take in our input (`Message`).
@@ -412,7 +418,7 @@ The procedure is
     InnerKekInput : 1111101110 0100011010 1001111010 ... (1600 bits, result of xoring the two previous lines)
     ```
 
-3.  Take the freshly xored sponge and pass it to `inner_keccak/1`
+3.  Take the freshly xored sponge and kek it
 4.  Repeat until you run out of `PaddedMessage` bits.
 
 
@@ -443,6 +449,82 @@ absorb(PaddedMessageBits, BitRate = _r, Capacity = _c, Sponge) when BitRate =< b
 absorb(<<>>, _r, _c, FinalSponge) ->
     FinalSponge.
 ```
+
+### Outer Keccak: Squeezing phase
+
+Again, the procedure is to "absorb" bits into the algorithm's state (the
+"sponge"), and then "squeeze" them out.
+
+The way we squeeze them out is the opposite of the absorption procedure
+
+1. Grab `BitRate` bits off the front of the `WetSponge`
+2. Concatenate them to our `ResultBits`
+3. If we have enough `ResultBits`, return them
+4. Otherwise, re-kek the `WetSponge` and try again.
+
+There is some commented out code here which I'm going to leave in.  The reason
+is it highlights that this procedure is trivial in the case of the SHA3-N
+algorithms. For instance, SHA3-512 has a result length of 512 bits, and the
+sponge is always 1600 bits long. So it is a 1-step procedure.
+
+For instance:
+
+```
+OutputBitLength = 512
+Capacity        = 1024 = 2*OutputBitLength
+BitRate         = 576  = 1600 - Capacity
+```
+
+So in the SHA3-N cases, our "squeezing" phase really just amounts to grabbing N
+bits off the front of the sponge.
+
+The squeezing phase only requires the re-kekking in the case of the SHAKE-N
+algorithms where the `OutputBitLength > BitRate`.  Even then, it only requires
+iterative re-kekking if the user picks a very long `OutputBitLength` (remember
+this is a free parameter in SHAKE-N).
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L266-L300
+
+-spec squeeze(WetSponge, OutputBitLength, BitRate) -> ResultBits
+    when WetSponge       :: <<_:1600>>,
+         OutputBitLength :: pos_integer(),
+         BitRate         :: pos_integer(),
+         ResultBits      :: bitstring().
+%% @private
+%% squeeze the output bits out of the sponge
+%% @end
+
+%%% % simple case: bit length is less than (or equal to) the sponge size, just grab
+%%% % the first ones
+%%% % this is the case for the shas
+%%% squeeze(<<ResultBits:OutputBitLength, _Rest/bitstring>>, OutputBitLength, _BitRate) ->
+%%%     <<ResultBits:OutputBitLength>>;
+% general case: output bit length is greater than the sponge size, construct
+% accumulatively
+% this is the case for the variable-length encodings
+squeeze(WetSponge, OutputBitLength, BitRate) ->
+    InitOutputAcc = <<>>,
+    really_squeeze(WetSponge, OutputBitLength, BitRate, InitOutputAcc).
+
+% terminal case: we have enough bits in the output, return those
+really_squeeze(_WetSponge, OutputBitLength, _BitRate, FinalAccBits) when OutputBitLength =< bit_size(FinalAccBits) ->
+    <<ResultBits:OutputBitLength, _/bitstring>> = FinalAccBits,
+    <<ResultBits:OutputBitLength>>;
+% general case: need moar bits
+% in this case
+%   - we grab the first r bits of the sponge, add them to the accumulator
+%   - re-kek the sponge
+%   - try again
+really_squeeze(WetSponge, OutputBitLength, BitRate, ResultAcc)->
+    <<ThisRWord:BitRate, _/bitstring>> = WetSponge,
+    NewResultAcc                       = <<ResultAcc/bitstring, ThisRWord:BitRate>>,
+    NewWetSponge                       = inner_keccak(WetSponge),
+    really_squeeze(NewWetSponge, OutputBitLength, BitRate, NewResultAcc).
+```
+
+## Inner Keccak: the kek operation
+
 
 
 [german-lecture]: https://www.youtube.com/watch?v=JWskjzgiIa4
