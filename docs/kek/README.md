@@ -267,7 +267,19 @@ Just pay attention to the flow for now.
 - We `squeeze/3` the `WetSponge` out to get the `ResultBits`
 
 ```erlang
-%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L166-L172
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L155-L172
+
+-spec keccak(Capacity, Message, OutputBitLength) -> Digest
+    when Capacity        :: pos_integer(),
+         Message         :: bitstring(),
+         OutputBitLength :: pos_integer(),
+         Digest          :: bitstring().
+%% @doc
+%% Note: this is Keccak 1600, the only one used in practice
+%%
+%% Capacity must be strictly less than 1600
+%% @end
+
 keccak(Capacity = _c, Message, OutputBitLength) ->
     BitRate       = 1600 - Capacity,
     PaddedMessage = pad(Message, BitRate),
@@ -279,6 +291,105 @@ keccak(Capacity = _c, Message, OutputBitLength) ->
 
 The padding part is kind of dumb. `absorb/4` and `squeeze/3` both call
 `inner_keccak/1`, which like I said is where all the real bit-churning happens.
+
+### Padding
+
+The absorption phase is "chunked", meaning
+
+1. it consumes a chunk of the input bits
+2. updates the state (the "sponge")
+3. if there are no more input bits to consume, absorption is done
+4. else, go to step (1)
+
+The size of this chunk is called the `BitRate`. In order for this to work, the
+bit length of the input has to be a multiple of `BitRate`. The padding step
+exists to make sure that is true.
+
+The padding rule is `/10*1/`, as in the regex. So for instance, suppose our bit
+rate was `10`.
+
+```
+input (bytes)           : 00000111 10101100 01001111
+input (grouped into 10) : 0000011110 1011000100 1111______
+padded input            : 0000011110 1011000100 1111100001
+```
+
+The rules are
+
+1. There will *always* be at least two bits of padding added to the end of the
+   bitstring
+2. The first padding bit will be `1`
+3. The last padding bit will be `1`
+4. *If* there are intermediate padding bits, they will all be `0`
+5. The total number of padding bits added is however many makes the length of
+   the resulting bitstring an integer multiple of the `BitRate`
+
+With that in mind:
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L176-L234
+
+-spec pad(Message, BitRate) -> NewMessage
+    when Message    :: bitstring(),
+         BitRate    :: pos_integer(),
+         NewMessage :: bitstring().
+%% @private
+%% padding
+%% divide the message into r-bit blocks
+%%
+%% the message ends with 1000...0001
+%%
+%% sha3 calls this /10*1/ as in the regex
+%%
+%% Reference: https://en.wikipedia.org/wiki/SHA-3#Padding
+%% @end
+
+% note: rem will always return a positive integer because both bit_size
+% case when the message bit length is evenly divisible by the bit rate
+% in this case we add a whole new r-word
+pad(Message, BitRate = _r) when (bit_size(Message) rem BitRate) =:= 0 ->
+    % Suppose the BitRate was 8 and we had 0 bits left
+    % Input:
+    %   Bits: <<>>
+    %   Idx1: 12345678
+    % Result:
+    %   Bits: 10000001
+    %   Idx1: 12345678
+    % In this case we add a new r-word
+    NewRWord   = <<1:1, 0:(BitRate - 2), 1:1>>,
+    NewMessage = <<Message/bitstring, NewRWord/bitstring>>,
+    NewMessage;
+% this is the retarded case, when the bit length of the message is exactly one
+% bit less than dividing the BitRate
+pad(Message, BitRate = _r) when (bit_size(Message) rem BitRate) =:= (BitRate - 1) ->
+    % Suppose the BitRate was 8 and we had 7 bits left
+    % Input:
+    %   Bits: ABCDEFG
+    %   Idx1: 12345678
+    % Result:
+    %   Bits: ABCDEFG1 00000001
+    %   Idx1: 12345678 12345678
+    % in this case, we add a 1, (r-1) zeros, and a trailing 1
+    NewRWord   = <<1:1, 0:(BitRate - 1), 1:1>>,
+    NewMessage = <<Message/bitstring, NewRWord/bitstring>>,
+    NewMessage;
+% this is the general case, where there are at least 2 bits left in order to
+% fill out the r-word
+pad(Message, BitRate = _r) ->
+    % Suppose the BitRate was 8 and we had 3 bits left
+    % Input:
+    %   Bits: ABC
+    %   Idx1: 12345678
+    % Result:
+    %   Bits: ABC10001
+    %   Idx1: 12345678
+    NumberOfMessageBitsInTheLastRWord = bit_size(Message) rem BitRate,
+    NumberOfNewBitsNeeded             = BitRate - NumberOfMessageBitsInTheLastRWord,
+    NumberOfNewZerosNeeded            = NumberOfNewBitsNeeded - 2,
+    NewMessage                        = <<Message/bitstring, 1:1, 0:NumberOfNewZerosNeeded, 1:1>>,
+    NewMessage.
+```
+
 
 [german-lecture]: https://www.youtube.com/watch?v=JWskjzgiIa4
 [german-lecture-notes]: https://www.crypto-textbook.com/download/Understanding-Cryptography-Keccak.pdf
