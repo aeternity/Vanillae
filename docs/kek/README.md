@@ -1,6 +1,6 @@
 # Keccak, SHA-3, and SHAKE-N algorithms explained, with code in Erlang
 
-![I can't make a diagram for this one fellas, sorry.[^sponge]](./sponge.jpg)
+![I can't make a diagram for this one, fellas.[^sponge]](./sponge.jpg)
 
 Keccak is a hashing algorithm used for the SHA-3 standard. [The
 standard][nist-standard] is semi-readable math clownery. Hashing algorithms by
@@ -252,6 +252,28 @@ Keccak algorithm consists of "absorbing" the bits into the sponge, and then
 Both the absorption and squeezing phases invoke "inner keccak", which is where
 all the real bit-churning happens. (These are the Greek letter steps in the
 standard).
+
+Just pay attention to the flow for now.
+
+- We take in our input (`Message`).
+- Add some padding bits to get `PaddedMessage`.
+- `InitialSponge` is a 1600-bit long array of `0` bits (the "dry sponge").
+- We make the dry `InitialSponge` wet by `absorb/4`ing the `PaddedMessage`, to create `WetSponge`
+- We `squeeze/3` the `WetSponge` out to get the `ResultBits`
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L166-L172
+keccak(Capacity = _c, Message, OutputBitLength) ->
+    BitRate       = 1600 - Capacity,
+    PaddedMessage = pad(Message, BitRate),
+    InitialSponge = <<0:1600>>,
+    WetSponge     = absorb(PaddedMessage, BitRate, Capacity, InitialSponge),
+    ResultBits    = squeeze(WetSponge, OutputBitLength, BitRate),
+    ResultBits.
+```
+
+The padding part is kind of dumb. `absorb/4` and `squeeze/3` both call
+`inner_keccak/1`, which like I said is where all the real bit-churning happens.
 
 [nist-standard]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
 [^sponge]: Source for photo: https://www.flickr.com/photos/30478819@N08/46410395345
