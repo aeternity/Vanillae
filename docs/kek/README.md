@@ -91,11 +91,14 @@ of "SHA-3" out there.
 
 #### Pitfall: SHAKE-N versus SHA3-N
 
-Note that this pitfall only applies to the SHA-3 fixed-length hashing
-functions. These produce a fixed-length (say, 512 bit) hash.
+Note that the padding and sha3-is-keccak-but-its-not pitfall only applies to
+the SHA-3 fixed-length hashing functions. These produce a fixed-length (say,
+512 bit) hash.
 
 The SHAKE-N algorithms are sort of "arbitrary length SHA-3". So instead of
-producing 512 bits, you tell it how long the output length should be.
+producing 512 bits, you tell it how long the output length should be.  The
+SHAKE-N algorithms have their own padding rule, and I don't believe they're
+affected by the padding thing.
 
 ```erlang
 %% From the "clear" version
@@ -119,7 +122,122 @@ shake(ShakeNumber, Message, OutputBitLength) ->
 ## SHA-s and SHAKE-s
 
 These are the "porcelain" functions that we show to the outside world.  These
-are just rewrites in front of Keccak.
+are just rewrites, in front of Keccak.  Another way to think about it is that
+Keccak has tons of settings, and that each of these "algorithms" are just
+different settings presets.
 
+```erlang
+%% From: https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L26-L134
+
+-spec sha3_224(Message) -> Digest
+    when Message :: bitstring(),
+         Digest  :: <<_:224>>.
+%% @doc
+%% SHA-3 with an output bit length of 224 bits.
+%% @end
+
+sha3_224(Message) ->
+    sha3(224, Message).
+
+
+
+-spec sha3_256(Message) -> Digest
+    when Message :: bitstring(),
+         Digest  :: <<_:256>>.
+%% @doc
+%% SHA-3 with an output bit length of 256 bits.
+%% @end
+
+sha3_256(Message) ->
+    sha3(256, Message).
+
+
+
+-spec sha3_384(Message) -> Digest
+    when Message :: bitstring(),
+         Digest  :: <<_:384>>.
+%% @doc
+%% SHA-3 with an output bit length of 384 bits.
+%% @end
+
+sha3_384(Message) ->
+    sha3(384, Message).
+
+
+
+-spec sha3_512(Message) -> Digest
+    when Message :: bitstring(),
+         Digest  :: <<_:512>>.
+%% @doc
+%% SHA-3 with an output bit length of 512 bits.
+%% @end
+
+sha3_512(Message) ->
+    sha3(512, Message).
+
+
+
+-spec sha3(OutputBitLength, Message) -> Digest
+    when OutputBitLength :: pos_integer(),
+         Message         :: bitstring(),
+         Digest          :: bitstring().
+%% @doc
+%% SHA-3 with an arbitrary output bit length.
+%%
+%% This means Keccak with Capacity = 2*OutputBitLength. Additionally, SHA3
+%% concatenates the bits 01 onto the end of the input, before sending the
+%% Message to keccak/3.
+%% @end
+
+sha3(OutputBitLength, Message) ->
+    Capacity = 2*OutputBitLength,
+    ShaMessage = <<Message/bitstring, (2#01):2>>,
+    keccak(Capacity, ShaMessage, OutputBitLength).
+
+
+
+-spec shake128(Message, OutputBitLength) -> Digest
+    when Message         :: bitstring(),
+         OutputBitLength :: pos_integer(),
+         Digest          :: bitstring().
+%% @doc
+%% This is the SHAKE variable-length hash with Capacity 256 = 2*128 bits.
+%% @end
+
+shake128(Message, OutputBitLength) ->
+    shake(128, Message, OutputBitLength).
+
+
+
+-spec shake256(Message, OutputBitLength) -> Digest
+    when Message         :: bitstring(),
+         OutputBitLength :: pos_integer(),
+         Digest          :: bitstring().
+%% @doc
+%% This is the SHAKE variable-length hash with Capacity 512 = 2*256 bits.
+%% @end
+
+shake256(Message, OutputBitLength) ->
+    shake(256, Message, OutputBitLength).
+
+
+
+-spec shake(ShakeNumber, Message, OutputBitLength) -> Digest
+    when ShakeNumber     :: pos_integer(),
+         Message         :: bitstring(),
+         OutputBitLength :: pos_integer(),
+         Digest          :: bitstring().
+%% @doc
+%% This is the SHAKE variable-length hash with Capacity 512 = 2*ShakeNumber bits.
+%%
+%% This concatenates the bitstring 1111 onto the end of the Message before
+%% sending the message to keccak/3.
+%% @end
+
+shake(ShakeNumber, Message, OutputBitLength) ->
+    Capacity = 2*ShakeNumber,
+    ShakeMessage = <<Message/bitstring, (2#1111):4>>,
+    keccak(Capacity, ShakeMessage, OutputBitLength).
+```
 
 [nist-standard]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
