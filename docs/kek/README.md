@@ -2,6 +2,8 @@
 
 ![I can't make a diagram for this one, fellas.[^sponge]](./sponge.jpg)
 
+## Contents
+
 -   [Introduction](#introduction)
 -   [tldr](#tldr)
     -   [References](#references)
@@ -12,6 +14,17 @@
         -   [Pitfall: SHAKE-N versus SHA3-N](#pitfall-shake-n-versus-sha3-n)
         -   [Pitfall: Greek letter steps require two copies of the sponge to compute](#pitfall-greek-letter-steps-require-two-copies-of-the-sponge-to-compute)
 -   [SHA-s and SHAKE-s](#sha-s-and-shake-s)
+-   [Outer Keccak](#outer-keccak)
+    -   [Outer Keccak: Padding](#outer-keccak-padding)
+    -   [Outer Keccak: Absorption phase](#outer-keccak-absorption-phase)
+    -   [Outer Keccak: Squeezing phase](#outer-keccak-squeezing-phase)
+-   [Inner Keccak: the kek operation](#inner-keccak-the-kek-operation)
+    -   [Inner Keccak: theta stage](#inner-keccak-theta-stage)
+    -   [Inner Keccak: rho stage](#inner-keccak-rho-stage)
+    -   [Inner Keccak: pi stage](#inner-keccak-pi-stage)
+    -   [Inner Keccak: chi stage](#inner-keccak-chi-stage)
+    -   [Inner Keccak: iota stage](#inner-keccak-iota-stage)
+    -   [Inner Keccak: coordinate-system](#inner-keccak-coordinate-system)
 
 
 ## Introduction
