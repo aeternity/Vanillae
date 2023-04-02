@@ -2,6 +2,22 @@
 
 ![I can't make a diagram for this one, fellas.[^sponge]](./sponge.jpg)
 
+-   [Introduction](#introduction)
+-   [tldr](#tldr)
+
+    -   [References](#references)
+    -   [Pitfalls](#pitfalls)
+
+        -   [Pitfall: This is only keccak-f-1600](#pitfall-this-is-only-keccak-f-1600)
+        -   [Pitfall: "fast keccak" versus "clear keccak"](#pitfall-fast-keccak-versus-clear-keccak)
+        -   [Pitfall: "NIST SHA-3" versus "Keccak SHA-3"](#pitfall-nist-sha3-versus-keccak-sha-3)
+        -   [Pitfall: SHAKE-N versus SHA3-N](#pitfall-shake-n-versus-sha3-n)
+        -   [Pitfall: Greek letter steps require two copies of the sponge to compute](#pitfall-greek-letter-steps-require-two-copies-of-the-sponge-to-compute)
+-   [SHA-s and SHAKE-s](#sha-s-and-shake-s)
+
+
+## Introduction
+
 Keccak is a hashing algorithm used for the SHA-3 standard. [The NIST
 standard][nist-standard] is semi-readable math clownery. Hashing algorithms by
 nature have to be complicated and somewhat obfuscated, so this is kind of par
