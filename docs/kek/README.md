@@ -4,10 +4,8 @@
 
 -   [Introduction](#introduction)
 -   [tldr](#tldr)
-
     -   [References](#references)
     -   [Pitfalls](#pitfalls)
-
         -   [Pitfall: This is only keccak-f-1600](#pitfall-this-is-only-keccak-f-1600)
         -   [Pitfall: "fast keccak" versus "clear keccak"](#pitfall-fast-keccak-versus-clear-keccak)
         -   [Pitfall: "NIST SHA-3" versus "Keccak SHA-3"](#pitfall-nist-sha3-versus-keccak-sha-3)
