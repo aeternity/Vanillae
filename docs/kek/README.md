@@ -34,6 +34,17 @@ special cases of Keccak.
 
 ### Pitfalls
 
+#### Pitfall: This is only keccak-f-1600
+
+Keccak has an "outer keccak" and an "inner keccak".  The standard specifies
+this free parameter called `b`, which is the bit size of the algorithm's state.
+For what I needed, this can be assumed to be `1600`.  You may need to
+generalize this code.  Hopefully this explainer is clear enough that you can do
+that.
+
+![NIST standard, pp. 17](./keccak-f.png)
+
+
 #### Pitfall: "fast keccak" versus "clear keccak"
 
 The main reference is the "clear" Erlang code.  The "fast" version is the
@@ -722,10 +733,158 @@ parity(<<>>                   , NOnes) -> NOnes rem 2.
 ```
 
 ### Inner Keccak: rho stage
+
+This stage iterates over the `{X, Y}`-coordinate pairs, and applies an affine
+shift to the remaining `Z`-coordinate.
+
+![NIST standard, pp. 13](./rho.png)
+
+The shifts are given by a table which is in a janky order because look how
+smart we don't you get it it's modular arithmetic it means 4 and 3 are like
+negative numbers I am so smart please tell me how smart I am
+
+![NIST standard, pp. 13](./rho-table-wojak.png)
+
+The outer part of this code `rho/1` and `rho/2` just contains the loopy part.
+The actual transformation is in `rhoxy/2`. Erlang doesn't have loops.  Instead
+we pick a starting point...
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L459-L467
+
+-spec rho(Array) -> NewArray
+    when    Array :: <<_:1600>>,
+         NewArray :: <<_:1600>>.
+%% @private
+%% do the rho step
+%% @end
+
+rho(Array) ->
+    rho(Array, {xy, 0, 0}).
+```
+
+Then on each step, update the `{X, Y}` value, with our branching logic to test
+if we're done...
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L471-L492
+
+-spec rho(Array, LaneXY) -> NewArray
+    when Array    :: <<_:1600>>,
+         LaneXY   :: {xy, 0..4, 0..4},
+         NewArray :: <<_:1600>>.
+%% @private
+%% do the rho step to each lane
+%% @end
+
+% terminal case
+rho(Array, XY = {xy, 4, 4}) ->
+    Result = rhoxy(Array, XY),
+    Result;
+% need to reset Y and increment X
+rho(Array, XY = {xy, X, 4}) ->
+    NewArray = rhoxy(Array, XY),
+    NewXY    = {xy, X + 1, 0},
+    rho(NewArray, NewXY);
+% need to increment Y and leave X
+rho(Array, XY = {xy, X, Y}) ->
+    NewArray = rhoxy(Array, XY),
+    NewXY    = {xy, X, Y + 1},
+    rho(NewArray, NewXY).
+```
+
+The actual transformation looks up the offset for the `{X, Y}` coordinate in a
+table and applies it. `xyset/3` is a function that replaces a lane.  This is
+explained in the [coordinate system section.](#inner-keccak-coordinate-system).
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L496-L517
+
+-spec rhoxy(Array1600, LaneXY) -> NewArray1600
+    when Array1600    :: <<_:1600>>,
+         LaneXY       :: {xy, 0..4, 0..4},
+         NewArray1600 :: <<_:1600>>.
+%% @private
+%% do the rho step to a given lane
+%% @end
+
+rhoxy(Array, ThisXY = {xy, ThisX, ThisY}) ->
+    ThisOffset = offset(ThisX, ThisY),
+    ThisLane   = xyth(ThisXY, Array),
+    % we increase the z coordinate by the offset
+    % Suppose the offset is 2
+    %      bits = A B C D E
+    %         z = 0 1 2 3 4
+    %   newbits = D E A B C
+    % in other words, we take Offset number of bits off the tail of the lane
+    % put them on the front
+    <<Foo:(64 - ThisOffset), Bar:ThisOffset>> = ThisLane,
+    NewLane  = <<Bar:ThisOffset, Foo:(64 - ThisOffset)>>,
+    NewArray = xyset(ThisXY, Array, NewLane),
+    NewArray.
+```
+
+The `offset/2` table is copied from the table on pp. 13 of the NIST
+specification.  The reason for the `rem 64` is that our lane depth is `64`
+because [we're not implementing full generalized
+keccak](#pitfall-this-is-only-keccak-f-1600), we're only implementing the
+keccak that is actually used in SHA-3 and SHAKE.
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L521-L558
+
+-spec offset(X, Y) -> Offset
+    when X      :: 0..4,
+         Y      :: 0..4,
+         Offset :: 0..63.
+%% @private
+%% See NIST specification, pg. 21
+%% @end
+
+offset(3, 2) -> 153 rem 64;
+offset(3, 1) ->  55 rem 64;
+offset(3, 0) ->  28 rem 64;
+offset(3, 4) -> 120 rem 64;
+offset(3, 3) ->  21 rem 64;
+
+offset(4, 2) -> 231 rem 64;
+offset(4, 1) -> 276 rem 64;
+offset(4, 0) ->  91 rem 64;
+offset(4, 4) ->  78 rem 64;
+offset(4, 3) -> 136 rem 64;
+
+
+offset(0, 2) ->   3 rem 64;
+offset(0, 1) ->  36 rem 64;
+offset(0, 0) ->   0 rem 64;
+offset(0, 4) -> 210 rem 64;
+offset(0, 3) -> 105 rem 64;
+
+offset(1, 2) ->  10 rem 64;
+offset(1, 1) -> 300 rem 64;
+offset(1, 0) ->   1 rem 64;
+offset(1, 4) ->  66 rem 64;
+offset(1, 3) ->  45 rem 64;
+
+offset(2, 2) -> 171 rem 64;
+offset(2, 1) ->   6 rem 64;
+offset(2, 0) -> 190 rem 64;
+offset(2, 4) -> 253 rem 64;
+offset(2, 3) ->  15 rem 64.
+```
+
 ### Inner Keccak: pi stage
+
+
 ### Inner Keccak: chi stage
+
+
 ### Inner Keccak: iota stage
+
+
 ### Inner Keccak: coordinate system
+
+
 
 [coord-system]: #inner-keccak-coordinate-system
 [greek-letter-pitfall]: #pitfall-greek-letter-steps-require-two-copies-of-the-sponge-to-compute
