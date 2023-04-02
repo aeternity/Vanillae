@@ -25,7 +25,13 @@
     -   [Inner Keccak: pi stage](#inner-keccak-pi-stage)
     -   [Inner Keccak: chi stage](#inner-keccak-chi-stage)
     -   [Inner Keccak: iota stage](#inner-keccak-iota-stage)
-    -   [Inner Keccak: coordinate-system](#inner-keccak-coordinate-system)
+    -   [Inner Keccak: Coordinate System](#inner-keccak-coordinate-system)
+        -   [Inner Keccak Coordinate System: Vocabulary](#inner-keccak-coordinate-system-vocabulary)
+            - [3D state](#3d-state)
+            - [0D subsets of the state](#0d-subsets-of-the-state)
+            - [1D subsets of the state](#1d-subsets-of-the-state)
+            - [2D subsets of the state](#2d-subsets-of-the-state)
+        -   [Inner Keccak Coordinate System: Code](#inner-keccak-coordinate-system-code)
 -   [Conclusion](#conclusion)
 
 
@@ -47,6 +53,9 @@ straightforwardly as possible.
 
 Keccak is the "general case", and then SHA-3 and SHAKE-128 and so on are
 special cases of Keccak.
+
+Hans Svensson and Craig Everett made extremely valuable contributions to this
+project.
 
 ## tldr
 
@@ -1258,7 +1267,322 @@ round_constant_int(22) -> 9223372041149743104;
 round_constant_int(23) -> 1153202983878524929.
 ```
 
-### Inner Keccak: coordinate system
+### Inner Keccak: Coordinate System
+
+![[NIST standard][nist-standard], page 11](./spongecoords.png)
+
+Inner Keccak thinks of the 1600-bit input array as a 5x5x64 3D array.  This
+section provides a variety of helper functions to talk about the array using
+the X,Y,Z coordinate system.
+
+The coordinate system is toroidal, meaning that each coordinate is "modded
+down" to be in the approprate range.  For instance, the X-coordinate "to the
+right" of X=4 is X=0. And likewise, the coordinate "behind" Z=63 is Z=0. See
+the section on directionality conventions.
+
+#### Inner Keccak Coordinate System: Vocabulary
+
+![[NIST standard][nist-standard], p.8](./spongeparts.png)
+
+##### 3D state:
+
+- The **state** is the entire 5x5x64 array
+
+##### 0D subsets of the state:
+
+- a **bit** is a single bit in the array given by an X,Y,Z coordinate triple
+- we frequently need to query individual bits (`xyzth/3`) and update them (`xyzset/3`)
+- the first tricky part is the directionality conventions (`left/1`/`right/1`, `up/1`/`down/1`,
+  `front/1`/`behind/1`)
+- the second tricky part is convention for how the 3D bit array maps back and forth
+  between the 1D flat bit array in memory (`idx0_to_xyz/1` and `xyz_to_idx0/1`)
+
+##### 1D subsets of the state:
+
+-   a **row**
+    -   is a 5-bit array
+    -   given by a Y,Z coordinate pair in range `{0..4, 0..63}`
+    -   you should think of a row as being internally indexed with an X
+        coordinate ranging in `0..4`
+    -   we do not ever operate on rows or need to query them
+-   a **column**
+    -   is a 5-bit array
+    -   given by an X,Z coordinate pair in range `{0..4, 0..63}` (see `xzth/2`)
+    -   you should think of a column as being internally indexed with a Y
+        coordinate ranging in `0..4`
+    -   we need to query columns in the [theta
+        step](#inner-keccak-theta-stage), but do not ever need to update them,
+        so there is only a query function (`xzth/2`)
+
+-   a **lane**
+    -   is a 64-bit array
+    -   given by an X,Y coordinate pair in range `{0..4, 0..4}` (see `xyth/2`)
+    -   you should think of a lane as being internally indexed with a Z
+        coordinate ranging in `0..63`.
+    -   [rho](#inner-keccak-rho-stage), [pi](inner-keccak-pi-stage), and
+        [iota](#inner-keccak-iota-stage) each operate on lanes
+    -   there is both a query function (`xyth/2`) and an update function
+        (`xyset/2`)
+
+##### 2D subsets of the state:
+
+There are terms for 2-dimensional subsets of the state, but they are never
+queried or updated, so there's no code here that corresponds to them.
+
+#### Inner Keccak Coordinate System: Code
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L919-L1165
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% CONVERTING BETWEEN XYZ-INDICES AND 0-INDICES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec idx0_to_xyz(Idx0) -> XYZ
+    when Idx0 :: 0..1599,
+         XYZ  :: {xyz, X :: 0..4, Y :: 0..4, Z :: 0..63}.
+%% @private
+%% Convert a 0-index to an XYZ-index
+%% @end
+
+idx0_to_xyz(Idx0) ->
+    % it's sort of retarded endian notation
+    % drunk endian notation
+    %   YXZ
+    % yes, that order
+    % Z is in the range 0..63
+    % X is in the range 0..4
+    % Y is in the range 0..4
+    {Q1, Z} = {Idx0 div 64, Idx0 rem 64},
+    {Q2, X} = {  Q1 div  5,   Q1 rem  5},
+    { 0, Y} = {  Q2 div  5,   Q2 rem  5},
+    {xyz, X, Y, Z}.
+
+
+
+-spec xyz_to_idx0(XYZ) -> Idx0
+    when XYZ  :: {xyz, X :: 0..4, Y :: 0..4, Z :: 0..63},
+         Idx0 :: 0..1599.
+%% @private
+%% Convert an XYZ-index into a 0-index
+%% @end
+
+xyz_to_idx0({xyz, X, Y, Z}) ->
+    % reverse of the above
+    % drunk endian notation
+    %   YXZ
+    % to get the "X place", multiply X by 64
+    % to get the "Y place", multiply Y by 64*5
+    Y*64*5 + X*64 + Z.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% DIRECTIONAL TRANSFORMATIONS ON SINGLE COORDINATE VALUES
+%%
+%% For instance, if you have an X-value and want to get the X-value "to the
+%% left", this section contains functions that compute such things.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec left(X) -> XToTheLeft
+    when X          :: 0..4,
+         XToTheLeft :: 0..4.
+%% @private
+%% x = left/right
+%%        -/+
+%% @end
+
+left(0) -> 4;
+left(1) -> 0;
+left(2) -> 1;
+left(3) -> 2;
+left(4) -> 3.
+
+
+
+-spec right(X) -> XToTheRight
+    when X           :: 0..4,
+         XToTheRight :: 0..4.
+%% @private
+%% x = left/right
+%%        -/+
+%% @end
+
+right(0) -> 1;
+right(1) -> 2;
+right(2) -> 3;
+right(3) -> 4;
+right(4) -> 0.
+
+
+
+-spec down(Y) -> YBelow
+    when Y      :: 0..4,
+         YBelow :: 0..4.
+%% @private
+%% y = down/up
+%%        -/+
+%% @end
+
+down(0) -> 4;
+down(1) -> 0;
+down(2) -> 1;
+down(3) -> 2;
+down(4) -> 3.
+
+
+
+-spec up(Y) -> YAbove
+    when Y      :: 0..4,
+         YAbove :: 0..4.
+%% @private
+%% y = down/up
+%%        -/+
+%% @end
+
+up(0) -> 1;
+up(1) -> 2;
+up(2) -> 3;
+up(3) -> 4;
+up(4) -> 0.
+
+
+
+-spec front(Z) -> ZInFront
+    when Z        :: 0..63,
+         ZInFront :: 0..63.
+%% @private
+%% z = front/behind
+%%        -/+
+%% @end
+
+front(0)                      -> 63;
+front(N) when 1 =< N, N =< 63 -> N - 1.
+
+
+
+-spec behind(Z) -> ZBehind
+    when Z       :: 0..63,
+         ZBehind :: 0..63.
+%% @private
+%% z = front/behind
+%%        -/+
+%% @end
+
+behind(N) when 0 =< N, N =< 62 -> N + 1;
+behind(63)                     -> 0.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 0D BIT ACCESSORS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec xyzth(XYZ, Array1600) -> Bit
+    when XYZ       :: {xyz, X, Y, Z},
+         Array1600 :: <<_:1600>>,
+         Bit       :: 0 | 1,
+         X         :: 0..4,
+         Y         :: 0..4,
+         Z         :: 0..63.
+%% @private
+%% Fetch the bit at the given X, Y, Z coordinate triple
+%% @end
+
+xyzth(XYZ, Array1600) ->
+    Idx0 = xyz_to_idx0(XYZ),
+    <<_Skip:Idx0, Bit:1, _Rest/bitstring>> = Array1600,
+    Bit.
+
+
+
+-spec xyzset(XYZ, Array1600, NewBit) -> NewArray1600
+    when XYZ          :: {xyz, X, Y, Z},
+         Array1600    :: <<_:1600>>,
+         NewBit       :: 0 | 1,
+         NewArray1600 :: Array1600,
+         X            :: 0..4,
+         Y            :: 0..4,
+         Z            :: 0..63.
+%% @private
+%% Replace the bit at {X, Y, Z} with the new bit
+%% @end
+
+xyzset(XYZ, Array1600, NewBit) ->
+    Idx0 = xyz_to_idx0(XYZ),
+    <<Pre:Idx0, _Bit:1, Post/bitstring>> = Array1600,
+    <<Pre:Idx0, NewBit:1, Post/bitstring>>.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 1D SUBSET ACCESSORS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec xzth(XZ, Bits) -> Column
+    when XZ     :: {xz, X, Z},
+         X      :: 0..4,
+         Z      :: 0..63,
+         Bits   :: <<_:1600>>,
+         Column :: <<_:5>>.
+%% @private
+%% Fetch the column at the given X, Z coordinate pair
+%% @end
+
+xzth({xz, X, Z}, Bits) ->
+    % just grab them one at a time
+    << <<( xyzth({xyz, X, Y, Z}, Bits) ):1>>
+    || Y <- lists:seq(0, 4)
+    >>.
+
+
+
+-spec xyth(XY, Array1600) -> Lane
+    when XY        :: {xy, X, Y},
+         Array1600 :: <<_:1600>>,
+         Lane      :: <<_:64>>,
+         X         :: 0..4,
+         Y         :: 0..4.
+%% @private
+%% Grab the lane at the given X, Y coordinate pair.
+%% @end
+
+xyth({xy, X, Y}, Array1600) ->
+    << <<( xyzth({xyz, X, Y, Z}, Array1600) ):1>>
+    || Z <- lists:seq(0, 63)
+    >>.
+
+
+
+-spec xyset(LaneXY, Array1600, NewLane) -> NewArray1600
+    when Array1600    :: <<_:1600>>,
+         LaneXY       :: {xy, 0..4, 0..4},
+         NewLane      :: <<_:64>>,
+         NewArray1600 :: <<_:1600>>.
+%% @private
+%% Take the original array, and swap out the lane at the given x,y coordinate
+%% with the new given lane.
+%%
+%% The lane will be represented continuously so we can do a hack
+%% @end
+
+% special case when it's the last lane
+% grab the final 64 bits off the original array and replace them with the new lane
+xyset(_LaneXY = {xy, 4, 4}, <<Pre:(1600 - 64), _:64>>, NewLane) ->
+    <<Pre:(1600 - 64), NewLane/bitstring>>;
+% general case, grab the shit before the lane, grab the shit after the lane
+% replace the shit in the middle
+xyset(_LaneXY = {xy, LaneX, LaneY}, OriginalArray, NewLane) ->
+    FirstBitOfLane_Idx0    = xyz_to_idx0({xyz, LaneX, LaneY, 0}),
+    FirstBitAfterLane_Idx0 = xyz_to_idx0({xyz, LaneX, LaneY, 63}) + 1,
+    NumberOfBitsBeforeTheLane    = FirstBitOfLane_Idx0,
+    NumberOfBitsIncludingTheLane = FirstBitAfterLane_Idx0,
+    <<PreLane:NumberOfBitsBeforeTheLane   ,         _/bitstring>> = OriginalArray,
+    <<      _:NumberOfBitsIncludingTheLane, AfterLane/bitstring>> = OriginalArray,
+    Result = <<PreLane:NumberOfBitsBeforeTheLane, NewLane/bitstring, AfterLane/bitstring>>,
+    Result.
+```
+
 
 
 ## Conclusion
