@@ -13,6 +13,7 @@
         -   [Pitfall: "NIST SHA-3" versus "Keccak SHA-3"](#pitfall-nist-sha3-versus-keccak-sha-3)
         -   [Pitfall: SHAKE-N versus SHA3-N](#pitfall-shake-n-versus-sha3-n)
         -   [Pitfall: Greek letter steps require two copies of the sponge to compute](#pitfall-greek-letter-steps-require-two-copies-of-the-sponge-to-compute)
+        -   [Pitfall: iota step round constant table](#pitfall-iota-step-round-constant-table)
 -   [SHA-s and SHAKE-s](#sha-s-and-shake-s)
 -   [Outer Keccak](#outer-keccak)
     -   [Outer Keccak: Padding](#outer-keccak-padding)
@@ -25,6 +26,7 @@
     -   [Inner Keccak: chi stage](#inner-keccak-chi-stage)
     -   [Inner Keccak: iota stage](#inner-keccak-iota-stage)
     -   [Inner Keccak: coordinate-system](#inner-keccak-coordinate-system)
+-   [Conclusion](#conclusion)
 
 
 ## Introduction
@@ -51,6 +53,7 @@ special cases of Keccak.
 - [Erlang code (clear)](https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl)
 - [Erlang code (fast)](https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek_fast.erl)
 - [erlang-sha3 library (uses fast version of kek)](https://github.com/zxq9/erlang-sha3/blob/63193654e3c05d8031300ffcd52092f75e8b5c2f/src/sha3.erl#L85-L112)
+- [iota step round constant computing code][rc-erl]
 
 ### References
 
@@ -69,7 +72,7 @@ For what I needed, this can be assumed to be `1600`.  You may need to
 generalize this code.  Hopefully this explainer is clear enough that you can do
 that.
 
-![NIST standard, pp. 17](./keccak-f.png)
+![[NIST standard][nist-standard], pp. 17](./keccak-f.png)
 
 
 #### Pitfall: "fast keccak" versus "clear keccak"
@@ -181,8 +184,9 @@ And that state gets updated a lot.  The updating procedure involves a lot of
 bits, etc.
 
 A lot of it involves crawling down the bit array one bit at a time, and xoring
-the current bit against certain bits from **the original bit array**, and then
-keeping a separate copy that has the modifications.
+the current bit against certain bits from **the original bit array** (er...
+"original" within the context of that Greek letter step... read the code), and
+then keeping a separate copy that has the modifications.
 
 The mistake I was making was as follows. Let's say that the update to bit 55
 requires xoring it against bit 30. It generally requires xoring against the
@@ -195,6 +199,26 @@ subtle.
 You can see the commit where Hans fixed my mistake
 [here](https://github.com/pharpend/kek/commit/7d67c40e6e1280f4abd4fce9122a71034ebcc142).
 
+
+#### Pitfall: iota step round constant table
+
+Do not blindly copy the round constant table from the [iota
+step](#inner-keccak-iota-stage).  The iota step involves xoring some bits from
+the sponge with one of 24 constant bit arrays, called "round constants"... it
+will make sense when you get there.
+
+The [NIST standard][nist-standard][^alg5] specifies a *procedure* for
+calculating the constant bit arrays...  again, this is because the NIST
+standard is [general over lane length](#pitfall-this-is-only-keccak-f-1600),
+and our code is not.
+
+The bit-endianness of the constants depends on how you have structured your
+constant-computing code *and* your sponge-bit-fetching code.  So if you look in
+two different sources, you are likely to find two different sets of constants.
+
+[Here][rc-erl] is how I computed my answer.  That code existed to check that a
+table I found[^tbl] was correct.  It turns out that table has bit-endianness
+opposite from what made sense for my code.
 
 ## SHA-s and SHAKE-s
 
@@ -602,7 +626,7 @@ Go re-read the [Greek letter pitfall
 section](#pitfall-greek-letter-steps-require-two-copies-of-the-sponge-to-compute)
 before continuing.
 
-![NIST standard, page 11](./spongecoords.png)
+![[NIST standard][nist-standard], page 11](./spongecoords.png)
 
 - The input is the 1600-bit sponge.
 - The output is a new 1600-bit sponge.
@@ -670,7 +694,7 @@ section][coord-system].  For now, trust that the function `left/1` correctly
 fetches the X-coordinate to our left (and so forth for `front/1`, `up/1`, etc),
 and worry about the details later.
 
-![NIST standard, p.8](./spongeparts.png)
+![[NIST standard][nist-standard], p.8](./spongeparts.png)
 
 ### Inner Keccak: Theta stage
 
@@ -694,7 +718,7 @@ For each bit in the sponge:
 
 3.  set the bit to that parity value from step (2)
 
-![NIST standard, pp. 12](./theta.png)
+![[NIST standard][nist-standard], pp. 12](./theta.png)
 
 ```erlang
 %% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L372-L444
@@ -764,13 +788,13 @@ parity(<<>>                   , NOnes) -> NOnes rem 2.
 This stage iterates over the `{X, Y}`-coordinate pairs, and applies an affine
 shift to the remaining `Z`-coordinate.
 
-![NIST standard, pp. 13](./rho.png)
+![[NIST standard][nist-standard], pp. 13](./rho.png)
 
 The shifts are given by a table which is in a janky order because look how
 smart we don't you get it it's modular arithmetic it means 4 and 3 are like
 negative numbers I am so smart please tell me how smart I am
 
-![NIST standard, pp. 13](./rho-table-wojak.png)
+![[NIST standard][nist-standard], pp. 13](./rho-table-wojak.png)
 
 The outer part of this code `rho/1` and `rho/2` just contains the loopy part.
 The actual transformation is in `rhoxy/2`. Erlang doesn't have loops.  Instead
@@ -851,9 +875,9 @@ rhoxy(Array, ThisXY = {xy, ThisX, ThisY}) ->
     NewArray.
 ```
 
-The `offset/2` table is copied from the table on pp. 13 of the NIST
-specification.  The reason for the `rem 64` is that our lane depth is `64`
-because [we're not implementing full generalized
+The `offset/2` table is copied from the table on pp. 13 of the [NIST
+specification][nist-standard].  The reason for the `rem 64` is that our lane
+depth is `64` because [we're not implementing full generalized
 keccak](#pitfall-this-is-only-keccak-f-1600), we're only implementing the
 keccak that is actually used in SHA-3 and SHAKE.
 
@@ -902,20 +926,351 @@ offset(2, 3) ->  15 rem 64.
 
 ### Inner Keccak: pi stage
 
+The effect of this step is to rearrange the lanes
+
+```
+Result[X, Y] = Input[X + 3*Y, X]
+
+(mod 5 of course)
+```
+
+![[NIST standard][nist-standard], pp. 14](./pi.png)
+
+My code ("clear version") accomplishes this by
+
+1.  Converting the 1600-bit flat sponge array into a hashmap from `{xy, X, Y}`
+    coordinate pairs to 64-bit lanes (a "lane map")
+2.  Construct a new lane map by folding over `{xy, X, Y}` coordinate pairs,
+    and for each `{xy, NewX, NewY}`, grabbing `{xy, NewX + 3*NewY, NewX}` from
+    the lane map constructed in step (1).
+3.  Convert the lane map from step (2) back to a 1600-bit flat sponge array.
+
+This is super inefficient.  The fast version is faster.  You are welcome to go
+read that if you want it to go faster.
+
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L568-L586
+
+-spec pi(Array1600) -> NewArray1600
+    when Array1600    :: <<_:1600>>,
+         NewArray1600 :: <<_:1600>>.
+%% @private
+%% The effect of this step is to rearrange the lanes
+%%
+%% Result[X, Y] = Input[X + 3*Y, X]
+%%
+%% (mod 5 of course)
+%% @end
+
+pi(Array1600) ->
+    % what I'm going to make is a map #{{xy, X, Y} := Lane}
+    % then make a new map from the which applies the coordinate transformation
+    % then convert it back into an array
+    OriginalLaneMap = lane_map(Array1600, #{}, {xy, 0, 0}),
+    NewLaneMap      = new_lane_map(OriginalLaneMap, #{}, {xy, 0, 0}),
+    NewArray1600    = lane_map_to_arr1600(NewLaneMap, <<0:1600>>, {xy, 0, 0}),
+    NewArray1600.
+```
+
+Constructing the lane map for step (1) is a fold that works exactly the way you
+expect. The only potential point of weirdness is `xyth/2` which is explained in
+the [coordinate system section](#inner-keccak-coordinate-system).
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L590-L617
+
+-spec lane_map(Array1600, MapAcc, Coord) -> LaneMap
+    when Array1600 :: <<_:1600>>,
+         MapAcc    :: #{XY := Lane},
+         Coord     :: XY,
+         LaneMap   :: #{XY := Lane},
+         XY        :: {xy, X :: 0..4, Y :: 0..4},
+         Lane      :: <<_:64>>.
+%% @private
+%% Make a map #{XY := Lane}
+%% @end
+
+% terminal case, end of array
+lane_map(Array1600, MapAcc, ThisXY = {xy, 4, 4}) ->
+    ThisLane = xyth(ThisXY, Array1600),
+    FinalMap = MapAcc#{ThisXY => ThisLane},
+    FinalMap;
+% end of Y value, set Y to 0 and increment X
+lane_map(Array1600, MapAcc, ThisXY = {xy, X, 4}) ->
+    ThisLane  = xyth(ThisXY, Array1600),
+    NewMapAcc = MapAcc#{ThisXY => ThisLane},
+    NewXY     = {xy, X + 1, 0},
+    lane_map(Array1600, NewMapAcc, NewXY);
+% general case: increment Y value
+lane_map(Array1600, MapAcc, ThisXY = {xy, X, Y}) ->
+    ThisLane  = xyth(ThisXY, Array1600),
+    NewMapAcc = MapAcc#{ThisXY => ThisLane},
+    NewXY     = {xy, X, Y + 1},
+    lane_map(Array1600, NewMapAcc, NewXY).
+```
+
+Step 2 (making a new lane map by folding over XY-pairs and querying the
+original lane map) also works exactly how you expect:
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L621-L669
+
+-spec new_lane_map(LaneMap, MapAcc, Coord) -> NewLaneMap
+    when LaneMap    :: #{XY := Lane},
+         MapAcc     :: LaneMap,
+         Coord      :: XY,
+         NewLaneMap :: LaneMap,
+         XY         :: {xy, X :: 0..4, Y :: 0..4},
+         Lane       :: <<_:64>>.
+%% @private
+%% The effect of this step is to rearrange the lanes
+%%
+%% Result[X, Y] = Input[X + 3*Y, X]
+%%
+%% (mod 5 of course)
+%% @end
+
+% terminal case, end of array
+new_lane_map(OrigLaneMap, MapAcc, ThisXY = {xy, 4, 4}) ->
+    OrigXY   = xytrans(ThisXY),
+    ThisLane = maps:get(OrigXY, OrigLaneMap),
+    FinalMap = MapAcc#{ThisXY => ThisLane},
+    FinalMap;
+% end of Y value, set Y to 0 and increment X
+new_lane_map(OrigLaneMap, MapAcc, ThisXY = {xy, X, 4}) ->
+    OrigXY    = xytrans(ThisXY),
+    ThisLane  = maps:get(OrigXY, OrigLaneMap),
+    NewMapAcc = MapAcc#{ThisXY => ThisLane},
+    NewXY     = {xy, X + 1, 0},
+    new_lane_map(OrigLaneMap, NewMapAcc, NewXY);
+% general case: increment Y value
+new_lane_map(OrigLaneMap, MapAcc, ThisXY = {xy, X, Y}) ->
+    OrigXY    = xytrans(ThisXY),
+    ThisLane  = maps:get(OrigXY, OrigLaneMap),
+    NewMapAcc = MapAcc#{ThisXY => ThisLane},
+    NewXY     = {xy, X, Y + 1},
+    new_lane_map(OrigLaneMap, NewMapAcc, NewXY).
+
+
+
+-spec xytrans(ResultXY) -> InputXY
+    when ResultXY :: XY,
+         InputXY  :: XY,
+         XY       :: {xy, X :: 0..4, Y :: 0..4}.
+%% @private
+%% Result[X, Y] = Input[X + 3*Y, X]
+%%
+%% See NIST doc, pp. 14
+
+xytrans({xy, X, Y}) ->
+    {xy, (X + 3*Y) rem 5, X}.
+```
+
+Step 3 (converting the lane map back into a 1600-bit flat array) also works
+exactly how you expect. `xyset/3` is a coordinate system function I wrote,
+which you will learn about in [the coordinate system
+section](#inner-keccak-coordinate-system).
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L673-L703
+
+-spec lane_map_to_arr1600(LaneMap, Array1600Acc, Coord) -> Array1600
+    when LaneMap      :: #{XY := Lane},
+         Array1600Acc :: Array1600,
+         Coord        :: XY,
+         Array1600    :: <<_:1600>>,
+         XY           :: {xy, X :: 0..4, Y :: 0..4},
+         Lane         :: <<_:64>>.
+%% @private
+%% inverse of lane_map/3
+%%
+%% it would probably faster to concatenate an accumulator, but that requires
+%% iterating in the correct order, and i'm more comfortable calling xyset/3
+%% @end
+
+% terminal case, end of array
+lane_map_to_arr1600(LaneMap, Array1600Acc, ThisXY = {xy, 4, 4}) ->
+    ThisLane          = maps:get(ThisXY, LaneMap),
+    FinalArray1600Acc = xyset(ThisXY, Array1600Acc, ThisLane),
+    FinalArray1600Acc;
+% end of Y value, set Y to 0 and increment X
+lane_map_to_arr1600(LaneMap, Array1600Acc, ThisXY = {xy, X, 4}) ->
+    ThisLane        = maps:get(ThisXY, LaneMap),
+    NewArray1600Acc = xyset(ThisXY, Array1600Acc, ThisLane),
+    NewXY           = {xy, X + 1, 0},
+    lane_map_to_arr1600(LaneMap, NewArray1600Acc, NewXY);
+% general case: increment Y value
+lane_map_to_arr1600(LaneMap, Array1600Acc, ThisXY = {xy, X, Y}) ->
+    ThisLane        = maps:get(ThisXY, LaneMap),
+    NewArray1600Acc = xyset(ThisXY, Array1600Acc, ThisLane),
+    NewXY           = {xy, X, Y + 1},
+    lane_map_to_arr1600(LaneMap, NewArray1600Acc, NewXY).
+```
+
 
 ### Inner Keccak: chi stage
 
+The effect of this step is to xor each bit with a non-linear function of two
+other nearby bits. Specifically,
+
+```
+NewBit = lxor(Bit,
+              land(lnot(BitToTheRight),
+                   Bit2ToTheRight))
+```
+
+where `lnot`, `lxor`, and `land` are the standard binary logical operations.
+
+Beware the [Greek letter pitfall][greek-letter-pitfall].
+
+![[NIST standard][nist-standard], pp. 15](./chi.png)
+
+The code works pretty much the way you expect.
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L714-L771
+
+-spec chi(Array1600) -> NewArray1600
+    when Array1600    :: <<_:1600>>,
+         NewArray1600 :: <<_:1600>>.
+%% @private
+%% The chi step. The following transformation is applied to each bit
+%%
+%% NewBit = lxor(Bit,
+%%               land(lnot(BitToTheRight),
+%%                    Bit2ToTheRight))
+
+chi(Array1600) ->
+    chi(Array1600, Array1600, 0).
+
+
+-spec chi(Array1600, OldArray1600, Idx0) -> NewArray1600
+    when Array1600    :: <<_:1600>>,
+         OldArray1600 :: <<_:1600>>,
+         Idx0         :: non_neg_integer(),
+         NewArray1600 :: <<_:1600>>.
+%% @private
+%% The chi step. The following transformation is applied to each bit
+%%
+%% NewBit = lxor(Bit,
+%%               land(lnot(BitToTheRight),
+%%                    Bit2ToTheRight))
+%%
+%% FIXME: Could be made more efficient by operating on lanes
+
+chi(Array1600, OrigArray, ThisIdx0) when 0 =< ThisIdx0, ThisIdx0 =< 1599 ->
+    ThisXYZ      = {xyz,             ThisX  , ThisY, ThisZ} = idx0_to_xyz(ThisIdx0),
+    RightXYZ     = {xyz,       right(ThisX) , ThisY, ThisZ},
+    Right2XYZ    = {xyz, right(right(ThisX)), ThisY, ThisZ},
+    ThisBit      = xyzth(ThisXYZ  , Array1600),
+    RightBit     = xyzth(RightXYZ , OrigArray),
+    Right2Bit    = xyzth(Right2XYZ, OrigArray),
+    NewBit       = lxor(ThisBit,
+                        land(lnot(RightBit),
+                             Right2Bit)),
+    NewArray1600 = xyzset(ThisXYZ, Array1600, NewBit),
+    NewIdx0      = ThisIdx0 + 1,
+    chi(NewArray1600, OrigArray, NewIdx0);
+% terminal case
+chi(Array1600, _, 1600) ->
+    Array1600.
+
+
+lxor(0, 0) -> 0;
+lxor(0, 1) -> 1;
+lxor(1, 0) -> 1;
+lxor(1, 1) -> 0.
+
+land(0, 0) -> 0;
+land(0, 1) -> 0;
+land(1, 0) -> 0;
+land(1, 1) -> 1.
+
+lnot(0) -> 1;
+lnot(1) -> 0.
+```
 
 ### Inner Keccak: iota stage
 
+Remember that there are 24 rounds, and `iota` is the only step that cares about which round we are in.
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L367-L368
+rnd(RoundIdx0, Sponge) ->
+    iota(RoundIdx0, chi(pi(rho(theta(Sponge))))).
+```
+
+The effect of this step is to xor the `{xy, 0, 0}` lane with a constant
+bitstring, and there's a different bitstring for each round
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L779-L790
+
+-spec iota(RoundIdx0, Array1600) -> NewArray1600
+    when RoundIdx0    :: 0..23,
+         Array1600    :: <<_:1600>>,
+         NewArray1600 :: <<_:1600>>.
+%% @private
+%% iota xors the 0,0 lane by a round constant which depends on the round
+
+iota(RoundIdx0, Array1600) ->
+    <<Lane00_int:64>>     = xyth({xy, 0, 0}, Array1600),
+    ThisRoundConstant_int = round_constant_int(RoundIdx0),
+    NewLane00_bytes       = <<(Lane00_int bxor ThisRoundConstant_int):64>>,
+    xyset({xy, 0, 0}, Array1600, NewLane00_bytes).
+```
+
+Beware the [iota step round constant
+pitfall](#pitfall-iota-step-round-constant-table). **DO NOT BLINDLY COPY THIS
+ROUND CONSTANT TABLE!  IT MAY HAVE OPPOSITE BIT-ENDIANNESS FROM WHAT WOULD MAKE
+SENSE FOR YOUR CODE!**
+
+```erlang
+%% https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/kek.erl#L824-L847
+
+%% DO NOT BLINDLY COPY THIS ROUND CONSTANT TABLE!  IT MAY HAVE OPPOSITE
+%% BIT-ENDIANNESS FROM WHAT WOULD MAKE SENSE FOR YOUR CODE!
+
+round_constant_int( 0) -> 9223372036854775808; %% 16#8000000000000000 !!
+round_constant_int( 1) -> 4684025087442026496;
+round_constant_int( 2) -> 5836946592048873473;
+round_constant_int( 3) -> 281479271677953;
+round_constant_int( 4) -> 15060318628903649280;
+round_constant_int( 5) -> 9223372041149743104;
+round_constant_int( 6) -> 9295711110164381697;
+round_constant_int( 7) -> 10376575016438333441;
+round_constant_int( 8) -> 5836665117072162816;
+round_constant_int( 9) -> 1224979098644774912;
+round_constant_int(10) -> 10376575020733300736;
+round_constant_int(11) -> 5764607527329202176;
+round_constant_int(12) -> 15060318633198616576;
+round_constant_int(13) -> 15060037153926938625;
+round_constant_int(14) -> 10448632610476261377;
+round_constant_int(15) -> 13835339530258874369;
+round_constant_int(16) -> 4611967493404098561;
+round_constant_int(17) -> 72057594037927937;
+round_constant_int(18) -> 5764888998010945536;
+round_constant_int(19) -> 5764607527329202177;
+round_constant_int(20) -> 9295711110164381697;
+round_constant_int(21) -> 72339069014638593;
+round_constant_int(22) -> 9223372041149743104;
+round_constant_int(23) -> 1153202983878524929.
+```
 
 ### Inner Keccak: coordinate system
 
 
+## Conclusion
+
+What do you want, a cookie?
 
 [coord-system]: #inner-keccak-coordinate-system
 [greek-letter-pitfall]: #pitfall-greek-letter-steps-require-two-copies-of-the-sponge-to-compute
 [german-lecture]: https://www.youtube.com/watch?v=JWskjzgiIa4
 [german-lecture-notes]: https://www.crypto-textbook.com/download/Understanding-Cryptography-Keccak.pdf
 [nist-standard]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
+[rc-erl]: https://github.com/pharpend/kek/blob/8a8a655a80c26ae32763cc25f1e0df8ab0653c82/rc.erl
+[^alg5]: [NIST standard][nist-standard], Algorithm 5, pp 16.
+[^tbl]: From [the German guy's lecture notes][german-lecture-notes], pp. 12.
 [^sponge]: Source for photo: https://www.flickr.com/photos/30478819@N08/46410395345
