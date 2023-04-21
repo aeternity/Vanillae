@@ -75,8 +75,8 @@
 
 
 % OTP Application Interface
-%-export([start/0, stop/0]).
-%-export([start/2, stop/1]).
+-export([start/0, stop/0]).
+-export([start/2, stop/1]).
 
 
 %%% Types
@@ -277,7 +277,7 @@ timeout(MS) ->
 top_height() ->
     case top_block() of
         {ok, #{"micro_block" := #{"height" := Height}}} -> {ok, Height};
-        {ok, #{"key_block  " := #{"height" := Height}}} -> {ok, Height};
+        {ok, #{"key_block"   := #{"height" := Height}}} -> {ok, Height};
         Error                                           -> Error
     end.
 
@@ -1478,19 +1478,25 @@ eu(N, Size) ->
 % /v2/debug/crash
 
 
-%-spec start() -> ok | {error, Reason :: term()}.
-%
-%start() ->
-%    application:start(vanillae).
-%
-%
-%-spec start(normal, term()) -> {ok, pid()}.
-%
-%start(normal, _Args) ->
-%    vanillae_sup:start_link().
-%
-%
-%-spec stop(term()) -> ok.
-%
-%stop(_State) ->
-%    ok.
+-spec start() -> ok | {error, Reason :: term()}.
+
+start() ->
+    application:start(vanillae).
+
+
+-spec stop() -> ok | {error, Reason :: term()}.
+
+stop() ->
+    application:stop(vanillae).
+
+
+-spec start(normal, term()) -> {ok, pid()}.
+
+start(normal, _Args) ->
+    vanillae_sup:start_link().
+
+
+-spec stop(term()) -> ok.
+
+stop(_State) ->
+    ok.
