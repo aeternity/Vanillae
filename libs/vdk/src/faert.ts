@@ -32,7 +32,8 @@ encode
 
     // go along each byte and look up the word
     // add it to the accumulator
-    for (let this_byte of bytes) {
+    for (let this_byte of bytes)
+    {
         let this_word = words[this_byte];
         words_acc.push(this_word);
     }
@@ -62,17 +63,18 @@ decode
     let computed_bytes : Array<number> = [];
 
     // loop over words and figure out accumulator
-    for (let this_input_word of input_words) {
+    for (let this_input_word of input_words)
+    {
         let maybe_this_byte : safe.Safe<number, string> = byte_of_word(this_input_word);
         // if the word is an allowable word, add it to the accumulator
-        if (maybe_this_byte.ok) {
+        if (maybe_this_byte.ok)
+        {
             let this_byte : number = maybe_this_byte.result;
             computed_bytes.push(this_byte);
         }
         // error case, propagate the error up the call chain
-        else {
+        else
             return maybe_this_byte;
-        }
     }
 
     // at this point, we can assume we correctly decoded all words
@@ -81,13 +83,11 @@ decode
 
     // check if it is correct
     // if so, return the computed bytes
-    if (computed_check_word === input_check_word) {
+    if (computed_check_word === input_check_word)
         return safe.ok(new Uint8Array(computed_bytes));
-    }
     // otherwise, return an error
-    else {
+    else
         return safe.error('checksum failure! computed check word: ' + computed_check_word + '; input check word: ' + input_check_word);
-    }
 }
 
 
@@ -100,8 +100,9 @@ byte_of_word
     (word: string)
     : safe.Safe<number, string>
 {
-    for (let i=0; i<=255, i++) {
-        if (word == words[i])
+    for (let i=0; i<=255, i++)
+    {
+        if (word === words[i])
             return safe.ok(i);
     }
     return safe.error('invalid word: ' + word);
@@ -130,9 +131,8 @@ check_byte
     : number
 {
     let check_byte = 0;
-    for (let this_byte of bytes) {
+    for (let this_byte of bytes)
         check_byte ^= this_byte;
-    }
     return check_byte;
 }
 
