@@ -1,5 +1,6 @@
 -module(vb64).
 
+-compile([export_all]).
 -export([enc/1, dec/1]).
 
 -export([test/0]).
