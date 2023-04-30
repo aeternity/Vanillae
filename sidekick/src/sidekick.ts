@@ -92,7 +92,7 @@ export {
 // IMPORTS
 //-----------------------------------------------------------------------------
 
-import * as awcp from './jex_include/local-awcp-0.2.0/dist/awcp.js';
+import * as awcp from './jex_include/local-awcp-0.2.1/dist/awcp.js';
 
 
 //-----------------------------------------------------------------------------
@@ -548,6 +548,28 @@ const TIMEOUT_DEF_MSG_SIGN_MS = 5*MIN;
  *
  * @example
  * ```ts
+ * // example call
+ * await sk.detect(sk.TIMEOUT_DEF_DETECT_MS,    // timeout
+ *                 "failed to detect wallet",   // error on timeout
+ *                 sk.cl());                    // cl = console logger
+ * // example return data (positive case)
+ * {ok     : true,
+ *  result : {id        : "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
+ *            name      : "Superhero",
+ *            networkId : "ae_uat",
+ *            origin    : "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
+ *            type      : "extension"}}
+ * // example return data (negative case)
+ * {ok     : false,
+ *  error  : {code    : 420,
+ *            message : "failed to detect wallet",
+ *            data    : {}}}
+ * ```
+ *
+ * @example
+ * ```ts
+ * // example calling code
+ * // from: https://github.com/aeternity/Vanillae/blob/0e030cb39554e9f09e4460d1da4e7654fe7456de/sidekick/examples/src/connection.ts#L34-L66
  * // document has a button with id=detect
  * // this is the function that is triggered when the button is clicked
  * async function detect(logger: sk.Logger): Promise<void> {
@@ -580,7 +602,8 @@ const TIMEOUT_DEF_MSG_SIGN_MS = 5*MIN;
  *
  * // want to create a logger down here
  * let logger = sk.cl();
- * // detect button
+ * // detect button. The ! turns off a typescript warning, does not change the
+ * // code behavior
  * document.getElementById('detect')!.onclick = function() { detect(logger); } ;
  * ```
  */
@@ -753,6 +776,32 @@ class CAPListener
  *
  * @example
  * ```ts
+ * // example calling code
+ * await sk.connect('ske-connect-1',                // message id, can be arbitrary string/number
+ *                  {name: 'sidekick examples',     // name can be any string
+ *                   version: 1},                   // version must be 1
+ *                                                  // optional field networkId which is ae_uat or ae_mainnet
+ *                  sk.TIMEOUT_DEF_CONNECT_MS,      // timeout
+ *                  "failed to connect to wallet",  // timeout error message
+ *                  sk.cl());                       // logger
+ * // example return data (positive case)
+ * {ok     : true,
+ *  result : {id        : "{aee9e933-52b6-410a-8c3f-99c6be596b4e}",
+ *            name      : "Superhero",
+ *            networkId : "ae_uat",
+ *            origin    : "moz-extension://ee425d81-d5b2-44b6-9406-4da31b019e7c",
+ *            type      : "extension"}}
+ * // example return data (negative case)
+ * {ok     : false,
+ *  error  : {code    : 420,
+ *            message : "failed to detect wallet",
+ *            data    : {}}}
+ * ```
+ *
+ * @example
+ * ```ts
+ * // example calling code
+ * // from: https://github.com/aeternity/Vanillae/blob/0e030cb39554e9f09e4460d1da4e7654fe7456de/sidekick/examples/src/connection.ts#L68-L109
  * // document has a button with id=connect
  * // this is the function that is triggered when the button is clicked
  * // you want your user to do the detect sequence first
@@ -825,7 +874,24 @@ connect
 
 
 /**
- * 
+ * Get the user's address.
+ *
+ * @example
+ * ```ts
+ * // example positive return
+ * {ok     : true,
+ *  result : {subscription : ["connected"],
+ *            address      : {current   : {"ak_2XhCkjzTwcq1coXSSzHJoMZkUzTwnjH88zmPGkkowUsFNTo9UE": {}},
+ *                            connected : {"ak_21HW2BeR8KQnzB76b9RSeNAXFf8SEvquLG3ichyLaXhdxUpXe9" : {},
+ *                                         "ak_Bd9rA8pDWucwfriVp6Zgb68csxanCzWDqstyoBKBbzUnNhpKQ"  : {},
+ *                                         "ak_TuwioiZCt3Ajx9dgVS9qdnS9VW1t4GMWFML5zBPgzouZUGUDA"  : {},
+ *                                         "ak_ywR1N7GDpj7djeEEEnHSTmYbQmxvWCvFgfsLpxdFpK1ptkZMU"  : {}}}}}
+ * // example negative return
+ * {ok    : false,
+ *  error : {code    : 4,
+ *           data    : {},
+ *           message : "Operation rejected by user"}}
+ * ```
  */
 async function
 address
