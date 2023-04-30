@@ -31,3 +31,4 @@ been written yet\]:
 13. How to run an Aeternity node
 14. The Jex Packaging System: NPM is cancer
 15. Things we learned making Aegora
+16. Using user crypto wallets for authentication: it's time to put passwords in the past
