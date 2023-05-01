@@ -189,11 +189,11 @@ handle_down(PID, Mon, Info, State = #s{fetchers = Fetchers}) ->
         {value, #fetcher{time = Time, node = Node, from = From, req = R}, Remaining} ->
             TS = calendar:system_time_to_rfc3339(Time, [{unit, nanosecond}]),
             Format =
-                "ERROR ~s: Fetcher process ~130p exited while making request to ~130p~n"
+                "ERROR ~ts: Fetcher process ~130tp exited while making request to ~130tp~n"
                 "Exit reason:~n"
-                "~p~n"
+                "~tp~n"
                 "Request contents:~n"
-                "~p~n~n",
+                "~tp~n~n",
             Formatted = io_lib:format(Format, [TS, PID, Node, Info, R]),
             Message = unicode:characters_to_list(Formatted),
             ok = gen_server:reply(From, {error, Message}),
