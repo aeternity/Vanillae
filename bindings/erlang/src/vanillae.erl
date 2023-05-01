@@ -1033,14 +1033,18 @@ read_aci(Path) ->
 %% for contract_call/10.
 
 contract_call(CallerID, AACI, ConID, Fun, Args) ->
-    {ok, Nonce} = next_nonce(CallerID),
-    Gas = min_gas(),
-    GasPrice = min_gas_price(),
-    Fee = min_fee(),
-    Amount = 0,
-    contract_call(CallerID, Nonce,
-                  Gas, GasPrice, Fee, Amount,
-                  AACI, ConID, Fun, Args).
+    case next_nonce(CallerID) of
+        {ok, Nonce} ->
+            Gas = min_gas(),
+            GasPrice = min_gas_price(),
+            Fee = min_fee(),
+            Amount = 0,
+            contract_call(CallerID, Nonce,
+                          Gas, GasPrice, Fee, Amount,
+                          AACI, ConID, Fun, Args);
+        Error ->
+            Error
+    end.
 
 
 -spec contract_call(CallerID, Gas, AACI, ConID, Fun, Args) -> Result
@@ -1061,13 +1065,17 @@ contract_call(CallerID, AACI, ConID, Fun, Args) ->
 %% for contract_call/10.
 
 contract_call(CallerID, Gas, AACI, ConID, Fun, Args) ->
-    {ok, Nonce} = next_nonce(CallerID),
-    GasPrice = min_gas_price(),
-    Fee = min_fee(),
-    Amount = 0,
-    contract_call(CallerID, Nonce,
-                  Gas, GasPrice, Fee, Amount,
-                  AACI, ConID, Fun, Args).
+    case next_nonce(CallerID) of
+        {ok, Nonce} ->
+            GasPrice = min_gas_price(),
+            Fee = min_fee(),
+            Amount = 0,
+            contract_call(CallerID, Nonce,
+                          Gas, GasPrice, Fee, Amount,
+                          AACI, ConID, Fun, Args);
+        Error ->
+            Error
+    end.
 
 
 -spec contract_call(CallerID, Nonce,
