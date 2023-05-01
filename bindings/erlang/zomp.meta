@@ -14,7 +14,7 @@
 {license,"MIT"}.
 {modules,[]}.
 {name,"Vanillae for Erlang"}.
-{package_id,{"otpr","vanillae",{0,1,0}}}.
+{package_id,{"otpr","vanillae",{0,2,0}}}.
 {prefix,"v"}.
 {repo_url,"https://github.com/aeternity/Vanillae"}.
 {tags,[]}.

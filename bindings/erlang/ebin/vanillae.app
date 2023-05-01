@@ -3,6 +3,6 @@
               {registered,[]},
               {included_applications,[]},
               {applications,[stdlib,kernel]},
-              {vsn,"0.1.0"},
+              {vsn,"0.2.0"},
               {modules,[vanillae,vanillae_fetcher,vanillae_man]},
               {mod,{vanillae,[]}}]}.
