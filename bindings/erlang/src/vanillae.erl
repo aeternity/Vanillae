@@ -1276,43 +1276,257 @@ prepare_contract(File) ->
     end.
 
 prepare_aaci(ACI) ->
-    [{NameBin, SpecDefs}] =
-        [{N, F}
+    [{NameBin, SpecDefs, TypeDefs}] =
+        [{N, F, T}
          || #{contract := #{kind      := contract_main,
                             functions := F,
-                            name      := N}} <- ACI],
+                            name      := N,
+                            typedefs  := T}} <- ACI],
     Name = binary_to_list(NameBin),
-    Specs = lists:foldl(fun simplify_specs/2, #{}, SpecDefs),
-    {aaci, Name, Specs}.
+    Types = simplify_typedefs(TypeDefs, #{}, Name ++ "."),
+    SimplifySpecs = fun(X, Y) -> simplify_specs(X, Y, Types) end,
+    Specs = lists:foldl(SimplifySpecs, #{}, SpecDefs),
+    {aaci, Name, Specs, Types}.
 
-simplify_specs(#{name := NameBin, arguments := ArgDefs}, Specs) ->
+simplify_typedefs([], Types, _NamePrefix) -> Types;
+simplify_typedefs([Next | Rest], Types, NamePrefix) ->
+    #{name := NameBin, vars := ParamDefs, typedef := T} = Next,
+    Name = NamePrefix ++ binary_to_list(NameBin),
+    Params = [binary_to_list(Param) || #{name := Param} <- ParamDefs],
+    Type = opaque_type(Params, T),
+    NewTypes = maps:put(Name, {Params, Type}, Types),
+    simplify_typedefs(Rest, NewTypes, NamePrefix).
+
+simplify_specs(#{name := NameBin, arguments := ArgDefs}, Specs, Types) ->
     Name = binary_to_list(NameBin),
-    ArgTypes = lists:map(fun simplify_args/1, ArgDefs),
+    ArgTypes = [simplify_args(Arg, Types) || Arg <- ArgDefs],
     maps:put(Name, ArgTypes, Specs).
 
-simplify_args(#{name := NameBin, type := TypeBin}) ->
+simplify_args(#{name := NameBin, type := TypeDef}, Types) ->
     Name = binary_to_list(NameBin),
-    Type = type(TypeBin),
+    % FIXME We should make this error more informative, and continue
+    % propogating it up, so that the user can provide their own ACI and find
+    % out whether it worked or not. At that point ACI -> AACI could almost be a
+    % module or package of its own.
+    {ok, Type} = type(TypeDef, Types),
     {Name, Type}.
 
-type(<<"int">>)             -> integer;
-type(<<"address">>)         -> address;
-type(<<"contract">>)        -> contract;
-type(<<"bool">>)            -> boolean;
-type(Name)                  -> binary_to_list(Name).
-%type(#{<<"list">> := T})    -> {list, type(T)};
-%type(#{<<"tuple">> := T})   -> {tuple, type(T)};
-%type(#{<<"map">> := {K, V}} -> {map, type(K), type(V)};
-%type(<<"string">>)          -> string;
+% Type preparation has two goals. First, we need a data structure that can be
+% traversed quickly, to take sophia-esque erlang expressions and turn them into
+% fate-esque erlang expressions that aebytecode can serialize. Second, we need
+% partially substituted names, so that error messages can be generated for why
+% "foobar" is not valid as the third field of a `bazquux`, because the third
+% field is supposed to be `option(integer)`, not `string`.
+%
+% To achieve this we need three representations of each type expression, which
+% together form an 'annotated type'. First, we need the fully opaque name,
+% "bazquux", then we need the normalized name, which is an opaque name with the
+% bare-minimum substitution needed to make the outer-most type-constructor an
+% identifiable built-in, ADT, or record type, and then we need the flattened
+% type, which is the raw {variant, [{Name, Fields}, ...]} or
+% {record, [{Name, Type}]} expression that can be used in actual Sophia->FATE
+% coercion. The type sub-expressions in these flattened types will each be
+% fully annotated as well, i.e. they will each contain *all three* of the above
+% representations, so that coercion of subexpressions remains fast AND
+% informative.
+%
+% In a lot of cases the opaque type given will already be normalized, in which
+% case either the normalized field or the non-normalized field of an annotated
+% type can simple be the atom `already_normalized`, which means error messages
+% can simply render the normalized type expression and know that the error will
+% make sense.
 
-coerce({{ArgName, integer},  S}, {Good, Broken}) ->
+type(T, Types) ->
+    flatten_opaque_type(opaque_type([], T), Types).
+
+opaque_type(Params, NameBin) when is_binary(NameBin) ->
+    Name = opaque_type_name(NameBin),
+    case not is_atom(Name) and lists:member(Name, Params) of
+        false -> Name;
+        true -> {var, Name}
+    end;
+opaque_type(Params, #{record := FieldDefs}) ->
+    Fields = [{binary_to_list(Name), opaque_type(Params, Type)}
+              || #{name := Name, type := Type} <- FieldDefs],
+    {record, Fields};
+opaque_type(Params, #{variant := VariantDefs}) ->
+    ConvertVariant = fun(Pair) ->
+        [{Name, Types}] = maps:to_list(Pair),
+        {binary_to_list(Name), [opaque_type(Params, Type) || Type <- Types]}
+    end,
+    Variants = lists:map(ConvertVariant, VariantDefs),
+    {variant, Variants};
+opaque_type(Params, #{tuple := TypeDefs}) ->
+    {tuple, [opaque_type(Params, Type) || Type <- TypeDefs]};
+opaque_type(Params, Pair) when is_map(Pair) ->
+    [{Name, TypeArgs}] = maps:to_list(Pair),
+    {opaque_type_name(Name), [opaque_type(Params, Arg) || Arg <- TypeArgs]}.
+
+% atoms for builtins, lists for user defined types
+opaque_type_name(<<"int">>)      -> integer;
+opaque_type_name(<<"address">>)  -> address;
+opaque_type_name(<<"contract">>) -> contract;
+opaque_type_name(<<"bool">>)     -> boolean;
+opaque_type_name(<<"option">>)   -> option;
+opaque_type_name(<<"list">>)     -> list;
+opaque_type_name(<<"map">>)      -> map;
+opaque_type_name(<<"string">>)   -> string;
+opaque_type_name(Name)           -> binary_to_list(Name).
+
+flatten_opaque_type(T, Types) ->
+    case normalize_opaque_type(T, Types) of
+        {ok, AlreadyNormalized, NOpaque, NExpanded} ->
+            flatten_opaque_type2(T, AlreadyNormalized, NOpaque, NExpanded,
+                                 Types);
+        Error -> Error
+    end.
+
+flatten_opaque_type2(T, AlreadyNormalized, NOpaque, NExpanded, Types) ->
+    case flatten_normalized_type(NExpanded, Types) of
+        {ok, Flat} ->
+            case AlreadyNormalized of
+                true -> {ok, {T, already_normalized, Flat}};
+                false -> {ok, {T, NOpaque, Flat}}
+            end;
+        Error -> Error
+    end.
+
+flatten_opaque_types([T | Rest], Types, Acc) ->
+    case flatten_opaque_type(T, Types) of
+        {ok, Type} -> flatten_opaque_types(Rest, Types, [Type | Acc]);
+        Error -> Error
+    end;
+flatten_opaque_types([], _Types, Acc) ->
+    {ok, lists:reverse(Acc)}.
+
+flatten_opaque_bindings([{Name, T} | Rest], Types, Acc) ->
+    case flatten_opaque_type(T, Types) of
+        {ok, Type} -> flatten_opaque_bindings(Rest, Types, [{Name, Type} | Acc]);
+        Error -> Error
+    end;
+flatten_opaque_bindings([], _Types, Acc) ->
+    {ok, lists:reverse(Acc)}.
+
+flatten_opaque_variants([{Name, Elems} | Rest], Types, Acc) ->
+    case flatten_opaque_types(Elems, Types, []) of
+        {ok, ElemsFlat} ->
+            flatten_opaque_variants(Rest, Types, [{Name, ElemsFlat} | Acc]);
+        Error -> Error
+    end;
+flatten_opaque_variants([], _Types, Acc) ->
+    {ok, lists:reverse(Acc)}.
+
+flatten_normalized_type(PrimitiveType, _Types) when is_atom(PrimitiveType) ->
+    {ok, PrimitiveType};
+flatten_normalized_type({variant, VariantsOpaque}, Types) ->
+    case flatten_opaque_variants(VariantsOpaque, Types, []) of
+        {ok, Variants} -> {ok, {variant, Variants}};
+        Error -> Error
+    end;
+flatten_normalized_type({record, FieldsOpaque}, Types) ->
+    case flatten_opaque_bindings(FieldsOpaque, Types, []) of
+        {ok, Fields} -> {ok, {record, Fields}};
+        Error -> Error
+    end;
+flatten_normalized_type({T, ElemsOpaque}, Types) ->
+    case flatten_opaque_types(ElemsOpaque, Types, []) of
+        {ok, Elems} -> {ok, {T, Elems}};
+        Error -> Error
+    end.
+
+normalize_opaque_type(T, Types) ->
+    case type_is_expanded(T) of
+        false -> normalize_opaque_type(T, Types, true);
+        true -> {ok, true, T, T}
+    end.
+
+% FIXME detect infinite loops
+% FIXME detect builtins with the wrong number of arguments
+% FIXME should nullary types have an empty list of arguments added before now?
+normalize_opaque_type({option, [T]}, _Types, IsFirst) ->
+    % Just like user-made ADTs, 'option' is considered part of the type, and so
+    % options are considered normalised.
+    {ok, IsFirst, {option, [T]}, {variant, [{"None", []}, {"Some", [T]}]}};
+normalize_opaque_type(T, Types, IsFirst) when is_list(T) ->
+    normalize_opaque_type({T, []}, Types, IsFirst);
+normalize_opaque_type({T, TypeArgs}, Types, IsFirst) when is_list(T) ->
+    case maps:get(T, Types, not_found) of
+        %{error, invalid_aci}; % FIXME more info
+        % FIXME We don't understand lookups from other scopes, so we can't
+        % really prove that the user is wrong, so just assume it is a type that
+        % we don't understand.
+        not_found -> {ok, IsFirst, {T, TypeArgs}, {unknown_type, TypeArgs}};
+        {TypeParamNames, Definition} ->
+            Bindings = lists:zip(TypeParamNames, TypeArgs),
+            normalize_opaque_type2(T, TypeArgs, Types, IsFirst, Bindings, Definition)
+    end.
+
+normalize_opaque_type2(T, TypeArgs, Types, IsFirst, Bindings, Definition) ->
+    SubResult = case Bindings of
+        [] -> {ok, Definition};
+        _ -> substitute_opaque_type(Bindings, Definition)
+    end,
+    case SubResult of
+        % Type names were already normalized if they were ADTs or records,
+        % since for those connectives the name is considered part of the type.
+        {ok, NextT = {variant, _}} -> {ok, IsFirst, {T, TypeArgs}, NextT};
+        {ok, NextT = {record, _}} -> {ok, IsFirst, {T, TypeArgs}, NextT};
+        % Everything else has to be substituted down to a built-in connective
+        % to be considered normalized.
+        {ok, NextT} -> normalize_opaque_type3(NextT, Types);
+        Error -> Error
+    end.
+
+% while this does look like normalize_opaque_type/2, it sets IsFirst to false
+% instead of true, and is part of the loop, instead of being an initial
+% condition for the loop.
+normalize_opaque_type3(NextT, Types) ->
+    case type_is_expanded(NextT) of
+        false -> normalize_opaque_type(NextT, Types, false);
+        true -> {ok, false, NextT, NextT}
+    end.
+
+type_is_expanded(integer) -> true;
+type_is_expanded(address) -> true;
+type_is_expanded(contract) -> true;
+type_is_expanded(boolean) -> true;
+type_is_expanded(string) -> true;
+type_is_expanded({map, _}) -> true;
+type_is_expanded({tuple, _}) -> true;
+type_is_expanded({variant, _}) -> true;
+type_is_expanded({record, _}) -> true;
+type_is_expanded(_) -> false.
+
+% Skip traversal if there is nothing to substitute. This will often be the
+% most common case.
+substitute_opaque_type(Bindings, {var, VarName}) ->
+    case lists:keyfind(VarName, 1, Bindings) of
+        false -> {error, invalid_aci};
+        {_, TypeArg} -> {ok, TypeArg}
+    end;
+substitute_opaque_type(Bindings, {Connective, Args}) ->
+    case substitute_opaque_types(Bindings, Args, []) of
+        {ok, Result} -> {ok, {Connective, Result}};
+        Error -> Error
+    end;
+substitute_opaque_type(_Bindings, Type) -> {ok, Type}.
+
+substitute_opaque_types(Bindings, [Next | Rest], Acc) ->
+    case substitute_opaque_type(Bindings, Next) of
+        {ok, Result} -> substitute_opaque_types(Bindings, Rest, [Result | Acc]);
+        Error -> Error
+    end;
+substitute_opaque_types(_Bindings, [], Acc) ->
+    {ok, lists:reverse(Acc)}.
+
+coerce({{ArgName, {_, _, integer}},  S}, {Good, Broken}) ->
     try
         N = list_to_integer(S),
         {[N | Good], Broken}
     catch
         error:Reason -> {Good, [{ArgName, Reason} | Broken]}
     end;
-coerce({{ArgName, address},  S}, {Good, Broken}) ->
+coerce({{ArgName, {_, _, address}},  S}, {Good, Broken}) ->
     try
         case aeser_api_encoder:decode(unicode:characters_to_binary(S)) of
             {account_pubkey, Key} -> {[{address, Key} | Good], Broken};
@@ -1321,7 +1535,7 @@ coerce({{ArgName, address},  S}, {Good, Broken}) ->
     catch
         error:Reason -> {Good, [{ArgName, Reason} | Broken]}
     end;
-coerce({{ArgName, contract}, S}, {Good, Broken}) ->
+coerce({{ArgName, {_, _, contract}}, S}, {Good, Broken}) ->
     try
         case aeser_api_encoder:decode(unicode:characters_to_binary(S)) of
             R = {contract_bytearray, _} -> {[R | Good], Broken};
@@ -1330,13 +1544,16 @@ coerce({{ArgName, contract}, S}, {Good, Broken}) ->
     catch
         error:Reason -> {Good, [{ArgName, Reason} | Broken]}
     end;
-coerce({{_, bool}, true}, {Good, Broken}) ->
+coerce({{_, {_, _, boolean}}, true}, {Good, Broken}) ->
     {[true | Good], Broken};
 coerce({{_, bool}, false}, {Good, Broken}) ->
     {[false | Good], Broken};
-coerce({{ArgName, bool},  _}, {Good, Broken}) ->
+coerce({{ArgName, {_, _, boolean}},  _}, {Good, Broken}) ->
     {Good, [{ArgName, not_bool} | Broken]};
-coerce({_, S}, {Good, Broken}) ->
+coerce({{Name, {TypeOpaque, _TypeNormalized, TypeFlat}}, S}, {Good, Broken}) ->
+    io:format("Warning: Could not coerce argument ~s to type ~p.~n"
+        "Trying to use the value as is.~n"
+        "Full type:~n~p~n", [Name, TypeOpaque, TypeFlat]),
     {[S | Good], Broken}.
 
 
@@ -1384,7 +1601,7 @@ min_fee() ->
     200000000000000.
 
 
-encode_call_data({aaci, _, FunDefs}, Fun, Args) ->
+encode_call_data({aaci, _ContractName, FunDefs, _TypeDefs}, Fun, Args) ->
     case maps:find(Fun, FunDefs) of
         {ok, ArgDef} -> encode_call_data2(ArgDef, Fun, Args);
         error        -> {error, bad_fun_name}
