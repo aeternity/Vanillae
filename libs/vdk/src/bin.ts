@@ -316,6 +316,7 @@ bits_concat
        // gaaah
        // so this will be 0 at the start of the loop
        let relevant_byte_of_second_array_idx0 : number = this_result_byte_idx0 - last_byte_of_first_array_idx0;
+       let relevant_byte_of_second_array      : number = bytes2[relevant_byte_of_second_array_idx0];
 
        // ok so let's fish out the leading digits
        // the number of leading digits is the number of trailing 0s in the first array
@@ -328,11 +329,11 @@ bits_concat
        // ABCD_EFGH >> 6 = 0000_00AB
        // trailing digits are
        // (ABCD_EFGH << 2) % 255 = CDEF_GH00
-       let leading_digits  : number = relevant_byte_of_second_array_idx0 >> num_trailing_digits;
-       let trailing_digits : number = (relevant_byte_of_second_array_idx0 << num_leading_digits) % 255;
+       let leading_digits  : number = relevant_byte_of_second_array >> num_trailing_digits;
+       let trailing_digits : number = (relevant_byte_of_second_array << num_leading_digits) % 255;
 
        // xor the current byte against the leading digits
-       let new_this_result_byte : number = this_result_byte ^ leading_digit;
+       let new_this_result_byte : number = this_result_byte ^ leading_digits;
        result_bytes[this_result_byte_idx0] = new_this_result_byte;
 
        // set the next byte to the trailing digits
