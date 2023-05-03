@@ -1519,36 +1519,55 @@ substitute_opaque_types(Bindings, [Next | Rest], Acc) ->
 substitute_opaque_types(_Bindings, [], Acc) ->
     {ok, lists:reverse(Acc)}.
 
+coerce_bindings(VarTypes, Terms) ->
+    DefLength = length(VarTypes),
+    ArgLength = length(Terms),
+    if
+        DefLength =:= ArgLength -> coerce_zipped_bindings(lists:zip(VarTypes, Terms));
+        DefLength >   ArgLength -> {error, too_few_args};
+        DefLength   < ArgLength -> {error, too_many_args}
+    end.
+
+coerce_zipped_bindings(Bindings) ->
+    case lists:foldl(fun coerce_step/2, {[], []}, Bindings) of
+        {Coerced, []} ->
+            {ok, lists:reverse(Coerced)};
+        {_, Errors} ->
+            {error, {args, lists:reverse(Errors)}}
+    end.
+
 coerce_step({{ArgName, AnnotatedType}, Term}, {Good, Broken}) ->
     case coerce(AnnotatedType, Term) of
         {ok, FATETerm} -> {[FATETerm | Good], Broken};
         {error, Error} -> {Good, [{ArgName, Error} | Broken]}
     end.
 
-coerce({_, _, integer},  S) ->
+coerce({_, _, integer}, S) when is_integer(S) ->
+    {ok, S};
+coerce({O, N, integer},  S) when is_list(S) ->
     try
-        N = list_to_integer(S),
-        {ok, N}
+        Val = list_to_integer(S),
+        {ok, Val}
     catch
-        error:Reason -> {error, Reason}
+        error:badarg -> {error, {invalid, O, N, S}}
     end;
-coerce({_, _, address},  S) ->
+coerce({O, N, address},  S) ->
     try
         case aeser_api_encoder:decode(unicode:characters_to_binary(S)) of
             {account_pubkey, Key} -> {ok, {address, Key}};
             _                     -> {error, bad_pubkey}
         end
     catch
-        error:Reason -> {error, Reason}
+        error:_ -> {error, {invalid, O, N, S}}
     end;
-coerce({_, _, contract}, S) ->
+coerce({O, N, contract}, S) ->
     try
         case aeser_api_encoder:decode(unicode:characters_to_binary(S)) of
             R = {contract_bytearray, _} -> {ok, R};
             _                           -> {error, bad_contract}
         end
     catch
-        error:Reason -> {error, Reason}
+        error:_ -> {error, {invalid, O, N, S}}
     end;
 coerce({_, _, boolean}, true) ->
     {ok, true};
@@ -1556,12 +1575,123 @@ coerce({_, _, boolean}, false) ->
     {ok, false};
 coerce({_, _, boolean},  _) ->
     {error, not_bool};
-coerce({TypeOpaque, _TypeNormalized, TypeFlat}, S) ->
-    io:format("Warning: Could not coerce term ~p to type ~p.~n"
-        "Trying to use the value as is.~n"
-        "Full type:~n~p~n", [S, TypeOpaque, TypeFlat]),
-    {ok, S}.
+coerce({O, N, string}, Str) ->
+    case unicode:characters_to_binary(Str) of
+        {error, _, _} ->
+            {error, invalid_string, O, N, Str};
+        {incomplete, _, _} ->
+            {error, invalid_string, O, N, Str};
+        StrBin ->
+            {ok, StrBin}
+    end;
+coerce({_, _, {map, [KeyType, ValType]}}, Data) when is_map(Data) ->
+    coerce_map(KeyType, ValType, maps:iterator(Data), #{});
+% Was getting bugs with is_tuple?? No idea why.
+coerce({O, N, {variant, Variants}}, Data) when is_tuple(Data), tuple_size(Data) > 0 ->
+    [Name | Fields] = tuple_to_list(Data),
+    case lookup_variant(Name, Variants) of
+        {Tag, FieldTypes} ->
+            coerce_variant2(O, N, Variants, Name, Fields, Tag, FieldTypes);
+        not_found ->
+            ValidNames = [Valid || {Valid, _} <- Variants],
+            {error, {adt_invalid, O, N, Name, ValidNames}}
+    end;
+coerce({O, N, {variant, Variants}}, Name) when is_list(Name) ->
+    coerce({O, N, {variant, Variants}}, {Name});
+coerce({O, N, {record, Fields}}, Map) when is_map(Map) ->
+    coerce_map_to_record(O, N, Fields, Map);
+coerce({O, N, _}, Data) -> {error, {invalid, O, N, Data}}.
 
+coerce_map(KeyType, ValType, Remaining, Acc) ->
+    case maps:next(Remaining) of
+        {K, V, RemainingAfter} ->
+            coerce_map2(KeyType, ValType, RemainingAfter, Acc, K, V);
+        none -> {ok, Acc}
+    end.
+
+coerce_map2(KeyType, ValType, Remaining, Acc, K, V) ->
+    case coerce(KeyType, K) of
+        {ok, KFATE} ->
+            coerce_map3(KeyType, ValType, Remaining, Acc, KFATE, V);
+        Error -> Error
+    end.
+
+coerce_map3(KeyType, ValType, Remaining, Acc, KFATE, V) ->
+    case coerce(ValType, V) of
+        {ok, VFATE} ->
+            NewAcc = Acc#{KFATE => VFATE},
+            coerce_map(KeyType, ValType, Remaining, NewAcc);
+        Error -> Error
+    end.
+
+lookup_variant(Name, Variants) -> lookup_variant(Name, Variants, 0).
+
+lookup_variant(Name, [{Name, Fields} | _], Tag) -> {Tag, Fields};
+lookup_variant(Name, [_ | Rest], Tag) ->
+    lookup_variant(Name, Rest, Tag + 1);
+lookup_variant(_Name, [], _Tag) ->
+    not_found.
+
+coerce_variant2(O, N, Variants, Name, Fields, Tag, FieldTypes) ->
+    case coerce_list(FieldTypes, Fields, []) of
+        {ok, FATEFields} ->
+            Arities = [length(VariantTerms)
+                       || {_, VariantTerms} <- Variants],
+            {ok, {variant, Arities, Tag, list_to_tuple(FATEFields)}};
+        {error, too_few_terms} ->
+            {error, {adt_too_few_terms, O, N, Name, FieldTypes, Fields}};
+        {error, too_many_terms} ->
+            {error, {adt_too_many_terms, O, N, Name, FieldTypes, Fields}};
+        Error -> Error
+    end.
+
+coerce_list([Type | Types], [Field | Fields], Acc) ->
+    case coerce(Type, Field) of
+        {ok, Value} -> coerce_list(Types, Fields, [Value | Acc]);
+        Error -> Error
+    end;
+coerce_list([], [], Acc) ->
+    {ok, lists:reverse(Acc)};
+coerce_list(_, [], _) ->
+    {error, too_few_terms};
+coerce_list([], _, _) ->
+    {error, too_many_terms}.
+
+coerce_map_to_record(O, N, Fields, Map) ->
+    case zip_record_fields(Fields, Map) of
+        {ok, Zipped} ->
+            case coerce_zipped_bindings(Zipped) of
+                {ok, FATEFields} ->
+                    {ok, {tuple, list_to_tuple(FATEFields)}};
+                Error -> Error % FIXME when do we wrap errors vs propogate
+                               % them? Hard to say until we actually render
+                               % them.
+            end;
+        {error, {missing_fields, Missing}} ->
+            {error, {missing_fields, O, N, Missing}};
+        {error, {unexpected_fields, Unexpected}} ->
+            Names = [Name || {Name, _} <- maps:to_list(Unexpected)],
+            {error, {unexpected_fields, O, N, Names}}
+    end.
+
+zip_record_fields(Fields, Map) ->
+    case lists:mapfoldl(fun zip_record_field/2, {Map, []}, Fields) of
+        {_, {_, Missing = [_|_]}} ->
+            {error, {missing_fields, lists:reverse(Missing)}};
+        {_, {Remaining, _}} when map_size(Remaining) > 0 ->
+            {error, {unexpected_fields, Remaining}};
+        {Zipped, _} ->
+            {ok, Zipped}
+    end.
+
+zip_record_field({Name, Type}, {Remaining, Missing}) ->
+    case maps:take(Name, Remaining) of
+       {Term, RemainingAfter} ->
+           ZippedTerm = {{Name, Type}, Term},
+           {ZippedTerm, {RemainingAfter, Missing}};
+        error ->
+           {missing, {Remaining, [Name | Missing]}}
+    end.
 
 -spec min_gas_price() -> integer().
 %% @doc
@@ -1614,24 +1744,10 @@ encode_call_data({aaci, _ContractName, FunDefs, _TypeDefs}, Fun, Args) ->
     end.
 
 encode_call_data2(ArgDef, Fun, Args) ->
-    DefLength = length(ArgDef),
-    ArgLength = length(Args),
-    if
-        DefLength =:= ArgLength -> encode_call_data3(ArgDef, Fun, Args);
-        DefLength >   ArgLength -> {error, too_few_args};
-        DefLength   < ArgLength -> {error, too_many_args}
+    case coerce_bindings(ArgDef, Args) of
+        {ok, Coerced} -> aeb_fate_abi:create_calldata(Fun, Coerced);
+        Error -> Error
     end.
-
-encode_call_data3(ArgDef, Fun, Args) ->
-    Binding = lists:zip(ArgDef, Args),
-    case lists:foldl(fun coerce_step/2, {[], []}, Binding) of
-        {Coerced, []} ->
-            Reversed = lists:reverse(Coerced),
-            aeb_fate_abi:create_calldata(Fun, Reversed);
-        {_, Errors} ->
-            {error, {args, lists:reverse(Errors)}}
-    end.
-
 
 verify_signature(Sig, Message, PubKey) ->
     case aeser_api_encoder:decode(PubKey) of
