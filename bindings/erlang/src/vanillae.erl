@@ -1519,42 +1519,48 @@ substitute_opaque_types(Bindings, [Next | Rest], Acc) ->
 substitute_opaque_types(_Bindings, [], Acc) ->
     {ok, lists:reverse(Acc)}.
 
-coerce({{ArgName, {_, _, integer}},  S}, {Good, Broken}) ->
+coerce_step({{ArgName, AnnotatedType}, Term}, {Good, Broken}) ->
+    case coerce(AnnotatedType, Term) of
+        {ok, FATETerm} -> {[FATETerm | Good], Broken};
+        {error, Error} -> {Good, [{ArgName, Error} | Broken]}
+    end.
+
+coerce({_, _, integer},  S) ->
     try
         N = list_to_integer(S),
-        {[N | Good], Broken}
+        {ok, N}
     catch
-        error:Reason -> {Good, [{ArgName, Reason} | Broken]}
+        error:Reason -> {error, Reason}
     end;
-coerce({{ArgName, {_, _, address}},  S}, {Good, Broken}) ->
+coerce({_, _, address},  S) ->
     try
         case aeser_api_encoder:decode(unicode:characters_to_binary(S)) of
-            {account_pubkey, Key} -> {[{address, Key} | Good], Broken};
-            _                     -> {Good, [{ArgName, bad_pubkey} | Broken]}
+            {account_pubkey, Key} -> {ok, {address, Key}};
+            _                     -> {error, bad_pubkey}
         end
     catch
-        error:Reason -> {Good, [{ArgName, Reason} | Broken]}
+        error:Reason -> {error, Reason}
     end;
-coerce({{ArgName, {_, _, contract}}, S}, {Good, Broken}) ->
+coerce({_, _, contract}, S) ->
     try
         case aeser_api_encoder:decode(unicode:characters_to_binary(S)) of
-            R = {contract_bytearray, _} -> {[R | Good], Broken};
-            _                           -> {Good, [{ArgName, bad_contract} | Broken]}
+            R = {contract_bytearray, _} -> {ok, R};
+            _                           -> {error, bad_contract}
         end
     catch
-        error:Reason -> {Good, [{ArgName, Reason} | Broken]}
+        error:Reason -> {error, Reason}
     end;
-coerce({{_, {_, _, boolean}}, true}, {Good, Broken}) ->
-    {[true | Good], Broken};
-coerce({{_, bool}, false}, {Good, Broken}) ->
-    {[false | Good], Broken};
-coerce({{ArgName, {_, _, boolean}},  _}, {Good, Broken}) ->
-    {Good, [{ArgName, not_bool} | Broken]};
-coerce({{Name, {TypeOpaque, _TypeNormalized, TypeFlat}}, S}, {Good, Broken}) ->
-    io:format("Warning: Could not coerce argument ~s to type ~p.~n"
+coerce({_, _, boolean}, true) ->
+    {ok, true};
+coerce({_, _, boolean}, false) ->
+    {ok, false};
+coerce({_, _, boolean},  _) ->
+    {error, not_bool};
+coerce({TypeOpaque, _TypeNormalized, TypeFlat}, S) ->
+    io:format("Warning: Could not coerce term ~p to type ~p.~n"
         "Trying to use the value as is.~n"
-        "Full type:~n~p~n", [Name, TypeOpaque, TypeFlat]),
-    {[S | Good], Broken}.
+        "Full type:~n~p~n", [S, TypeOpaque, TypeFlat]),
+    {ok, S}.
 
 
 -spec min_gas_price() -> integer().
@@ -1618,7 +1624,7 @@ encode_call_data2(ArgDef, Fun, Args) ->
 
 encode_call_data3(ArgDef, Fun, Args) ->
     Binding = lists:zip(ArgDef, Args),
-    case lists:foldl(fun coerce/2, {[], []}, Binding) of
+    case lists:foldl(fun coerce_step/2, {[], []}, Binding) of
         {Coerced, []} ->
             Reversed = lists:reverse(Coerced),
             aeb_fate_abi:create_calldata(Fun, Reversed);
