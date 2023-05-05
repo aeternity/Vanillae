@@ -1276,17 +1276,27 @@ prepare_contract(File) ->
     end.
 
 prepare_aaci(ACI) ->
-    [{NameBin, SpecDefs, TypeDefs}] =
-        [{N, F, T}
+    % NOTE this will also pick up the main contract; as a result the main
+    % contract extraction later on shouldn't bother with typedefs.
+    Contracts = [{N, T} || #{contract := #{name := N,
+                                           typedefs := T}} <- ACI],
+    Types = simplify_contract_types(Contracts, #{}),
+
+    [{NameBin, SpecDefs}] =
+        [{N, F}
          || #{contract := #{kind      := contract_main,
                             functions := F,
-                            name      := N,
-                            typedefs  := T}} <- ACI],
+                            name      := N}} <- ACI],
     Name = binary_to_list(NameBin),
-    Types = simplify_typedefs(TypeDefs, #{}, Name ++ "."),
-    SimplifySpecs = fun(X, Y) -> simplify_specs(X, Y, Types) end,
-    Specs = lists:foldl(SimplifySpecs, #{}, SpecDefs),
+    Specs = simplify_specs(SpecDefs, #{}, Types),
     {aaci, Name, Specs, Types}.
+
+simplify_contract_types([], Types) -> Types;
+simplify_contract_types([{NameBin, TypeDefs} | Rest], Types) ->
+    Name = binary_to_list(NameBin),
+    Types2 = maps:put(Name, {[], contract}, Types),
+    Types3 = simplify_typedefs(TypeDefs, Types2, Name ++ "."),
+    simplify_contract_types(Rest, Types3).
 
 simplify_typedefs([], Types, _NamePrefix) -> Types;
 simplify_typedefs([Next | Rest], Types, NamePrefix) ->
@@ -1297,10 +1307,12 @@ simplify_typedefs([Next | Rest], Types, NamePrefix) ->
     NewTypes = maps:put(Name, {Params, Type}, Types),
     simplify_typedefs(Rest, NewTypes, NamePrefix).
 
-simplify_specs(#{name := NameBin, arguments := ArgDefs}, Specs, Types) ->
+simplify_specs([], Specs, _Types) -> Specs;
+simplify_specs([#{name := NameBin, arguments := ArgDefs} | Rest], Specs, Types) ->
     Name = binary_to_list(NameBin),
     ArgTypes = [simplify_args(Arg, Types) || Arg <- ArgDefs],
-    maps:put(Name, ArgTypes, Specs).
+    NewSpecs = maps:put(Name, ArgTypes, Specs),
+    simplify_specs(Rest, NewSpecs, Types).
 
 simplify_args(#{name := NameBin, type := TypeDef}, Types) ->
     Name = binary_to_list(NameBin),
@@ -1563,8 +1575,8 @@ coerce({O, N, address},  S) ->
 coerce({O, N, contract}, S) ->
     try
         case aeser_api_encoder:decode(unicode:characters_to_binary(S)) of
-            R = {contract_bytearray, _} -> {ok, R};
-            _                           -> {error, bad_contract}
+            {contract_pubkey, Key} -> {ok, {contract, Key}};
+            _                      -> {error, bad_contract}
         end
     catch
         error:_ -> {error, {invalid, O, N, S}}
@@ -1600,6 +1612,14 @@ coerce({O, N, {variant, Variants}}, Name) when is_list(Name) ->
     coerce({O, N, {variant, Variants}}, {Name});
 coerce({O, N, {record, Fields}}, Map) when is_map(Map) ->
     coerce_map_to_record(O, N, Fields, Map);
+coerce({O, N, {unknown_type, _}}, Data) ->
+    case N of
+        already_normalized ->
+            io:format("Warning: Unknown type ~p. Using term ~p as is.~n", [O, Data]);
+        _ ->
+            io:format("Warning: Unknown type ~p (i.e. ~p). Using term ~p as is.~n", [O, N, Data])
+    end,
+    {ok, Data};
 coerce({O, N, _}, Data) -> {error, {invalid, O, N, Data}}.
 
 coerce_map(KeyType, ValType, Remaining, Acc) ->
