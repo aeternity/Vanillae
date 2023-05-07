@@ -4,5 +4,5 @@
               {included_applications,[]},
               {applications,[stdlib,kernel]},
               {vsn,"0.2.0"},
-              {modules,[vanillae,vanillae_fetcher,vanillae_man]},
+              {modules,[vanillae,vanillae_fetcher,vanillae_man,vanillae_sup]},
               {mod,{vanillae,[]}}]}.
