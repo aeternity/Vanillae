@@ -13,21 +13,21 @@ extension and a wallet. Sidekick implements this from the perspective of a page
 script (the "Æpp").
 
 Jex is my homemade alternative to NPM.  It is currently super confusing and
-unusable, but I maintain it is significantly better than NPM.
+borderline unusable, but it is significantly superior to NPM.
 
 The motivation was [Aegora.jp](https://aegora.jp/), which is a basic e-commerce
-site where items are priced in Aeternity cryptocurrency.
+site where items are priced in Aeternity.
 
 We (Craig and Peter) started working on Aegora around January of 2022, and
 launched on December 8, 2022.
 
-Our first task was quite simple: discover if the user has a wallet installed.
-If so, make the page background green; if not, make it red.
+Our first task was to discover if the user has a wallet installed.  If so, make
+the page background green; if not, make it red.
 
-This seemingly simple task was absurdly difficult with the Aeternity JavaScript
-SDK, at least in its state as of early 2022. The SDK has been improved
-significantly since that time, but it is still nowhere near production quality.
-To this day, I would have no idea how to do that task.
+This seemingly simple task was (is) absurdly difficult with the Aeternity
+JavaScript SDK, at least in its state as of early 2022. The SDK has been
+improved significantly since that time, but it is still nowhere near production
+quality.  To this day, I would have no idea how to accomplish that task.
 
 Here is how to do it with Sidekick:
 
@@ -36,18 +36,36 @@ Here is how to do it with Sidekick:
 let maybe_wallet = await sk.detect(sk.TIMEOUT_DEF_DETECT_MS,       // timeout
                                    "failed to detect wallet",      // error if timeout
                                    logger);                        // logger
+// returns a 'Safe' type
+// if the call "worked", it will be
+//      {ok: true, result: <what the wallet sent back>}
+// if not, it will be
+//      {ok: false, error: <either timeout, or some error originating from the wallet>}
+// so, we can branch on maybe_wallet.ok to see if the wallet is there or not
+
+if (maybe_wallet.ok)
+    document.body.style.background = 'green';
+else
+    document.body.style.background = 'red';
 ```
 
-You have to pass in a logger to each call.  You probably want `sk.cl()` which
-is the console logger.  Sidekick exports a few other loggers, as well as the
-`sk.Logger` interface if you want to write a custom one. For instance, maybe
-you want to log the page script/wallet conversation on your own server, so if
-something goes wrong, you hear about it. You can write your own logger which
-`POST`s the logs back to your own server, and just pass it in as an argument.
+This is the basic pattern in sidekick:
+-   there is a sequence of steps to talk to the wallet (`detect`, `connect`,
+    `address`, and then either `msg_sign` or `tx_sign_noprop`).
+-   each step returns this `Safe` type
+-   your code ends up being
+    - do step N
+    - if step N worked, proceed to step N+1
+    - otherwise, display an error message
 
-Anyway, back in Februaryish of 2022, I ended up going to work trying to figure
-out how the SDK was communicating with Superhero.  It turns out there's an
-event bus available to both the document and extension context, and posting
+Everything in sidekick works pretty much exactly the way you would expect.
+There's no crazy wizardry, or situations where you touch thing A and it changes
+things B, C, and D behind your back.  Sidekick doesn't try to outsmart you or
+guess what you are trying to do.
+
+So, backstory: back in Februaryish of 2022, I ended up going to work trying to
+figure out how the SDK was communicating with Superhero.  It turns out there's
+an event bus available to both the document and extension context, and posting
 messages in said event bus is how the two communicate.
 
 Sidekick started at this time as just a scratch project to figure out what the
@@ -61,17 +79,27 @@ perfectly, was easy to use, and was entirely self-contained (i.e. no external
 dependencies, could be wrapped up in a tarball and dropped on the server). And
 maybe we should just use that.  So we did.
 
-By the way, the tooling to do "just wrap it up in a tarball and drop it on a
-server" is Jex.
+The tooling to do "just wrap it up in a tarball and drop it on a server" is
+Jex.
 
 ## Annotated example: Aegora log-in code
 
-Background: we don't use passwords to do login at Aegora (we don't store *any*
-private information about our users).  Instead, we have your wallet
-cryptographically sign a random message, and then verify the signature.
+I mentioned that the entire pattern of sidekick is:
+
+- do step N
+- branch on whether or not it worked
+- if so proceed
+- if not error
+
+Let us see a real-world example
+
 
 Here is the page script for the Aegora log in page, annotated.
 You can follow along reading <https://aegora.jp/r/115/sign_mess-2.js>.
+
+We don't use passwords to do login at Aegora (we don't store *any* private
+information about our users).  Instead, we have your wallet cryptographically
+sign a random message, and then verify the signature.
 
 The first thing we do is import sidekick
 
@@ -147,14 +175,14 @@ type Safe<ok_t, err_t>
 ```
 
 This allows you to use an `if` statement to ask the simple question "did it
-work or not"?  The pattern here is:
+work or not"?  Again, the pattern here is:
 
 1. Perform a step
-2. Use an `if` statement to tell if it worked or not. (The user rejecting a request from the page counts as "not working").
+2. Use an `if` statement to tell if it worked or not. (The user rejecting a request from your script counts as "not working").
 3. If it worked, proceed to the next step
 4. If it didn't, show an error message
 
-You might want to re-read the `detect` function, and then let's continue with `connect`:
+You might want to re-read the `detect` function above, and then let's continue with `connect`:
 
 
 ```js
@@ -272,3 +300,26 @@ async function sign_mess(pk, logger)
     }
 }
 ```
+
+And, that's it.
+
+## Jex
+
+Using strange code from NPM is an unacceptable risk in a high-security context
+(i.e. handling people's money).  This risk is not hypothetical.  There are
+countless examples of NPM dependencies being used as an attack vector.
+However, we do run into the same basic problems that something NPM-like solves:
+
+1.  We want to share code across multiple projects.
+
+    For instance, sidekick's test suite obviously depends on sidekick.
+2.  Automating builds
+3.  Making distribution tarballs.
+
+Jex solves these problems, but in a much saner way than NPM.
+
+Jex was originally a Python script, which has since evolved into an escript. It
+will eventually become a full-blown Erlang application.  The "inspiration" is
+Craig's Erlang package manager, zx.
+
+
