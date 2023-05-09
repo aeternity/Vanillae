@@ -1349,7 +1349,8 @@ simplify_args(#{name := NameBin, type := TypeDef}, Types) ->
 % make sense.
 
 type(T, Types) ->
-    flatten_opaque_type(opaque_type([], T), Types).
+    O = opaque_type([], T),
+    flatten_opaque_type(O, Types).
 
 opaque_type(Params, NameBin) when is_binary(NameBin) ->
     Name = opaque_type_name(NameBin),
@@ -1498,15 +1499,11 @@ normalize_opaque_type3(NextT, Types) ->
         true -> {ok, false, NextT, NextT}
     end.
 
-type_is_expanded(integer) -> true;
-type_is_expanded(address) -> true;
-type_is_expanded(contract) -> true;
-type_is_expanded(boolean) -> true;
-type_is_expanded(string) -> true;
-type_is_expanded({map, _}) -> true;
-type_is_expanded({tuple, _}) -> true;
-type_is_expanded({variant, _}) -> true;
-type_is_expanded({record, _}) -> true;
+% Strings indicate names that should be substituted. Atoms indicate built in
+% types, which don't need to be expanded, except for option.
+type_is_expanded({option, _}) -> false;
+type_is_expanded(X) when is_atom(X) -> true;
+type_is_expanded({X, _}) when is_atom(X) -> true;
 type_is_expanded(_) -> false.
 
 % Skip traversal if there is nothing to substitute. This will often be the
@@ -1596,14 +1593,18 @@ coerce({O, N, string}, Str) ->
         StrBin ->
             {ok, StrBin}
     end;
+coerce({_, _, {list, [Type]}}, Data) when is_list(Data) ->
+    coerce_list(Type, Data, []);
 coerce({_, _, {map, [KeyType, ValType]}}, Data) when is_map(Data) ->
     coerce_map(KeyType, ValType, maps:iterator(Data), #{});
-% Was getting bugs with is_tuple?? No idea why.
+coerce({O, N, {tuple, ElementTypes}}, Data) when is_tuple(Data) ->
+    ElementList = tuple_to_list(Data),
+    coerce_tuple(O, N, ElementTypes, ElementList);
 coerce({O, N, {variant, Variants}}, Data) when is_tuple(Data), tuple_size(Data) > 0 ->
     [Name | Fields] = tuple_to_list(Data),
     case lookup_variant(Name, Variants) of
         {Tag, FieldTypes} ->
-            coerce_variant2(O, N, Variants, Name, Fields, Tag, FieldTypes);
+            coerce_variant2(O, N, Variants, Name, Tag, FieldTypes, Fields);
         not_found ->
             ValidNames = [Valid || {Valid, _} <- Variants],
             {error, {adt_invalid, O, N, Name, ValidNames}}
@@ -1621,6 +1622,14 @@ coerce({O, N, {unknown_type, _}}, Data) ->
     end,
     {ok, Data};
 coerce({O, N, _}, Data) -> {error, {invalid, O, N, Data}}.
+
+coerce_list(Type, [Next | Rest], Acc) ->
+    case coerce(Type, Next) of
+        {ok, Coerced} -> coerce_list(Type, Rest, [Coerced | Acc]);
+        Error -> Error
+    end;
+coerce_list(_Type, [], Acc) ->
+    {ok, lists:reverse(Acc)}.
 
 coerce_map(KeyType, ValType, Remaining, Acc) ->
     case maps:next(Remaining) of
@@ -1652,12 +1661,23 @@ lookup_variant(Name, [_ | Rest], Tag) ->
 lookup_variant(_Name, [], _Tag) ->
     not_found.
 
-coerce_variant2(O, N, Variants, Name, Fields, Tag, FieldTypes) ->
-    case coerce_list(FieldTypes, Fields, []) of
-        {ok, FATEFields} ->
+coerce_tuple(O, N, FieldTypes, Fields) ->
+    case coerce_tuple_elements(FieldTypes, Fields, []) of
+        {ok, FATETuple} ->
+            {ok, {tuple, FATETuple}};
+        {error, too_few_terms} ->
+            {error, {tuple_too_few_terms, O, N, FieldTypes, Fields}};
+        {error, too_many_terms} ->
+            {error, {tuple_too_many_terms, O, N, FieldTypes, Fields}};
+        Error -> Error
+    end.
+
+coerce_variant2(O, N, Variants, Name, Tag, FieldTypes, Fields) ->
+    case coerce_tuple_elements(FieldTypes, Fields, []) of
+        {ok, FATETuple} ->
             Arities = [length(VariantTerms)
                        || {_, VariantTerms} <- Variants],
-            {ok, {variant, Arities, Tag, list_to_tuple(FATEFields)}};
+            {ok, {variant, Arities, Tag, FATETuple}};
         {error, too_few_terms} ->
             {error, {adt_too_few_terms, O, N, Name, FieldTypes, Fields}};
         {error, too_many_terms} ->
@@ -1665,16 +1685,16 @@ coerce_variant2(O, N, Variants, Name, Fields, Tag, FieldTypes) ->
         Error -> Error
     end.
 
-coerce_list([Type | Types], [Field | Fields], Acc) ->
+coerce_tuple_elements([Type | Types], [Field | Fields], Acc) ->
     case coerce(Type, Field) of
-        {ok, Value} -> coerce_list(Types, Fields, [Value | Acc]);
+        {ok, Value} -> coerce_tuple_elements(Types, Fields, [Value | Acc]);
         Error -> Error
     end;
-coerce_list([], [], Acc) ->
-    {ok, lists:reverse(Acc)};
-coerce_list(_, [], _) ->
+coerce_tuple_elements([], [], Acc) ->
+    {ok, list_to_tuple(lists:reverse(Acc))};
+coerce_tuple_elements(_, [], _) ->
     {error, too_few_terms};
-coerce_list([], _, _) ->
+coerce_tuple_elements([], _, _) ->
     {error, too_many_terms}.
 
 coerce_map_to_record(O, N, Fields, Map) ->
