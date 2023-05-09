@@ -5,7 +5,6 @@ import * as cases from './jex_include/local-vanillae_test_cases-0.1.0/dist/cases
 import * as b64   from './jex_include/local-vanillae-0.1.0/dist/b64.js';
 import * as b58   from './jex_include/local-vanillae-0.1.0/dist/b58.js';
 import * as rlp   from './jex_include/local-vanillae-0.1.0/dist/rlp.js';
-import * as ser   from './jex_include/local-vanillae-0.1.0/dist/ser.js';
 
 
 // TODO: move this to rlp library
@@ -201,12 +200,6 @@ function rlp_tests(): void {
 }
 
 
-function tx_tests(): void {
-    // @ts-ignore value exists
-    let tx_stuff = document.getElementById('tx-stuff')!.value;
-    console.log(ser.decode_tx(tx_stuff));
-}
-
 
 function main(): void {
     document.getElementById('b64-total-cases')!.innerHTML = '' + cases.base64.length;
@@ -217,8 +210,6 @@ function main(): void {
 
     document.getElementById('rlp-total-cases')!.innerHTML = '' + cases.rlp.length;
     document.getElementById('rlp-go')!.onclick            = rlp_tests;
-
-    document.getElementById('tx-go')!.onclick             = tx_tests;
 }
 
 main();

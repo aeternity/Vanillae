@@ -60,7 +60,7 @@ strong_rand_bytes
     : Uint8Array
 {
     let arr = new Uint8Array(how_many);
-    Crypto.getRandomValues(arr);
+    (new Crypto()).getRandomValues(arr);
     return arr;
 }
 
@@ -243,8 +243,8 @@ bits_concat
     : bits
 {
     let result_bit_length : number     = bits1.bit_length + bits2.bit_length;
-    let bytes1            : number     = bits1.bytes;
-    let bytes2            : number     = bits2.bytes;
+    let bytes1            : Uint8Array = bits1.bytes;
+    let bytes2            : Uint8Array = bits2.bytes;
     // using zeros here because of our xor trick in a minute
     let result_bits       : bits       = bits_zeros(result_bit_length);
     let result_bytes      : Uint8Array = result_bits.bytes;
@@ -261,7 +261,7 @@ bits_concat
     // next
     // we need to calculate the left-shift offset
     // this will be 8 - (bytes1.bit_length % 8)
-    let num_trailing_zeros_in_first_array : number = 8 - (bytes1.bit_length % 8);
+    let num_trailing_zeros_in_first_array : number = 8 - (bits1.bit_length % 8);
     // so
     // bytes1: ABCD_EF00
     // bytes2: GH12_3000

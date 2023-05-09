@@ -79,12 +79,13 @@ decode
 
     // at this point, we can assume we correctly decoded all words
     // compute the check byte
-    let computed_check_word : string = check_word(computed_bytes);
+    let computed_bytes_u8s  : Uint8Array = new Uint8Array(computed_bytes);
+    let computed_check_word : string = check_word(computed_bytes_u8s);
 
     // check if it is correct
     // if so, return the computed bytes
     if (computed_check_word === input_check_word)
-        return safe.ok(new Uint8Array(computed_bytes));
+        return safe.ok(computed_bytes_u8s);
     // otherwise, return an error
     else
         return safe.error('checksum failure! computed check word: ' + computed_check_word + '; input check word: ' + input_check_word);
@@ -100,7 +101,7 @@ byte_of_word
     (word: string)
     : safe.Safe<number, string>
 {
-    for (let i=0; i<=255, i++)
+    for (let i=0; i<=255; i++)
     {
         if (word === words[i])
             return safe.ok(i);
@@ -138,7 +139,7 @@ check_byte
 
 
 
-words = [
+let words = [
     "able",
     "abuse",
     "acquire",
