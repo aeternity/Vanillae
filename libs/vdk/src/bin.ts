@@ -246,101 +246,79 @@ bits_concat
     let bytes1            : Uint8Array = bits1.bytes;
     let bytes2            : Uint8Array = bits2.bytes;
     // using zeros here because of our xor trick in a minute
-    let result_bits       : bits       = bits_zeros(result_bit_length);
+    let result_bits       : bits       = bits_null(result_bit_length);
     let result_bytes      : Uint8Array = result_bits.bytes;
 
-    // alright so
-    // we can start by copying the first bytes into result bytes
-    for (let bytes1_idx0 = 0;
-             bytes1_idx0 < bytes1.length;
-             bytes1_idx0++)
+    // go along each byte in result, and compute the byte boundary
+    for (let i = 0;
+             i < result_bytes.length;
+             i++)
     {
-       result_bytes[bytes1_idx0] = bytes1[bytes1_idx0];
+        // ABCD_EFGH _
+        // 0123_4567 8
+        // this is the bit index of the leftmost bit in this byte
+        let start_bit_bi0               : number = i * 8;
+        let next_start_bit_bi0          : number = first_bit_bi0 + 8;
+        // does the bit at the beginning of this byte correspond to the first array?
+        // strict comparison:
+        //      suppose i = 0,
+        //      suppose bit_length1 is 0
+        //          then this says no, go to second array
+        //      suppose bl1 = 1,
+        //          this says start at first array
+        let start_bit_is_of_first_array : boolean = start_bit_bi0 < bits1.bit_length;
+        // weak comparison:
+        //      suppose bit_length1 = 8
+        //          ABCD_EFGH        _
+        //          0123_4567        8
+        //          ^
+        //          start_bit_bi0    ^ next_start_bit_bi0
+        let stop_bit_is_of_first_array  : boolean = next_start_bit_bi0 <= bits1.bit_length;
+        // is this a bytes1 byte
+        let is_bytes1_byte   : boolean = start_bit_is_of_first_array && stop_bit_is_of_first_array;
+        let is_boundary_byte : boolean = start_bit_is_of_first_array && !stop_bit_is_of_first_array;
+        // simple case: this is a byte from the first array
+        // just copy it
+        if (is_bytes1_byte)
+            result_bytes[i] = bytes1[i];
+        // this is a boundary byte
+        // further cases:
+        //      second bit length is 0 ->
+        //          ABCD_EF-- <empty>
+        //          ^ starting here
+        //          just copy first byte and move along
+        else if (is_boundary_byte  && (bits2.bit_length === 0))
+            result_bytes[i] = bytes1[i];
+        // boundary byte, and there is at least one byte in the second array
+        else if (is_boundary_byte)
+        {
+            // copy over the first byte
+            result_bytes[i] = bytes1[i];
+            // take the first byte from the second array
+            let first_byte_of_second_array : number = bytes2[0];
+            // bytes1:
+            //      ABCD_EF00
+            //      6
+            // bytes2:
+            //      1234_5678
+            //      0000_0012
+            // and bitshift it right by that amount
+            let bitshift_amt : number = bits1.bit_length % 8;
+            result_bytes[i] ^= first_byte_of_second_array >> bitshift_amt;
+        }
+        // alright, now we're in the case of only copying from the second array
+        // we have two cases:
+        //      ping-pong:
+        //          ABCD_EFGH 1234_5678
+        //             - ---- ---
+        //          copying these bits
+        //      ping:
+        //          ABCD_EFGH <end>
+        //             - ---- 000
+        //
+        // FIXME: how to distinguish between these two??
+        let ping_pong : boolean
+
     }
 
-    // next
-    // we need to calculate the left-shift offset
-    // this will be 8 - (bytes1.bit_length % 8)
-    let num_trailing_zeros_in_first_array : number = 8 - (bits1.bit_length % 8);
-    // so
-    // bytes1: ABCD_EF00
-    // bytes2: GH12_3000
-    // result: ABCD_EFGH 1230_0000
-    // ah ok, so we need to for each byte in the second array
-    // take the first however many bits, xor it with the existing byte
-    // then take the last however many bits and place them into the next byte
-    // this is super confusing but
-    // ABCD_EF00
-    //           GH12_3456
-    // operation:
-    //     ABCD_EF00
-    // xor 0000_00GH
-    //   = ABCD_EFGH 1234_5600
-    //
-    // then on the next iteration
-    // 1234_5600
-    //          abcd_efgh
-    // ->
-    // 1234_56ab cdef_gh00
-    //
-    // ah so there's a pattern
-    // however many trailing 0s there are in the first array
-    // say there's 2
-    // we take the first 2 bits of the upcoming byte
-    // xor that against the current byte
-    // take the last 6 bits of the upcoming byte
-    // set the next byte to that
-    //
-    // have to think about edge behavior
-    // this is ripe for off-by-1 errors
-    // but i think the general idea is right
-    //
-    // so we start the iteration
-    // on the last byte of the first array
-    let last_byte_of_first_array_idx0            : number = bytes1.length - 1;
-    // and we end
-    // on the second-to-last-byte of the result array
-    let second_to_last_byte_of_result_array_idx0 : number = result_bytes.length - 2;
-    // the reason we do that is because we're doing this is because we are
-    // going along, xoring against the current byte and then setting the next
-    // byte
-    //
-    // ok so
-    for (let this_result_byte_idx0  = last_byte_of_first_array_idx0;
-             this_result_byte_idx0 <= second_to_last_byte_of_result_array_idx0;
-             this_result_byte_idx0++)
-    {
-       let this_result_byte : number = result_bytes[this_result_byte_idx0];
-
-       // ok here we need to fish out the relevant byte of the second array
-       // gaaah
-       // so this will be 0 at the start of the loop
-       let relevant_byte_of_second_array_idx0 : number = this_result_byte_idx0 - last_byte_of_first_array_idx0;
-       let relevant_byte_of_second_array      : number = bytes2[relevant_byte_of_second_array_idx0];
-
-       // ok so let's fish out the leading digits
-       // the number of leading digits is the number of trailing 0s in the first array
-       let num_leading_digits  : number = num_trailing_zeros_in_first_array;
-       let num_trailing_digits : number = 8 - num_leading_digits;
-
-       // suppose there are 2 leading digits and 6 trailing digits
-       // ABCD_EFGH
-       // leading digits are
-       // ABCD_EFGH >> 6 = 0000_00AB
-       // trailing digits are
-       // (ABCD_EFGH << 2) % 255 = CDEF_GH00
-       let leading_digits  : number = relevant_byte_of_second_array >> num_trailing_digits;
-       let trailing_digits : number = (relevant_byte_of_second_array << num_leading_digits) % 255;
-
-       // xor the current byte against the leading digits
-       let new_this_result_byte : number = this_result_byte ^ leading_digits;
-       result_bytes[this_result_byte_idx0] = new_this_result_byte;
-
-       // set the next byte to the trailing digits
-       result_bytes[this_result_byte_idx0 + 1] = trailing_digits;
-    }
-
-     // i think we're done
-     return {bit_length : result_bit_length,
-             bytes      : result_bytes};
 }
