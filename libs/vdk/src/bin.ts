@@ -316,7 +316,35 @@ bits_concat
         //          ABCD_EFGH <end>
         //             - ---- 000
         //
-        // FIXME: how to distinguish between these two??
+        // how to distinguish between these two??
+        //
+        // we're in the ping case when the start_bit_bi0 corresponds to the
+        // final byte of the second array
+        //
+        // ok
+        //
+        // we need to compute the bit address in the second array that
+        // corresponds to the bit address at the beginning of this byte in the
+        // result array
+        let bit_addr2_bi0 = start_bit_bi0 - bits1.bit_length;
+        // I think the variable is
+        //      bits_left_to_copy = bits2.bit_length - bit_addr2_bi0
+        // cases:
+        //      bits_left_to_copy <= 0 ->
+        //          this would mean we have more bits to copy, but are out of
+        //          source bits. should be impossible if bits_null is correct
+        //      bits_left_to_copy <= 8 ->
+        //          this would mean we are going to fill this last byte in the
+        //          result array with the correct bits from array2, but how we
+        //          do this will depend on how those are arranged in bytes2
+        //          (whether we grab one or two bytes)
+        //
+        //          this is the tricky case
+        //      8 < bits_left_to_copy ->
+        //          this means we can safely grab two bytes from bytes2, and do
+        //          our bitshifting to make it correct
+        //
+        // FIXME
         let ping_pong : boolean
 
     }
