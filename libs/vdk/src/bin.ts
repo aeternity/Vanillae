@@ -258,7 +258,7 @@ bits_concat
         // 0123_4567 8
         // this is the bit index of the leftmost bit in this byte
         let start_bit_bi0               : number = i * 8;
-        let next_start_bit_bi0          : number = first_bit_bi0 + 8;
+        let next_start_bit_bi0          : number = start_bit_bi0 + 8;
         // does the bit at the beginning of this byte correspond to the first array?
         // strict comparison:
         //      suppose i = 0,
@@ -277,6 +277,63 @@ bits_concat
         // is this a bytes1 byte
         let is_bytes1_byte   : boolean = start_bit_is_of_first_array && stop_bit_is_of_first_array;
         let is_boundary_byte : boolean = start_bit_is_of_first_array && !stop_bit_is_of_first_array;
+
+        // need to work out the ping_pong bs up here because js is dumb and I
+        // can't put lets between elseifs
+        // alright, now we're in the case of only copying from the second array
+        // we have two cases:
+        //      ping-pong:
+        //          ABCD_EFGH 1234_5678
+        //             - ---- ---
+        //          copying these bits
+        //      ping:
+        //          ABCD_EFGH <end>
+        //             - ---- 000
+        //
+        // how to distinguish between these two??
+        //
+        // we're in the ping case when the start_bit_bi0 corresponds to the
+        // final byte of the second array
+        //
+        // ok
+        //
+        // we need to compute the bit address in the second array that
+        // corresponds to the bit address at the beginning of this byte in the
+        // result array
+        let bits2_addr_bi0 : number = start_bit_bi0 - bits1.bit_length;
+        // I think the variable is
+        //      bits_left_to_copy = bits2.bit_length - bit_addr2_bi0
+        //      no + 1 because the current bit is uncopied,
+        //      so if bit_addr2_bi0 = 7 and bits2.bit_length is 8, it means we
+        //      have the last bit to copy
+        // cases:
+        //      bits_left_to_copy <= 0 ->
+        //          this would mean we have more bits to copy, but are out of
+        //          source bits. should be impossible if bits_null is correct
+        //      bits_left_to_copy <= 8 ->
+        //          this would mean we are going to fill this last byte in the
+        //          result array with the correct bits from array2, but how we
+        //          do this will depend on how those are arranged in bytes2
+        //          (whether we grab one or two bytes)
+        //
+        //          this is the tricky case
+        //
+        //          I think what matters here is the byte address in the second array
+        //          if we're on the last byte
+        //      8 < bits_left_to_copy ->
+        //          this means we can safely grab two bytes from bytes2, and do
+        //          our bitshifting to make it correct
+        //
+        // FIXME
+        let bits_left_to_copy : number = bits2.bit_length - bits2_addr_bi0;
+        // no the variable that matters is which byte we're on in the result
+        let this_bytes2_addr_i0 : number = Math.floor(bits2_addr_bi0 / 8);
+        let next_bytes2_addr_i0 : number = this_bytes2_addr_i0 + 1;
+        let bitshift_amt        : number = bits1.bit_length % 8;
+
+        let ping : boolean = next_bytes2_addr_i0 === bytes2.length;
+
+
         // simple case: this is a byte from the first array
         // just copy it
         if (is_bytes1_byte)
@@ -306,47 +363,15 @@ bits_concat
             let bitshift_amt : number = bits1.bit_length % 8;
             result_bytes[i] ^= first_byte_of_second_array >> bitshift_amt;
         }
-        // alright, now we're in the case of only copying from the second array
-        // we have two cases:
-        //      ping-pong:
-        //          ABCD_EFGH 1234_5678
-        //             - ---- ---
-        //          copying these bits
-        //      ping:
-        //          ABCD_EFGH <end>
-        //             - ---- 000
-        //
-        // how to distinguish between these two??
-        //
-        // we're in the ping case when the start_bit_bi0 corresponds to the
-        // final byte of the second array
-        //
-        // ok
-        //
-        // we need to compute the bit address in the second array that
-        // corresponds to the bit address at the beginning of this byte in the
-        // result array
-        let bit_addr2_bi0 = start_bit_bi0 - bits1.bit_length;
-        // I think the variable is
-        //      bits_left_to_copy = bits2.bit_length - bit_addr2_bi0
-        // cases:
-        //      bits_left_to_copy <= 0 ->
-        //          this would mean we have more bits to copy, but are out of
-        //          source bits. should be impossible if bits_null is correct
-        //      bits_left_to_copy <= 8 ->
-        //          this would mean we are going to fill this last byte in the
-        //          result array with the correct bits from array2, but how we
-        //          do this will depend on how those are arranged in bytes2
-        //          (whether we grab one or two bytes)
-        //
-        //          this is the tricky case
-        //      8 < bits_left_to_copy ->
-        //          this means we can safely grab two bytes from bytes2, and do
-        //          our bitshifting to make it correct
-        //
-        // FIXME
-        let ping_pong : boolean
-
+        // last byte of second array
+        else if (ping)
+            result_bytes[i] = (bytes2[this_bytes2_addr_i0] << bitshift_amt);
+        // ping-pong: not last byte of second array
+        else
+            result_bytes[i] = (bytes2[this_bytes2_addr_i0] << bitshift_amt) ^ (bytes2[next_bytes2_addr_i0] << bitshift_amt);
     }
+
+    return {bit_length : result_bit_length,
+            bytes      : result_bytes};
 
 }
