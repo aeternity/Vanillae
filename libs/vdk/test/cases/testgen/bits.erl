@@ -58,15 +58,16 @@ format_bytes(<<>>) ->
 
 
 
-%% ten random cases for each pair of bit lengths, 0 =< N =< 8
+
+%% ten random cases for each pair of bit lengths, 0 =< N =< 32
 rand_cases() ->
     rand_cases(0, 0, []).
 
 %% ten random cases for 
-rand_cases(8, 8, Acc) ->
-    [ten_cases(8, 8) | Acc];
-rand_cases(N, 8, Acc) ->
-    NewAcc = [ten_cases(N, 8) | Acc],
+rand_cases(32, 32, Acc) ->
+    [ten_cases(32, 32) | Acc];
+rand_cases(N, 32, Acc) ->
+    NewAcc = [ten_cases(N, 32) | Acc],
     rand_cases(N + 1, 0, NewAcc);
 rand_cases(N, M, Acc) ->
     rand_cases(N, M + 1, [ten_cases(N, M) | Acc]).
@@ -80,3 +81,86 @@ cs(N, M) ->
     B = rand_bits(M),
     C = <<A/bits, B/bits>>,
     {A, B, C}.
+
+
+fmt_rand_cases_(Cases) ->
+    io:format("~ts~n", [fmt_rand_cases(Cases)]).
+
+
+fmt_rand_cases(Cases) ->
+    ["[", fmt_rand_cases2(Cases, ""), "]"].
+
+%% one more case
+%% no trailing comma
+fmt_rand_cases2([TenCases], Acc) ->
+    [Acc, fmt_ten_cases(TenCases)];
+%% at least two more cases
+%% add trailing comma
+fmt_rand_cases([TenCases | Rest]) ->
+    lists:map(fun fmt_ten_cases/1, Cases).
+
+
+fmt_ten_cases
+
+
+fmt_case_(Case) ->
+    io:format("~ts~n", [fmt_case(Case)]).
+
+fmt_case({A, B, AB}) ->
+    ["{a  : ", fmtjs(A),  ",\n",
+     " b  : ", fmtjs(B),  ",\n",
+     " ab : ", fmtjs(AB), "}"].
+
+
+%% format bitstring as JS bits
+fmtjs_(Bits) ->
+    io:format("~ts~n", [fmtjs(Bits)]).
+
+fmtjs(Bits) ->
+    BS = bit_size(Bits),
+    BF = format_bytes_js(Bits),
+    io_lib:format("{bit_size : ~tp,~n"
+                  " bytes    : ~ts}",
+                  [BS, BF]).
+
+
+format_bytes_js(Bits) ->
+    ["new Uint8Array([", format_bytes_js2(Bits), "])"].
+
+
+%% formats the contents of the array
+%% empty array
+format_bytes_js2(<<>>) ->
+    "";
+%% exactly one entry
+format_bytes_js2(Bits) when bit_size(Bits) =< 8 ->
+    BS       = bit_size(Bits),
+    <<N:BS>> = Bits,
+    %% ah... right, ok we have to bitshift left by the missing zeros
+    NumMissingZeros = 8 - BS,
+    N_              = N bsl NumMissingZeros,
+    io_lib:format("~tp", [N_]);
+%% more than one entry, need to call format_bytes_js3 with a nontrivial initial
+%% accumulator
+format_bytes_js2(<<N:8, Rest/bits>>) ->
+    InitAcc = io_lib:format("~tp", [N]),
+    format_bytes_js3(Rest, InitAcc).
+
+
+
+%% empty array case; should only happen on initial call
+format_bytes_js3(<<>>, Acc) ->
+    Acc;
+%% terminal case: one bit remaining
+format_bytes_js3(Bits, Acc) when bit_size(Bits) =< 8 ->
+    BS       = bit_size(Bits),
+    <<N:BS>> = Bits,
+    %% ah... right, ok we have to bitshift left by the missing zeros
+    NumMissingZeros = 8 - BS,
+    N_              = N bsl NumMissingZeros,
+    FinalAcc = [Acc, ", ", io_lib:format("~tp", [N_])],
+    FinalAcc;
+%% general case
+format_bytes_js3(<<N:8, Rest/bits>>, Acc) ->
+    NewAcc = [Acc, ", ", io_lib:format("~tp", [N])],
+    format_bytes_js3(Rest, NewAcc).
