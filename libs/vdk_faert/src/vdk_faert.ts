@@ -15,7 +15,7 @@ export {
     words
 }
 
-import * as safe from './safe.js';
+import * as safe from './jex_include/local-vdk_safe-0.1.0/dist/vdk_safe.js';
 
 
 
