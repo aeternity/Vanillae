@@ -5,11 +5,51 @@
  */
 
 export {
+    // basic bytes functions
+    bytes_eq,
+    bytes_concat,
+    strong_rand_bytes,
     bytes_to_bigint,
     bigint_to_bytes,
-    concat,
-    strong_rand_bytes
+    // basic bits functions
+    bits_null,
+    bits_zeros,
+    bits_ones,
+    bits_i0th,
+    bits_concat
 };
+
+export type {
+    bits
+};
+
+
+
+/**
+ * Bytewise equality of two `Uint8Array`s
+ */
+function
+bytes_eq
+    (arr1 : Uint8Array,
+     arr2 : Uint8Array)
+    : boolean
+{
+    if (arr1.length !== arr2.length)
+        return false;
+    else
+    {
+        let len : number = arr1.length;
+        for (let i = 0;
+                 i < len;
+                 i++)
+        {
+            if (arr1[i] !== arr2[i])
+                return false;
+        }
+
+        return true;
+    }
+}
 
 
 
@@ -17,7 +57,7 @@ export {
  * Concatenate two arrays
  */
 function
-concat
+bytes_concat
     (arr1 : Uint8Array,
      arr2 : Uint8Array)
     : Uint8Array
