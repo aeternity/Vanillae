@@ -1,5 +1,5 @@
 {type, library}.
 {realm, local}.
-{name, vanillae}.
+{name, vdk}.
 {version, "0.1.0"}.
 {deps, []}.
