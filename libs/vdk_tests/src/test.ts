@@ -1,10 +1,10 @@
 // test cases
-import * as cases from './jex_include/local-vanillae_test_cases-0.1.0/dist/cases.js';
+import * as cases from './jex_include/local-vdk_tests_cases-0.1.0/dist/cases.js';
 
 // vanillae libs
-import * as b64   from './jex_include/local-vanillae-0.1.0/dist/b64.js';
-import * as b58   from './jex_include/local-vanillae-0.1.0/dist/b58.js';
-import * as rlp   from './jex_include/local-vanillae-0.1.0/dist/rlp.js';
+import * as b64   from './jex_include/local-vdk_base64-0.1.0/dist/vdk_base64.js';
+import * as b58   from './jex_include/local-vdk_base58-0.1.0/dist/vdk_base58.js';
+import * as rlp   from './jex_include/local-vdk_rlp-0.1.0/dist/vdk_rlp.js';
 
 
 // TODO: move this to rlp library
