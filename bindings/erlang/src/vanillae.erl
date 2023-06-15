@@ -291,7 +291,7 @@ top_height() ->
 %% Returns the current block height as an integer.
 
 top_block() ->
-    request("/v2/blocks/top").
+    request("/v3/blocks/top").
 
 
 -spec kb_current() -> {ok, CurrentBlock} | {error, Reason}
@@ -301,7 +301,7 @@ top_block() ->
 %% Returns the current keyblock's metadata as a map.
 
 kb_current() ->
-    request("/v2/key-blocks/current").
+    request("/v3/key-blocks/current").
 
 
 -spec kb_current_hash() -> {ok, Hash} | {error, Reason}
@@ -316,7 +316,7 @@ kb_current() ->
 %% '''
 
 kb_current_hash() ->
-    case request("/v2/key-blocks/current/hash") of
+    case request("/v3/key-blocks/current/hash") of
         {ok, #{"reason" := Reason}} -> {error, Reason};
         {ok, #{"hash" := Hash}}     -> {ok, Hash};
         Error                       -> Error
@@ -335,7 +335,7 @@ kb_current_hash() ->
 %% '''
 
 kb_current_height() ->
-    case request("/v2/key-blocks/current/height") of
+    case request("/v3/key-blocks/current/height") of
         {ok, #{"reason" := Reason}} -> {error, Reason};
         {ok, #{"height" := Height}} -> {ok, Height};
         Error                       -> Error
@@ -350,7 +350,7 @@ kb_current_height() ->
 %%  `{error, "Beneficiary not configured"}'
 
 kb_pending() ->
-    result(request("/v2/key-blocks/pending")).
+    result(request("/v3/key-blocks/pending")).
 
 
 -spec kb_by_hash(ID) -> {ok, KeyBlock} | {error, Reason}
@@ -361,7 +361,7 @@ kb_pending() ->
 %% Returns the keyblock identified by the provided hash.
 
 kb_by_hash(ID) ->
-    result(request(["/v2/key-blocks/hash/", ID])).
+    result(request(["/v3/key-blocks/hash/", ID])).
 
 
 -spec kb_by_height(Height) -> {ok, KeyBlock} | {error, Reason}
@@ -373,11 +373,11 @@ kb_by_hash(ID) ->
 
 kb_by_height(Height) ->
     StringN = integer_to_list(Height),
-    result(request(["/v2/key-blocks/height/", StringN])).
+    result(request(["/v3/key-blocks/height/", StringN])).
 
 
 %kb_insert(KeyblockData) ->
-%    request("/v2/key-blocks", KeyblockData).
+%    request("/v3/key-blocks", KeyblockData).
 
 
 -spec mb_header(ID) -> {ok, MB_Header} | {error, Reason}
@@ -388,7 +388,7 @@ kb_by_height(Height) ->
 %% Returns the header of the microblock indicated by the provided ID (hash).
 
 mb_header(ID) ->
-    result(request(["/v2/micro-blocks/hash/", ID, "/header"])).
+    result(request(["/v3/micro-blocks/hash/", ID, "/header"])).
 
 
 -spec mb_txs(ID) -> {ok, TXs} | {error, Reason}
@@ -399,7 +399,7 @@ mb_header(ID) ->
 %% Returns a list of transactions included in the microblock.
 
 mb_txs(ID) ->
-    case request(["/v2/micro-blocks/hash/", ID, "/transactions"]) of
+    case request(["/v3/micro-blocks/hash/", ID, "/transactions"]) of
         {ok, #{"transactions" := TXs}} -> {ok, TXs};
         {ok, #{"reason" := Reason}}    -> {error, Reason};
         Error                          -> Error
@@ -417,7 +417,7 @@ mb_txs(ID) ->
 
 mb_tx_index(ID, Index) ->
     StrHeight = integer_to_list(Index),
-    result(request(["/v2/micro-blocks/hash/", ID, "/transactions/index/", StrHeight])).
+    result(request(["/v3/micro-blocks/hash/", ID, "/transactions/index/", StrHeight])).
 
 
 -spec mb_tx_count(ID) -> {ok, Count} | {error, Reason}
@@ -428,7 +428,7 @@ mb_tx_index(ID, Index) ->
 %% Retrieve the number of transactions contained in the indicated microblock.
 
 mb_tx_count(ID) ->
-    case request(["/v2/micro-blocks/hash/", ID, "/transactions/count"]) of
+    case request(["/v3/micro-blocks/hash/", ID, "/transactions/count"]) of
         {ok, #{"count" := Count}}   -> {ok, Count};
         {ok, #{"reason" := Reason}} -> {error, Reason};
         Error                       -> Error
@@ -443,7 +443,7 @@ mb_tx_count(ID) ->
 %% the current generation.
 
 gen_current() ->
-    result(request("/v2/generations/current")).
+    result(request("/v3/generations/current")).
 
 
 -spec gen_by_id(ID) -> {ok, Generation} | {error, Reason}
@@ -454,7 +454,7 @@ gen_current() ->
 %% Retrieve generation data (keyblock and list of associated microblocks) by keyhash.
 
 gen_by_id(ID) ->
-    result(request(["/v2/generations/hash/", ID])).
+    result(request(["/v3/generations/hash/", ID])).
 
 
 -spec gen_by_height(Height) -> {ok, Generation} | {error, Reason}
@@ -466,7 +466,7 @@ gen_by_id(ID) ->
 
 gen_by_height(Height) ->
     StrHeight = integer_to_list(Height),
-    result(request(["/v2/generations/height/", StrHeight])).
+    result(request(["/v3/generations/height/", StrHeight])).
 
 
 -spec acc(AccountID) -> {ok, Account} | {error, Reason}
@@ -477,7 +477,7 @@ gen_by_height(Height) ->
 %% Retrieve account data by account ID (public key).
 
 acc(AccountID) ->
-    result(request(["/v2/accounts/", AccountID])).
+    result(request(["/v3/accounts/", AccountID])).
 
 
 -spec acc_at_height(AccountID, Height) -> {ok, Account} | {error, Reason}
@@ -490,7 +490,7 @@ acc(AccountID) ->
 
 acc_at_height(AccountID, Height) ->
     StrHeight = integer_to_list(Height),
-    case request(["/v2/accounts/", AccountID, "/height/", StrHeight]) of
+    case request(["/v3/accounts/", AccountID, "/height/", StrHeight]) of
         {ok, #{"reason" := "Internal server error"}} -> {error, gc_out_of_range};
         {ok, #{"reason" := Reason}}                  -> {error, Reason};
         Result                                       -> Result
@@ -507,7 +507,7 @@ acc_at_height(AccountID, Height) ->
 %% block represented the current state of the chain.
 
 acc_at_block_id(AccountID, BlockID) ->
-    case request(["/v2/accounts/", AccountID, "/hash/", BlockID]) of
+    case request(["/v3/accounts/", AccountID, "/hash/", BlockID]) of
         {ok, #{"reason" := "Internal server error"}} -> {error, gc_out_of_range};
         {ok, #{"reason" := Reason}}                  -> {error, Reason};
         Result                                       -> Result
@@ -522,7 +522,7 @@ acc_at_block_id(AccountID, BlockID) ->
 %% Retrieve a list of transactions pending for the given account.
 
 acc_pending_txs(AccountID) ->
-    request(["/v2/accounts/", AccountID, "/transactions/pending"]).
+    request(["/v3/accounts/", AccountID, "/transactions/pending"]).
 
 
 -spec next_nonce(AccountID) -> {ok, Nonce} | {error, Reason}
@@ -533,13 +533,13 @@ acc_pending_txs(AccountID) ->
 %% Retrieve the next nonce for the given account
 
 next_nonce(AccountID) ->
-%   case request(["/v2/accounts/", AccountID, "/next-nonce"]) of
+%   case request(["/v3/accounts/", AccountID, "/next-nonce"]) of
 %       {ok, #{"next_nonce" := Nonce}}           -> {ok, Nonce};
 %       {ok, #{"reason" := "Account not found"}} -> {ok, 1};
 %       {ok, #{"reason" := Reason}}              -> {error, Reason};
 %       Error                                    -> Error
 %   end.
-    case request(["/v2/accounts/", AccountID]) of
+    case request(["/v3/accounts/", AccountID]) of
         {ok, #{"nonce"  := Nonce}}               -> {ok, Nonce + 1};
         {ok, #{"reason" := "Account not found"}} -> {ok, 1};
         {ok, #{"reason" := Reason}}              -> {error, Reason};
@@ -597,7 +597,7 @@ dry_run(TX, Accounts, KBHash) ->
                 txs       => [#{tx => TXB}],
                 tx_events => true},
     JSON = zj:binary_encode(DryData),
-    request("/v2/dry-run", JSON).
+    request("/v3/dry-run", JSON).
 
 to_binary(S) when is_binary(S) -> S;
 to_binary(S) when is_list(S)   -> list_to_binary(S).
@@ -611,7 +611,7 @@ to_binary(S) when is_list(S)   -> list_to_binary(S).
 %% Retrieve a transaction by ID.
 
 tx(ID) ->
-    request(["/v2/transactions/", ID]).
+    request(["/v3/transactions/", ID]).
 
 
 -spec tx_info(ID) -> {ok, Info} | {error, Reason}
@@ -622,7 +622,7 @@ tx(ID) ->
 %% Retrieve TX metadata by ID.
 
 tx_info(ID) ->
-    result(request(["/v2/transactions/", ID, "/info"])).
+    result(request(["/v3/transactions/", ID, "/info"])).
 
 
 -spec post_tx(Data) -> {ok, Result} | {error, Reason}
@@ -634,7 +634,7 @@ tx_info(ID) ->
 
 post_tx(Data) ->
     JSON = zj:binary_encode(#{tx => Data}),
-    request("/v2/transactions", JSON).
+    request("/v3/transactions", JSON).
 
 
 -spec contract(ID) -> {ok, ContractData} | {error, Reason}
@@ -645,7 +645,7 @@ post_tx(Data) ->
 %% Retrieve a contract's metadata by ID.
 
 contract(ID) ->
-    result(request(["/v2/contracts/", ID])).
+    result(request(["/v3/contracts/", ID])).
 
 
 -spec contract_code(ID) -> {ok, Bytecode} | {error, Reason}
@@ -654,7 +654,7 @@ contract(ID) ->
          Reason   :: ae_error() | string().
 
 contract_code(ID) ->
-    case request(["/v2/contracts/", ID, "/code"]) of
+    case request(["/v3/contracts/", ID, "/code"]) of
         {ok, #{"bytecode" := Bytecode}} -> {ok, Bytecode};
         {ok, #{"reason"   := Reason}}   -> {error, Reason};
         Error                           -> Error
@@ -667,19 +667,19 @@ contract_code(ID) ->
          Reason   :: ae_error() | string().
 
 contract_poi(ID) ->
-    request(["/v2/contracts/", ID, "/poi"]).
+    request(["/v3/contracts/", ID, "/poi"]).
 
 % TODO
 %oracle(ID) ->
-%    request(["/v2/oracles/", ID]).
+%    request(["/v3/oracles/", ID]).
 
 % TODO
 %oracle_queries(ID) ->
-%    request(["/v2/oracles/", ID, "/queries"]).
+%    request(["/v3/oracles/", ID, "/queries"]).
 
 % TODO
 %oracle_queries_by_id(OracleID, QueryID) ->
-%    request(["/v2/oracles/", OracleID, "/queries/", QueryID]).
+%    request(["/v3/oracles/", OracleID, "/queries/", QueryID]).
 
 
 -spec name(Name) -> {ok, Info} | {error, Reason}
@@ -690,12 +690,12 @@ contract_poi(ID) ->
 %% Retrieve a name's chain information.
 
 name(Name) ->
-    result(request(["/v2/names/", Name])).
+    result(request(["/v3/names/", Name])).
 
 
 % TODO
 %channel(ID) ->
-%    request(["/v2/channels/", ID]).
+%    request(["/v3/channels/", ID]).
 
 
 % FIXME: This should take a specific peer address:port otherwise it will be pointlessly
@@ -708,7 +708,7 @@ name(Name) ->
 %% the given address.
 
 peer_pubkey() ->
-    case request("/v2/peers/pubkey") of
+    case request("/v3/peers/pubkey") of
         {ok, #{"pubkey" := Pubkey}} -> {ok, Pubkey};
         {ok, #{"reason" := Reason}} -> {error, Reason};
         Error                       -> Error
@@ -724,7 +724,7 @@ peer_pubkey() ->
 %% Retrieve the node's status and meta it currently has about the chain.
 
 status() ->
-    request("/v2/status").
+    request("/v3/status").
 
 
 -spec status_chainends() -> {ok, ChainEnds} | {error, Reason}
@@ -734,7 +734,7 @@ status() ->
 %% Retrieve the latest keyblock hashes
 
 status_chainends() ->
-    request("/v2/status/chain-ends").
+    request("/v3/status/chain-ends").
 
 
 request(Path) ->
@@ -1830,39 +1830,39 @@ eu(N, Size) ->
 %%% Debug functionality
 
 % debug_network() ->
-%     request("/v2/debug/network").
+%     request("/v3/debug/network").
 %
-% /v2/debug/contracts/create
-% /v2/debug/contracts/call
-% /v2/debug/oracles/register
-% /v2/debug/oracles/extend
-% /v2/debug/oracles/query
-% /v2/debug/oracles/respond
-% /v2/debug/names/preclaim
-% /v2/debug/names/claim
-% /v2/debug/names/update
-% /v2/debug/names/transfer
-% /v2/debug/names/revoke
-% /v2/debug/transactions/spend
-% /v2/debug/channels/create
-% /v2/debug/channels/deposit
-% /v2/debug/channels/withdraw
-% /v2/debug/channels/snapshot/solo
-% /v2/debug/channels/set-delegates
-% /v2/debug/channels/close/mutual
-% /v2/debug/channels/close/solo
-% /v2/debug/channels/slash
-% /v2/debug/channels/settle
-% /v2/debug/transactions/pending
-% /v2/debug/names/commitment-id
-% /v2/debug/accounts/beneficiary
-% /v2/debug/accounts/node
-% /v2/debug/peers
-% /v2/debug/transactions/dry-run
-% /v2/debug/transactions/paying-for
-% /v2/debug/check-tx/pool/{hash}
-% /v2/debug/token-supply/height/{height}
-% /v2/debug/crash
+% /v3/debug/contracts/create
+% /v3/debug/contracts/call
+% /v3/debug/oracles/register
+% /v3/debug/oracles/extend
+% /v3/debug/oracles/query
+% /v3/debug/oracles/respond
+% /v3/debug/names/preclaim
+% /v3/debug/names/claim
+% /v3/debug/names/update
+% /v3/debug/names/transfer
+% /v3/debug/names/revoke
+% /v3/debug/transactions/spend
+% /v3/debug/channels/create
+% /v3/debug/channels/deposit
+% /v3/debug/channels/withdraw
+% /v3/debug/channels/snapshot/solo
+% /v3/debug/channels/set-delegates
+% /v3/debug/channels/close/mutual
+% /v3/debug/channels/close/solo
+% /v3/debug/channels/slash
+% /v3/debug/channels/settle
+% /v3/debug/transactions/pending
+% /v3/debug/names/commitment-id
+% /v3/debug/accounts/beneficiary
+% /v3/debug/accounts/node
+% /v3/debug/peers
+% /v3/debug/transactions/dry-run
+% /v3/debug/transactions/paying-for
+% /v3/debug/check-tx/pool/{hash}
+% /v3/debug/token-supply/height/{height}
+% /v3/debug/crash
 
 
 -spec start() -> ok | {error, Reason :: term()}.
