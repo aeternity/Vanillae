@@ -9,7 +9,7 @@
 %%% @end
 
 -module(vanillae_man).
--vsn("0.1.0").
+-vsn("0.2.0").
 -behavior(gen_server).
 -author("Craig Everett <ceverett@tsuriai.jp>").
 -copyright("Craig Everett <ceverett@tsuriai.jp>").
@@ -189,9 +189,11 @@ handle_down(PID, Mon, Info, State = #s{fetchers = Fetchers}) ->
         {value, #fetcher{time = Time, node = Node, from = From, req = R}, Remaining} ->
             TS = calendar:system_time_to_rfc3339(Time, [{unit, nanosecond}]),
             Format =
-                "ERROR ~s: Fetcher process ~p making request to ~p exited with ~p~n"
-                "Request contents:~n~n"
-                "~s",
+                "ERROR ~ts: Fetcher process ~130tp exited while making request to ~130tp~n"
+                "Exit reason:~n"
+                "~tp~n"
+                "Request contents:~n"
+                "~tp~n~n",
             Formatted = io_lib:format(Format, [TS, PID, Node, Info, R]),
             Message = unicode:characters_to_list(Formatted),
             ok = gen_server:reply(From, {error, Message}),
