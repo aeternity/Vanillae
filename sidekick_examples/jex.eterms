@@ -1,4 +1,4 @@
-{type, site}.
+{type, library}.
 {realm, local}.
 {name, sidekick_examples}.
 {version, "0.1.0"}.

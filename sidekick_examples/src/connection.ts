@@ -1,6 +1,6 @@
 import * as ae_node from './jex_include/local-parasite-0.2.0/dist/ae_node.js';
-import * as awcp    from './jex_include/local-awcp-0.2.0/dist/awcp.js';
-import * as sk      from './jex_include/local-sidekick-0.2.0/dist/sidekick.js';
+import * as awcp    from './jex_include/local-awcp-0.2.1/dist/awcp.js';
+import * as sk      from './jex_include/local-sidekick-0.2.1/dist/sidekick.js';
 
 var pv_address: string;
 var pv_spendtx_base64: string;

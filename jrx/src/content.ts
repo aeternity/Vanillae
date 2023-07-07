@@ -5,6 +5,9 @@
  */
 
 
+jr_main();
+
+
 
 /**
  * This is the "meat" of what is spammed to the page script when the user makes
@@ -13,24 +16,14 @@
  * If you go read the AWCP documentation, there's a bunch of layers. This is I
  * think the innermost layer.
  */
-let detect_msg = {id        : "urmom",
-                  name      : "JR",
-                  networkId : "ae_uat",
-                  origin    : "ur dads balls",
-                  type      : "extension"};
+function detect_msg() {
+    return {id        : "jr",
+            name      : "JR",
+            networkId : "ae_uat",
+            origin    : "foobar",
+            type      : "extension"};
+}
 
-
-
-/**
- * This is the message that we spam the page script with when the user clicks
- * the "make wallet detectable" button.
- *
- * Contains {@link detect_msg} as a field
- */
-let detect_awcp_msg = {type : "to_aepp",
-                       data : {jsonrpc : "2.0",
-                               method  : "connection.announcePresence",
-                               params  : detect_msg}};
 
 
 
@@ -39,9 +32,9 @@ let detect_awcp_msg = {type : "to_aepp",
  */
 function
 post_detect_msg
-    ()
+    (msg: object)
 {
-    window.postMessage(detect_awcp_msg, '*');
+    window.postMessage(msg, '*');
 }
 
 
@@ -51,14 +44,14 @@ post_detect_msg
  */
 async function
 mk_detectable
-    ()
+    (msg: object)
 {
-    //while (true) {
+    while (true)
     // 3 seconds times 40 is 2 minutes
-    for (let i=1; i<=40; i++)
+    // for (let i=1; i<=40; i++)
     {
         console.error('pee');
-        post_detect_msg();
+        post_detect_msg(msg);
         await sleep(3000);
     }
 }
@@ -76,24 +69,24 @@ sleep
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-
-/**
- * This handles messages from *other parts of the extension*
- */
-function
-handler
-    (msg: any)
-{
-    console.error('message: ', msg);
-    switch(msg)
-    {
-        case 'mk-detectable':
-            mk_detectable();
-            return;
-        default:
-            console.error('your mom is dead');
-    }
-}
+//
+///**
+// * This handles messages from *other parts of the extension*
+// */
+//function
+//handler
+//    (msg: any)
+//{
+//    console.error('message: ', msg);
+//    switch(msg)
+//    {
+//        case 'mk-detectable':
+//            mk_detectable();
+//            return;
+//        default:
+//            console.error('your mom is dead');
+//    }
+//}
 
 
 
@@ -195,7 +188,7 @@ post_connect_msg
              data: {jsonrpc: "2.0",
                     id: msg_ident,
                     method: "connection.open",
-                    result: detect_msg}};
+                    result: detect_msg()}};
     window.postMessage(connect_response, '*');
 }
 
@@ -241,11 +234,27 @@ bg_msg_sign
 }
 
 
+async function
+jr_main
+    ()
+{
+    // @ts-ignore browser
+   // browser.runtime.onMessage.addListener(handler);
+    window.addEventListener('message', window_message_handler);
 
-// @ts-ignore browser
-browser.runtime.onMessage.addListener(handler);
-window.addEventListener('message', window_message_handler);
-//window.addEventListener('message', function(evt) { console.error('BYYYYYYYYYYYYYYY', evt) });
-//window.addEventListener('click', function() { console.error('HERRRO'); });
 
-console.error('poop');
+
+
+    /**
+     * This is the message that we spam the page script with when the user clicks
+     * the "make wallet detectable" button.
+     *
+     * Contains {@link detect_msg} as a field
+     */
+    let detect_awcp_msg = {type : "to_aepp",
+                           data : {jsonrpc : "2.0",
+                                   method  : "connection.announcePresence",
+                                   params  : detect_msg()}};
+
+    mk_detectable(detect_awcp_msg);
+}
