@@ -9,7 +9,7 @@ binary string.
 
 It has been tested against Ethereum's official Python implementation.
 
-You can see the methodology in <tests/vrlp_testgen.erl>:
+You can see the methodology in [`tests/vrlp_testgen.erl`](tests/vrlp_testgen.erl):
 
 - 10,000 decoded data structures are generated at random
 - the test generator calls `vrlp:encode/1` to generate an encode/decode pair
@@ -36,7 +36,7 @@ format_case_py(DecodedData_rlist) ->
      "     'encoded': ", EncodedBytes_py, "}"].
 ```
 
-The Python side:
+The Python side from [`tests/rlptests.py`](tests/rlptests.py):
 
 ```python
 def main():
