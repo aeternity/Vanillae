@@ -8,7 +8,8 @@ main([]) ->
     % Decoded cases
     DecodedCases = rand_decode_datas(10_000),
     %io:format("~p~n", [DecodedCases]),
-    io:format("~s~n", [format_cases_py(DecodedCases)]),
+    %io:format("~s~n", [format_cases_py(DecodedCases)]),
+    _ = format_cases_py(DecodedCases),
     ok.
 
 
@@ -115,7 +116,9 @@ slcommas([Item | Rest], Acc) ->
 format_case_py(DecodedData_rlist) ->
     % EncodedData_bytes = rlp:encode(
     % DD_js = format_data_js(DecodedData_rlist),
-    EncodedData_bytes = vrlp:encode(DecodedData_rlist),
+    EncodedData_bytes          = vrlp:encode(DecodedData_rlist),
+    % assert encode -> decode round trips
+    {DecodedData_rlist, <<>>}  = vrlp:decode(EncodedData_bytes),
     EncodedBytes_py   = format_bytes_py(EncodedData_bytes),
     DecodedData_py    = format_data_py(DecodedData_rlist),
     ["    {'decoded': ", DecodedData_py, ",\n",
