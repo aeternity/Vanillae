@@ -9,11 +9,13 @@
  */
 
 
-export {
-    // types
+export type {
     jr_data,
     named_keypair,
     keypair
+}
+
+export {
     // top-level getters/setters
 };
 
@@ -33,7 +35,7 @@ type jr_data
  *
  * @private
  */
-let jr_data_mzero = {version        : 0,
+let jr_data_mzero = {version        : 0 as 0,   // yay ts type inference can't infer 0 is of type 0
                      named_keypairs : []};
 
 
@@ -88,7 +90,3 @@ put
 {
     await browser.storage.local.set({jr: state});
 }
-
-
-
-
