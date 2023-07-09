@@ -14,59 +14,46 @@ ecosystem, you want the [Aeternity JavaScript
 SDK](https://github.com/aeternity/aepp-sdk-js). The SDK is a Swiss Army Knife.
 Vanillae is just a knife.
 
-## Flagship Tools
+Vanillae grew out of [Aegora.jp](https://aegora.jp).  We made a simple
+e-commerce store using Aeternity as the payment system.  We encountered a lot
+of rough edges in Aeternity's tooling, and so developed our own, and
+open-sourced it.  That became this project
+
+Our tooling is grouped according to the project that spawned it
 
 -   [Sidekick](./sidekick/)
 
-    A library to talk to a browser wallet extension from the perspective of a
-    page script.
+    We needed the ability to talk to Superhero (the standard Aeternity browser
+    wallet extension) from our page script. Sidekick is a simple library to do
+    just that.
 
--   Bindings
+    -   [Sidekick Examples](./sidekick_examples/) illustrate how to use sidekick
 
-    These are language-specific libraries that expose the most common functions you
-    need in a backend application that uses Aeternity.
+    -   [AWCP](./libs/awcp/): the aepp/waellet communication protocol
 
-    These intentionally do not cover obscure or esoteric Aeternity features
-    (e.g. hyperchains).
+        This is the definition of the messaging protocol between the page
+        script and the wallet.  Sidekick implements one half of this protocol.
 
-    - [Erlang](./bindings/erlang/)
+    -   [jex](./utils/jex/)
 
+        We encountered packaging as an obvious problem to solve, and NPM is
+        simply a terrible way to solve it. Jex is a TypeScript/JavaScript
+        package manager that avoids most of the NPM-related security issues.
 
-## Libraries
+-   [Vanillae Erlang Bindings](./bindings/erlang)
 
-These are libraries that were developed incidentally which made sense to factor
-out.
+    Our server backend is written in Erlang.  We needed to talk to the
+    blockchain from our server backend.  Vanillae.erl is an Erlang application
+    that does that.
 
--   [AWCP](./libs/awcp/)
+    It is designed in such a way that you could write say a Vanillae Go
+    library with an identical API but totally different internals.  Ultimately
+    the idea here is to create a language-agnostic API for talking to the
+    Aeternity blockchain from the
 
-    Aepp/waellet communication protocol
+-   [Jaeck Russell](./jrx/): this is a (work-in-progress) simpler wallet than
+    Superhero
 
-    This is just type definitions and constants (error codes). Type definitions
-    consist of what data the waellet expects from the aepp, and what data the
-    aepp expects from the waellet.
-
-
-## Utilities
-
-These are applications that were developed incidentally during the course of
-this project.
-
--   [jex](./utils/jex/)
-
-    A TypeScript/JavaScript package manager that avoids a large class of
-    NPM-related security issues.
-
--   [vlogd](./utils/vlogd/)
-
-    **NOT FOR PRODUCTION USAGE**
-
-    Simple HTTP server that just logs requests it gets. Used in example code
-    for demonstrating sidekick's logging capabilities.
-
-## Documentation
-
--   [base64 versus base58 explainer](./docs/baseN/)
-
-    These are two numerical notations used in the Aeternity project.
-
--   [NPM guide](./docs/npm-misc/)
+-   [Vanillae Files](./docs/): any time where we encountered some weird thing
+    that is like 1 hour of information but takes 15 hours to understand because
+    it's poorly documented, we tried to document it here.
