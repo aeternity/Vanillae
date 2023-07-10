@@ -8,7 +8,6 @@
 jr_main();
 
 
-
 /**
  * This is the "meat" of what is spammed to the page script when the user makes
  * the wallet detectable.
@@ -69,24 +68,24 @@ sleep
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-//
-///**
-// * This handles messages from *other parts of the extension*
-// */
-//function
-//handler
-//    (msg: any)
-//{
-//    console.error('message: ', msg);
-//    switch(msg)
-//    {
-//        case 'mk-detectable':
-//            mk_detectable();
-//            return;
-//        default:
-//            console.error('your mom is dead');
-//    }
-//}
+
+/**
+ * This handles messages from *other parts of the extension*
+ */
+function
+handler
+    (msg: any)
+{
+    console.error('message: ', msg);
+    switch(msg)
+    {
+        case 'mk-detectable':
+            mk_detectable();
+            return;
+        default:
+            console.error('your mom is dead');
+    }
+}
 
 
 
@@ -203,6 +202,7 @@ function
 bg_address_subscribe
     (msg_ident: string | number)
 {
+    
 }
 
 
@@ -256,5 +256,6 @@ jr_main
                                    method  : "connection.announcePresence",
                                    params  : detect_msg()}};
 
+    // mk detectable
     mk_detectable(detect_awcp_msg);
 }
