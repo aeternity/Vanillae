@@ -2,3 +2,4 @@
 *.swo
 erl_crash.dump
 *.beam
+__pycache__

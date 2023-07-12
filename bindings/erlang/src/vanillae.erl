@@ -26,7 +26,7 @@
 %%% @end
 
 -module(vanillae).
--vsn("0.2.0").
+-vsn("0.3.0").
 %-behavior(application).
 -author("Craig Everett <ceverett@tsuriai.jp>").
 -copyright("Craig Everett <ceverett@tsuriai.jp>").
@@ -1815,6 +1815,15 @@ verify_signature(Sig, Message, PubKey) ->
     end.
 
 verify_signature2(Sig, Message, PK) ->
+    % Superhero salts/hashes the message before signing it, in order to protect
+    % the user from accidentally signing a transaction disguised as a message.
+    % In order to verify the signature, we have to duplicate superhero's
+    % salt/hash procedure here.
+    %
+    % Salt the message then hash with blake2b. See:
+    % 1. Erlang Blake2 blake2b/2 function: https://github.com/aeternity/eblake2/blob/60a079f00d72d1bfcc25de8e6996d28f912db3fd/src/eblake2.erl#L23-L25
+    % 2. SDK salting step: https://github.com/aeternity/aepp-sdk-js/blob/370f1e30064ad0239ba59931908d9aba0a2e86b6/src/utils/crypto.ts#L171-L175
+    % 3. SDK hashing: https://github.com/aeternity/aepp-sdk-js/blob/370f1e30064ad0239ba59931908d9aba0a2e86b6/src/utils/crypto.ts#L83-L85
     Prefix = <<"aeternity Signed Message:\n">>,
     {ok, PSize} = vencode(byte_size(Prefix)),
     {ok, MSize} = vencode(byte_size(Message)),
@@ -1825,6 +1834,8 @@ verify_signature2(Sig, Message, PK) ->
     {ok, Result}.
 
 
+% This is Bitcoin's variable-length unsigned integer encoding
+% See: https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
 vencode(N) when N < 0 ->
     {error, {negative_N, N}};
 vencode(N) when N < 16#FD ->
@@ -1839,6 +1850,9 @@ vencode(N) when N < (2 bsl 64) ->
     NBytes = eu(N, 8),
     {ok, <<16#FF, NBytes/binary>>}.
 
+
+% eu = encode unsigned (little endian with a given byte width)
+% means add zero bytes to the end as needed
 eu(N, Size) ->
     Bytes = binary:encode_unsigned(N, little),
     NExtraZeros = Size - byte_size(Bytes),
