@@ -26,7 +26,7 @@
 %%% @end
 
 -module(vanillae).
--vsn("0.2.0").
+-vsn("0.3.0").
 %-behavior(application).
 -author("Craig Everett <ceverett@tsuriai.jp>").
 -copyright("Craig Everett <ceverett@tsuriai.jp>").
