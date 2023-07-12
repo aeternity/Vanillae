@@ -1,0 +1,23 @@
+@author Craig Everett <ceverett@zxq9.com> [https://gitlab.com/zxq9/zj]
+@version 0.3.0
+@title Vanillae: Aeternity blockchain bindings for Erlang
+
+@doc
+This Erlang application provides bindings for the Erlang blockchain.
+The primary goal is for usage to be easy to understand and as simple as possible to use.
+The secondary goal is to enable real-world projects to more easily connect with the blockchain in an obvious way and provide a clear path for them to provide feedback regarding areas that are difficult to understand, functionality that is lacking, and explain their use cases to us so we can more easily provide needed features and usage examples to make adoption easier.
+
+== Basic operation ==
+All external interfaces expected to be used by authors of programs that use Vanillae are built into the `vanillae' module.
+
+When Vanillae is started as an application a named process called `vanillae_man' is spawned that managed interactions with and the state of the service, as well as a simple-one-for-one supervisor that manages the lifecycle of Vanillae workers (defined in `vanillae_fetcher').
+
+After startup `vanillae_man' must be given the address and port of a list of Aeternity nodes that are available to service requests. Note that the service nodes will need to have the "dry run" endpoint enabled and the internal service query port made available in order to provide "dry run" and mempool TX submission functionality.
+
+The `vanillae_man' will round-robin requests to however many Aeternity nodes are provided in its configuration. Note that this congiruation is dynamic and can be changed completely at runtime.
+
+== Functions ==
+The `vanillae' module exposes one function per blockchain feature provided. Most of these are actually wrappers for blockchain endpoint functions, though some are not.
+
+=== some shit ===
+some shit
