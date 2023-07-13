@@ -1,4 +1,4 @@
-%%% @doc
+%%% @private
 %%% Vanillae Request Manager for Erlang
 %%%
 %%% This process is responsible for remembering the configured nodes and dispatching

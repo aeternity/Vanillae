@@ -1,3 +1,5 @@
+%%% @private
+
 -module(vanillae_fetcher).
 -vsn("0.3.0").
 -author("Craig Everett <ceverett@tsuriai.jp>").

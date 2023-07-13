@@ -1,4 +1,4 @@
-%%% @doc
+%%% @private
 %%% Vanillae Erlang Aeternity application supervisor
 %%%
 %%% The very top level supervisor in the system. It only has one service branch: the

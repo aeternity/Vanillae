@@ -27,7 +27,7 @@
 
 -module(vanillae).
 -vsn("0.3.0").
-%-behavior(application).
+-behavior(application).
 -author("Craig Everett <ceverett@tsuriai.jp>").
 -copyright("Craig Everett <ceverett@tsuriai.jp>").
 -license("GPL-3.0-or-later").
@@ -103,16 +103,21 @@
 -type keyblock_hash()       :: string().            % "kh_" ++ _
 -type contract_byte_array() :: string().            % "cb_" ++ _
 -type microblock_hash()     :: string().            % "mh_" ++ _
+
 %-type block_state_hash()    :: string().            % "bs_" ++ _
 %-type proof_of_fraud_hash() :: string() | no_fraud. % "bf_" ++ _
 %-type signature()           :: string().            % "sg_" ++ _
 %-type block_tx_hash()       :: string().            % "bx_" ++ _
+
 -type tx_hash()             :: string().            % "th_" ++ _
+
 %-type name_hash()           :: string().            % "nm_" ++ _
 %-type protocol_info()       :: #{string() => term()}.
 % #{"effective_at_height" => non_neg_integer(),
 %   "version"             => pos_integer()}.
+
 -type keyblock()            :: #{string() => term()}.
+% <pre>
 % #{"beneficiary"   => account_id(),
 %   "hash"          => keyblock_hash(),
 %   "height"        => pos_integer(),
@@ -126,7 +131,9 @@
 %   "target"        => non_neg_integer(),
 %   "time"          => non_neg_integer(),
 %   "version"       => 5}.
+% </pre>
 -type microblock_header()   :: #{string() => term()}.
+% <pre>
 % #{"hash"          => microblock_hash(),
 %   "height"        => pos_integer(),
 %   "pof_hash"      => proof_of_fraud_hash(),
@@ -137,7 +144,9 @@
 %   "time"          => non_neg_integer(),
 %   "txs_hash"      => block_tx_hash(),
 %   "version"       => 1}.
+% </pre>
 -type transaction()         :: #{string() => term()}.
+% <pre>
 % #{"block_hash"    => microblock_hash(),
 %   "block_height"  => pos_integer(),
 %   "hash"          => tx_hash(),
@@ -156,16 +165,22 @@
 %         "type"        => string(),
 %         "version"     => pos_integer(),
 %         "vm_version"  => pos_integer()}}
+% </pre>
 -type generation()          :: #{string() => term()}.
+% <pre>
 % #{"key_block"     => keyblock(),
 %   "micro_blocks"  => [microblock_hash()]}.
+% </pre>
 -type account()             :: #{string() => term()}.
+% <pre>
 % #{"balance" => non_neg_integer(),
 %   "id"      => account_id(),
 %   "kind"    => "basic",
 %   "nonce"   => pos_integer(),
 %   "payable" => true}.
+% </pre>
 -type contract_data()       :: #{string() => term()}.
+% <pre>
 % #{"abi_version " => pos_integer(),
 %   "active"       => boolean(),
 %   "deposit"      => non_neg_integer(),
@@ -173,12 +188,16 @@
 %   "owner_id"     => account_id() | contract_id(),
 %   "referrer_ids" => [],
 %   "vm_version"   => pos_integer()}.
+% </pre>
 -type name_info()           :: #{string() => term()}.
+% <pre>
 % #{"id"       => name_hash(),
 %   "owner"    => account_id(),
 %   "pointers" => [],
 %   "ttl"      => non_neg_integer()}.
+% </pre>
 -type status()              :: #{string() => term()}.
+% <pre>
 % #{"difficulty"                 => non_neg_integer(),
 %   "genesis_key_block_hash"     => keyblock_hash(),
 %   "listening"                  => boolean(),
@@ -196,7 +215,7 @@
 %   "syncing"                    => boolean(),
 %   "top_block_height"           => non_neg_integer(),
 %   "top_key_block_hash"         => keyblock_hash()}.
-
+% </pre>
 
 
 
@@ -273,6 +292,13 @@ timeout(MS) ->
 -spec top_height() -> {ok, Height} | {error, Reason}
     when Height :: pos_integer(),
          Reason :: ae_error().
+%% @doc
+%% Retrieve the current height of the chain.
+%%
+%% NOTE:
+%% This will return the currently synced height, which may be different than the
+%% actual current top of the entire chain if the node being queried is still syncing
+%% (has not yet caught up with the chain).
 
 top_height() ->
     case top_block() of
@@ -571,6 +597,9 @@ dry_run(TX) ->
          Accounts :: [pubkey()],
          Result   :: term(),  % FIXME
          Reason   :: term().  % FIXME
+%% @doc
+%% Execute a read-only transaction on the chain at the current height with the
+%% supplied accounts.
 
 dry_run(TX, Accounts) ->
     case kb_current_hash() of
@@ -652,6 +681,8 @@ contract(ID) ->
     when ID       :: contract_id(),
          Bytecode :: contract_byte_array(),
          Reason   :: ae_error() | string().
+%% @doc
+%% Retrieve the code of a contract as represented on chain.
 
 contract_code(ID) ->
     case request(["/v3/contracts/", ID, "/code"]) of
@@ -665,6 +696,8 @@ contract_code(ID) ->
     when ID       :: contract_id(),
          Bytecode :: contract_byte_array(),
          Reason   :: ae_error() | string().
+%% @doc
+%% Retrieve the POI of a contract stored on chain.
 
 contract_poi(ID) ->
     request(["/v3/contracts/", ID, "/poi"]).
@@ -782,7 +815,7 @@ contract_create(CreatorID, Path, InitArgs) ->
 -spec contract_create(CreatorID, Nonce,
                       Amount, Gas, GasPrice, Fee,
                       Path, InitArgs) -> Result
-    when CreatorID :: unicode:chardata(),
+    when CreatorID :: pubkey(),
          Nonce     :: pos_integer(),
          Amount    :: non_neg_integer(),
          Gas       :: pos_integer(),
@@ -805,7 +838,8 @@ contract_create(CreatorID, Path, InitArgs) ->
 %%   <b>CreatorID:</b>
 %%   This is the <em>public</em> key of the entity who will be posting the contract
 %%   to the chain.
-%%   The key must be encoded as a binary string prefixed with `<<"ak_">>'.
+%%   The key must be encoded as a string prefixed with `"ak_"' (or `<<"ak_">>' in the
+%%   case of a binary string, which is also acceptable).
 %%   The returned call will still need to be signed by the caller's <em>private</em>
 %%   key.
 %%  </li>
@@ -897,7 +931,6 @@ contract_create(CreatorID, Path, InitArgs) ->
 %%   argument of `10' must be cast to the textual representation `"10"').
 %%  </li>
 %% </ul>
-%% '''
 %% As should be obvious from the above description, it is pretty helpful to have a
 %% source copy of the contract you intend to call so that you can re-generate the ACI
 %% if you do not already have a copy, and can check the spec of a function before
@@ -1106,7 +1139,8 @@ contract_call(CallerID, Gas, AACI, ConID, Fun, Args) ->
 %%  <li>
 %%   <b>CallerID:</b>
 %%   This is the <em>public</em> key of the entity making the contract call.
-%%   The key must be encoded as a binary string prefixed with `<<"ak_">>'.
+%%   The key must be encoded as a string prefixed with `"ak_"' (or `<<"ak_">>' in the
+%%   case of a binary string, which is also acceptable).
 %%   The returned call will still need to be signed by the caller's <em>private</em>
 %%   key.
 %%  </li>
@@ -1198,7 +1232,6 @@ contract_call(CallerID, Gas, AACI, ConID, Fun, Args) ->
 %%   argument of `10' must be cast to the textual representation `"10"').
 %%  </li>
 %% </ul>
-%% '''
 %% As should be obvious from the above description, it is pretty helpful to have a
 %% source copy of the contract you intend to call so that you can re-generate the ACI
 %% if you do not already have a copy, and can check the spec of a function before
@@ -1808,6 +1841,21 @@ encode_call_data2(ArgDef, Fun, Args) ->
         Error -> Error
     end.
 
+
+-spec verify_signature(Sig, Message, PubKey) -> Result
+    when Sig     :: binary(),
+         Message :: iodata(),
+         PubKey  :: pubkey(),
+         Result  :: {ok, Outcome :: boolean()}
+                  | {error, Reason :: term()}.
+%% @doc
+%% Verify a message signature given the signature, the message that was signed, and the
+%% public half of the key that was used to sign.
+%%
+%% The result of a complete signature check is a boolean value return in an `{ok, Outcome}'
+%% tuple, and any `{error, Reason}' return value is an indication that something about the
+%% check failed before verification was able to pass or fail (bad key encoding or similar).
+
 verify_signature(Sig, Message, PubKey) ->
     case aeser_api_encoder:decode(PubKey) of
         {account_pubkey, PK} -> verify_signature2(Sig, Message, PK);
@@ -1899,24 +1947,35 @@ eu(N, Size) ->
 
 
 -spec start() -> ok | {error, Reason :: term()}.
+%% @doc
+%% Public function for manually starting the Vanillae application.
+%%
+%% NOTE:
+%% To start it as a subordinate service within your own supervision tree rather than
+%% as a peer Erlang application within your node, add the vanillae_sup to your own
+%% supervision tree.
 
 start() ->
     application:start(vanillae).
 
 
 -spec stop() -> ok | {error, Reason :: term()}.
+%% @doc
+%% Public function for manually stopping the Vanillae application.
 
 stop() ->
     application:stop(vanillae).
 
 
 -spec start(normal, term()) -> {ok, pid()}.
+%% @private
 
 start(normal, _Args) ->
     vanillae_sup:start_link().
 
 
 -spec stop(term()) -> ok.
+%% @private
 
 stop(_State) ->
     ok.
