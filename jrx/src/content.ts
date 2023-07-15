@@ -12,31 +12,88 @@
  */
 
 
-jr_content_main();
+
+let detect_msg = {type : "to_aepp",
+                  data : {jsonrpc : "2.0",
+                          method  : "connection.announcePresence",
+                          params  : {id        : "jr",
+                                     name      : "JR",
+                                     networkId : "ae_uat",
+                                     origin    : "foobar",
+                                     type      : "extension"}}};
+
+/**
+ * Spam detect message
+ */
+async function
+spam_detect
+    ()
+{
+    while (true) {
+        window.postMessage(detect_msg);
+        await sleep(3000);
+    }
+}
 
 
+
+/**
+ * Hack from stack overflow somewhere to sleep for the given number of ms
+ */
+async function
+sleep
+    (ms: number)
+    : Promise<void>
+{
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
+
+/**
+ * Relays messages from page scripts to the background script
+ */
+function
+a2w_handler
+    (msg: {data: {type? : "to_aepp" | "to_waellet"}})
+{
+    // branch
+    if ("to_waellet" === msg.data.type) {
+        browser.runtime.sendMessage(msg.data);
+    }
+    // otherwise ignore
+}
+
+
+
+/**
+ * Relays messages from background scripts to the page script
+ */
+function
+w2a_handler
+    (msg: any)
+{
+    window.postMessage(msg);
+}
+
+
+
+/**
+ * Main function
+ */
 async function
 jr_content_main
     ()
 {
-   // @ts-ignore browser
-   browser.runtime.onMessage.addListener(handler);
-   window.addEventListener('message', page_script_message_handler);
+   // relay page messages back to the controller
+   window.addEventListener('message', a2w_handler);
 
+   // relay controller messages back to page
+   browser.runtime.onMessage.addListener(w2a_handler);
 
-
-
-    /**
-     * This is the message that we spam the page script with when the user clicks
-     * the "make wallet detectable" button.
-     *
-     * Contains {@link detect_msg} as a field
-     */
-    let detect_awcp_msg = {type : "to_aepp",
-                           data : {jsonrpc : "2.0",
-                                   method  : "connection.announcePresence",
-                                   params  : detect_msg()}};
-
-    // mk detectable
-    mk_detectable(detect_awcp_msg);
+   // spam detect
+   spam_detect();
 }
+
+
+jr_content_main();
