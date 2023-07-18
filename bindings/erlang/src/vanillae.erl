@@ -244,7 +244,7 @@ ae_nodes() ->
 %% this may need to expand depending on how much query load your application generates.
 %% The Vanillae manager will load balance by round-robin distribution.
 
-ae_nodes(List) ->
+ae_nodes(List) when is_list(List) ->
     vanillae_man:ae_nodes(List).
 
 
