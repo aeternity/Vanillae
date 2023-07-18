@@ -9,5 +9,5 @@
  "browser_action"   : {"default_icon"  : "art/jrx-icon-32.png",
                        "default_title" : "Jæck Russell",
                        "default_popup" : "popup.html"},
- "background"       : {"scripts": ["dist/background.js"]},
+ "background"       : {"page" : "background.html"},
  "permissions"      : ["storage"]}

@@ -53,28 +53,44 @@ sleep
 /**
  * Relays messages from page scripts to the background script
  */
-function
+async function
 a2w_handler
     (msg: {data: {type? : "to_aepp" | "to_waellet"}})
 {
+
+    //console.error('JR: a2w_handler', {msg: msg});
+    function onSuccessCase(response_from_bg: any) {
+        console.error('JR A2w success case', response_from_bg);
+        window.postMessage(response_from_bg);
+    }
+    function onErrorCase(error: any) {
+        console.error('JR: error from controller', error);
+    }
+
     // branch
     if ("to_waellet" === msg.data.type) {
-        browser.runtime.sendMessage(msg.data);
+        console.error('JR: WAEEEEEEE');
+        browser.runtime.sendMessage(msg.data).then(
+            onSuccessCase,
+            onErrorCase
+        );
+        //console.error('BOOBS', response);
+        //window.postMessage(response);
     }
     // otherwise ignore
 }
 
 
 
-/**
- * Relays messages from background scripts to the page script
- */
-function
-w2a_handler
-    (msg: any)
-{
-    window.postMessage(msg);
-}
+///**
+// * Relays messages from background scripts to the page script
+// */
+//function
+//w2a_handler
+//    (msg: any)
+//{
+//    window.postMessage(msg);
+//}
 
 
 
@@ -85,11 +101,12 @@ async function
 jr_content_main
     ()
 {
+
    // relay page messages back to the controller
    window.addEventListener('message', a2w_handler);
 
-   // relay controller messages back to page
-   browser.runtime.onMessage.addListener(w2a_handler);
+   //// relay controller messages back to page
+   //browser.runtime.onMessage.addListener(w2a_handler);
 
    // spam detect
    spam_detect();
