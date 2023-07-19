@@ -92,7 +92,7 @@ export {
 // IMPORTS
 //-----------------------------------------------------------------------------
 
-import * as awcp from './jex_include/local-awcp-0.2.1/dist/awcp.js';
+import * as awcp from './jex_include/local-awcp-0.2.2/dist/awcp.js';
 
 
 //-----------------------------------------------------------------------------
@@ -1038,8 +1038,44 @@ msg_sign
 
 
 //-----------------------------------------------------------------------------
-// API: tx sign (no prop)
+// API: tx sign (do prop)
 //-----------------------------------------------------------------------------
+
+/**
+ * Ask the wallet to sign the transaction and propagate it into the network
+ */
+async function
+tx_sign_yesprop
+    (id          : number | string,
+     params      : awcp.Params_A2W_tx_sign_yesprop,
+     timeout_ms  : number,
+     timeout_msg : string,
+     logger      : Logger)
+    : Promise<Safe<awcp.Result_W2A_tx_sign_yesprop, awcp.RpcError | SkTimeoutError>>
+{
+    logger.debug('address', {id:id, params:params, timeout_ms:timeout_ms, timeout_msg:timeout_msg});
+    let msgr = new MsgR(logger);
+    // FIXME: for type purposes, making the correct RPC message should be up here
+    // this way we can enforce that it's a correct RPC call with typescript
+    // Ideal:
+    // let result = await msgr.send_raseev(id, awcp.METHOD_CONNECTION_OPEN, params, target, timeout_ms, timeout_msg);
+    let result =
+        await msgr.send_raseev
+                <"transaction.sign", awcp.Params_A2W_tx_sign_yesprop, awcp.Result_W2A_tx_sign_yesprop>
+                (id, "transaction.sign", params, timeout_ms, timeout_msg);
+    return result;
+}
+
+
+
+//-----------------------------------------------------------------------------
+// API: tx sign (do not propagate transaction)
+//-----------------------------------------------------------------------------
+
+/**
+ * Ask the wallet to sign the transaction but do not propagate the transaction,
+ * instead just return the signed data
+ */
 async function
 tx_sign_noprop
     (id          : number | string,
