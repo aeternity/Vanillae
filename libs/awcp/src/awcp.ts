@@ -1143,12 +1143,42 @@ type Params_A2W_tx_sign_yesprop
  * (layer 4)
  *
  * @example
- * {
- *     "signedTransaction": "tx_+KILAfhCuEDxWnvffMvyrkFWnrImYej38rh99vM9f6pORl/yWTvU97nvUcY8/ck8lgtPA8w5odGSDb9LGY/JSZXsmsXhgKkHuFr4WAwBoQG7Nu65aM7NHt5yM5jz67sd02TQqjFNBwIN6tkQsRD5RKEBe2bmwwUHCDbk6XkgUj3D6lnLv9hsWLoHA+qLzQq4p2wKhg8m9WHIAAABh2hhaW5hbmF7X54G"
- * }
+ * ```json
+ * "transactionHash": {
+ *         "blockHash": "mh_uJZ65APpLtiagJKjTNPZL1g1LJ7oqc2uG44qVqp1gVWwWUgLb",
+ *         "blockHeight": 806313,
+ *         "hash": "th_o3cudpezVywd99a7VMef9Yg7XPixTFueaCqGjdsnqLM99a78t",
+ *         "signatures": [
+ *             "sg_U36NDTFJFP4QEWCdjyhELDUDxsVGZNkq3DrcBCxby4NPUsPjQsFDG7VHN9s7TNUsEAd7qdC5aEjZKrqsKyfqA8apNrotz"
+ *         ],
+ *         "tx": {
+ *             "amount": 10,
+ *             "fee": 16800000000000,
+ *             "nonce": 13,
+ *             "payload": "ba_aGFpbmFuYWbkNu8=",
+ *             "recipientId": "ak_wM8yFU8eSETXU7VSN48HMDmevGoCMiuveQZgkPuRn1nTiRqyv",
+ *             "senderId": "ak_2XhCkjzTwcq1coXSSzHJoMZkUzTwnjH88zmPGkkowUsFNTo9UE",
+ *             "type": "SpendTx",
+ *             "version": 1
+ *         },
+ *         "rawTx": "tx_+KILAfhCuEDOpyHRaYj8MnRwqOzMyRJSh4qud6jRK01wiAWfRHBDo/4e9klk7MsvM0Cr0ENaNkqKfwCDcaga/iDnogN5cukNuFr4WAwBoQHJY35GAOerO8Lmf8ZA6CN2RET0MFXaXVV4pJo3WvoY3KEBe2bmwwUHCDbk6XkgUj3D6lnLv9hsWLoHA+qLzQq4p2wKhg9HjghAAAANh2hhaW5hbmHkTCSc"
+ *     }
+ * ```
  */
 type Result_W2A_tx_sign_yesprop
-    = {signedTransaction : string};
+    = {transactionHash : {blockHash   : string,
+                          blockHeight : number,
+                          hash        : string,
+                          signatures  : Array<string>,
+                          tx          : {amount      : number,
+                                         fee         : number,
+                                         nonce       : number,
+                                         payload     : string,
+                                         recipientId : string,
+                                         senderId    : string,
+                                         type        : string,
+                                         version     : number},
+                          rawTx       : string}};
 
 
 /**

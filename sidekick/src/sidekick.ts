@@ -79,6 +79,7 @@ export {
         // connect
         connect,
         address,
+        tx_sign_yesprop,
         tx_sign_noprop,
         msg_sign,
 

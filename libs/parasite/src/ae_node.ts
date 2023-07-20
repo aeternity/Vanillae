@@ -23,7 +23,7 @@ import * as ae_compiler from './ae_compiler.js'
 // CONSTANTS
 //-------------------------------------------------------------------
 
-export const MIN_FEE          = 16660000000000;
+export const MIN_FEE          = 16800000000000;
 export const MIN_CONTRACT_FEE = 79080000000000;
 export const MIN_GAS_PRICE    =     1000000000;
 export const URL_MAINNET      = "https://mainnet.aeternity.io/v3";
