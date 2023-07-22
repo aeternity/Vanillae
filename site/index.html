@@ -43,41 +43,106 @@
         .reddish {
             background: #ffb3b3;
         }
+
+
+        /* padding */
+        td, th {
+            border: 0px solid #f00;
+            padding-left : 8px;
+            padding-right: 8px;
+            border-radius: 5px;
+        }
+
+        /* horizontal zebra stripes */
+        tr:nth-child(odd) {
+            /*background-color: #6fc8df;*/
+            background-color: rgba(111, 200, 223, 1.0);
+        }
+
+        tr:nth-child(even) {
+            background-color: rgba(150, 225, 250, 1.0);
+            /*background-color: rgba(111, 233, 200, 1.0); */
+        }
+
+        table {
+            border: 4px solid #333;
+            border-radius: 3px;
+            margin-bottom: 5px;
+            /*background-color: #333; */
+        }
+
+        /* vertical zebra stripes
+            td:nth-child(odd), th:nth-child(odd) {
+                background-color: rgba(111, 200, 223, 0.4);
+            }
+        */
     </style>
-    <link rel="stylesheet"
-      href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+
+    <!--
+
+    -->
 </head>
 <body>
 
 <center>
     <img src="./art/Vanillae_circle_logo_256.png" width="128px" height="128px">
-    <h1 style="font-size: 32px">
-        Vanillae Project
-    </h1>
+    <h1 style="font-size: 32px">Vanillae Project</h1>
 </center>
 
 <div class="section orangeish" id="s-tldr">
     <h2>1. tl;dr</h2>
 
-    <p>
-        This is a set of libraries, applications, and utilities which make it
-        easy to for developers to use the Æternity payment network. Including:
-    </p>
+    <p>This is a set of libraries, applications, and utilities which make it
+    easy to for developers to use the Æternity payment network.</p>
+</div>
 
-    <ol>
-        <li><b>Vanillae.erl:</b> talk to an Æternity node from an Erlang application</li>
-        <li><b>Sidekick:</b> talk to an Æternity browser wallet extension from a page script</li>
-        <li><b>Jex:</b> a more intelligent alternative to NPM, specifically for packaging page scripts</li>
-        <li><b>Jack Russell:</b> a browser wallet extension</li>
-        <li><b>VDK:</b> a set of self-contained TS/JS libraries</li>
-    </ol>
+<div class="section skyish" id="s-downloads">
+    <h2>2. Downloads</h2>
+    <!--
+        <p>If you aren't sure if you want the mindist or the fulldist, you probably want the mindist.</p>
+        <p>The mindist is a tarball you can drop on your server and it should just work.</p>
+        <p>The fulldist is a Jex thing. You can install the package to your local
+        repo using <code>jex install foo-bar-X.Y.Z-fulldist.tar.gz</code>. It
+        includes the mindist but also the docs. This is what you want if you are
+        using Jex in your development flow.</p>
+    -->
+    <table>
+        <!-- header -->
+        <tr>
+            <th><b>Package Name</b></th>
+            <th><b>Version</b></th>
+            <th><b>Mindist</b></th>
+            <th><b>Docs</b></th>
+            <th><b>Description</b></th>
+        </tr>
+        <!-- awcp -->
+        <tr>
+            <td>awcp</td>
+            <td>0.2.2</td>
+            <td><a href="./jex/mindists/vr-awcp-0.2.2.tar.gz">Download</a></td>
+            <td><a href="./jex/docs/vr-awcp-0.2.2/">Docs</a></td>
+            <td><b>ÆPP-WÆLLET COMMUNICATION PROTOCOL:</b> type definitions for
+            messages passed between page scripts and browser wallets</td>
+        </tr>
+        <!-- sidekick -->
+        <tr>
+            <td>sidekick</td>
+            <td>0.2.2</td>
+            <td><a href="./jex/mindists/vr-sidekick-0.2.2.tar.gz">Download</a></td>
+            <td><a href="./jex/docs/vr-sidekick-0.2.2/">Docs</a></td>
+            <td><b>SIDEKICK:</b> simple library for talking to a browser wallet
+            extension from a page script. Implements the "Æpp" side of
+            AWCP.</td>
+        </tr>
+    </table>
 </div>
 
 <div class="section pinkish" id="s-contents">
-    <h2>2. Contents</h2>
+    <h2>3. Contents</h2>
 
     <ol>
         <li><a href="#s-tldr">tl;dr</a></li>
+        <li><a href="#s-downloads">Downloads</a></li>
         <li><a href="#s-contents">Contents</a></li>
         <li><a href="#s-motivation-history">Motivation/History</a></li>
         <li><a href="#s-vanillae-erl">Vanillae.erl</a></li>
@@ -86,7 +151,7 @@
 </div>
 
 <div class="section reddish" id="s-motivation-history">
-    <h2>3. Motivation/History</h2>
+    <h2>4. Motivation/History</h2>
 
     <p>The two developers on this project are Craig Everett and Peter
     Harpending.  Craig is an Erlang graybeard. Peter is a recovering
@@ -106,8 +171,8 @@
 
     <p>Aegora is the first normal e-commerce platform that utilizes any form of
     cryptocurrency.  We would like if Aegora made us billionaires, but really
-    Aegora is really a proof-of-concept; that concept being
-    &quot;cryptocurrency could actually be useful.&quot;</p>
+    Aegora is a proof-of-concept; that concept being &quot;cryptocurrency could
+    actually be useful.&quot;</p>
 
     <p>Our hope is that you (yes, <i>you</i>) will be inspired by Aegora, and
     go off and use Æternity for your own commercial projects.  The point of the
