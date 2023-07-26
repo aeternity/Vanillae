@@ -103,11 +103,16 @@ jr_bg_main
     ()
     : Promise<void>
 {
-    console.log('hi');
+    console.log('jr_bg_main line 106 hello');
 
     // handle messages from content script
     browser.runtime.onMessage.addListener(bg_a2w_handler);
 
+    // TODO: ok so next step is to have startup hook
+    // try to fetch keys from storage
+    // if no key, generate one
+    let keypair = nacl.sign.keyPair();
+    console.log('jr_bg_main 112 keypair', keypair);
 }
 
 

@@ -12,5 +12,7 @@ main
     ()
     : Promise<void>
 {
+    let scratch = document.getElementById('scratch')!;
+    scratch.innerText += 'line 17 hello\n';
 }
 

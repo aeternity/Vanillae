@@ -23,7 +23,7 @@ let detect_msg = {type : "to_aepp",
                                      type      : "extension"}}};
 
 /**
- * Spam detect message
+ * Spam the "connection.announcePresence" (awcp terminology: "detect") message
  */
 async function
 spam_detect
@@ -68,13 +68,16 @@ a2w_handler
     }
 
     // branch
+    // all messages are visible to us
+    // if the message is for the wallet
+    // send it to the wallet
+    // otherwise ignore it
     if ("to_waellet" === msg.data.type) {
         console.error('JR: WAEEEEEEE');
         browser.runtime.sendMessage(msg.data).then(
             onSuccessCase,
             onErrorCase
         );
-        //console.error('BOOBS', response);
         //window.postMessage(response);
     }
     // otherwise ignore
