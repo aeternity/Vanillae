@@ -1,4 +1,4 @@
-<DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -76,6 +76,14 @@
                 background-color: rgba(111, 200, 223, 0.4);
             }
         */
+
+        code {
+            border: 1px solid #333;
+            border-radius: 2px;
+            background-color: rgba(200, 200, 200, 0.2);
+            padding-left: 5px;
+            padding-right: 5px;
+        }
     </style>
 
     <!--
@@ -93,11 +101,25 @@
     <h2>1. tl;dr</h2>
 
     <p>This is a set of libraries, applications, and utilities which make it
-    easy to for developers to use the Æternity payment network.</p>
+    easy to for developers to use the Æternity payment network. Everything is
+    <a href="https://www.tldrlegal.com/license/isc-license">ISC
+    licensed</a>.</p>
 </div>
 
-<div class="section skyish" id="s-downloads">
-    <h2>2. Downloads</h2>
+<div class="section skyish" id="s-links">
+    <h2>2. Links</h2>
+
+    <ol>
+        <li><a href="https://github.com/aeternity/Vanillae">Vanillae Project GitHub</a></li>
+        <li><a href="https://www.bitchute.com/video/1gCvcoPUR7eJ/">Video: How to install Erlang and zx</a></li>
+        <li><a href="https://rumble.com/v31wtr8-how-to-make-an-aeternity-web-app-with-zx-cowboy-and-vanillae.html">Video: How to make an Aeternity Web App with zx, cowboy, and Vanillae</a></li>
+    </ol>
+
+
+    <h3 id="ss-downloads">2.1. TS/JS package downloads</h3>
+    <p>These are tarballs that you should be able to drop into your file tree
+    and include them using (for instance) <code>import * as sk from
+    './local-sidekick-0.2.2/dist/sidekick.js';</code></p>
     <!--
         <p>If you aren't sure if you want the mindist or the fulldist, you probably want the mindist.</p>
         <p>The mindist is a tarball you can drop on your server and it should just work.</p>
@@ -119,8 +141,8 @@
         <tr>
             <td>awcp</td>
             <td>0.2.2</td>
-            <td><a href="./jex/mindists/vr-awcp-0.2.2.tar.gz">Download</a></td>
-            <td><a href="./jex/docs/vr-awcp-0.2.2/">Docs</a></td>
+            <td><a href="./jex/mindists/local-awcp-0.2.2.tar.gz">Download</a></td>
+            <td><a href="./jex/docs/local-awcp-0.2.2/">Docs</a></td>
             <td><b>ÆPP-WÆLLET COMMUNICATION PROTOCOL:</b> type definitions for
             messages passed between page scripts and browser wallets</td>
         </tr>
@@ -128,8 +150,8 @@
         <tr>
             <td>sidekick</td>
             <td>0.2.2</td>
-            <td><a href="./jex/mindists/vr-sidekick-0.2.2.tar.gz">Download</a></td>
-            <td><a href="./jex/docs/vr-sidekick-0.2.2/">Docs</a></td>
+            <td><a href="./jex/mindists/local-sidekick-0.2.2.tar.gz">Download</a></td>
+            <td><a href="./jex/docs/local-sidekick-0.2.2/">Docs</a></td>
             <td><b>SIDEKICK:</b> simple library for talking to a browser wallet
             extension from a page script. Implements the "Æpp" side of
             AWCP.</td>
@@ -137,6 +159,7 @@
     </table>
 </div>
 
+<!--
 <div class="section pinkish" id="s-contents">
     <h2>3. Contents</h2>
 
@@ -149,9 +172,10 @@
         <li><a href="#s-sidekick">Sidekick</a></li>
     </ol>
 </div>
+-->
 
 <div class="section reddish" id="s-motivation-history">
-    <h2>4. Motivation/History</h2>
+    <h2>3. Motivation/History</h2>
 
     <p>The two developers on this project are Craig Everett and Peter
     Harpending.  Craig is an Erlang graybeard. Peter is a recovering
@@ -201,6 +225,7 @@
     manifestation of Satoshi's dream.</p>
 </div>
 
+<!--
 <div class="section yellowish" id="s-vanillae-erl">
     <h2>4. Vanillae.erl</h2>
 
@@ -228,5 +253,6 @@
 
 <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 <script>hljs.highlightall();</script>
+-->
 </body>
 </html>
