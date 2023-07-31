@@ -35,12 +35,42 @@
             </td>
         </tr>
     </table>
-    <ul id="keypairs">
-    </ul>
+    <p id="no-keypairs">You have no keypairs yet. Either generate a new one or
+    recover one you already have.</p>
+    <ul id="keypairs"></ul>
+    <!-- recover from faert phrase -->
+    <form>
+        <button id="generate-btn">Generate New Keypair</button>
+    </form>
+    <!-- recover from faert phrase -->
+    <form>
+        <label for="faert-input">FÆRT Phrase:</label>
+        <input id="faert-input"></input>
+        <button id="faert-btn">Recover Keypair from FÆRT Phrase</button>
+    </form>
+    <!-- recover from seed phrase
+            <form>
+                <label for="seed-input">Seed Phrase:</label>
+                <input id="seed-input"></input>
+                <button id="seed-btn">Recover Keypair from Seed Phrase</button>
+            </form>
+    -->
 </div>
 
-<pre id="scratch">
-</pre>
+<pre id="scratch"></pre>
+
+<!--
+<div style="margin-top: 5px; width: 95%; background: #d9ffd6; border: 1px solid #6c5d96; border-radius: 5px;">
+    <table>
+        <tr>
+            <td><img src="./art/keypair.svg" style="width: 32px; height: 32px;"></td>
+            <td style="justify-content: center; font-size: 28px; text-align: center; font-weight: bold">
+                KEYPAIRS
+            </td>
+        </tr>
+    </table>
+</div>
+-->
 
 
 <script type="module" src="./dist/popup.js"></script>

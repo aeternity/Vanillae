@@ -3,14 +3,16 @@
  *
  * Notes:
  *
- * 1. This is not loaded as a module, which means it has limited permissions.
- *    In particular, asynchronous calls are 1000x more annoying.
+ * 1. This is not a module, so calling async code is super annoying and
+ *    everything has to be in script order.
  * 2. All this does is relay messages between here and the background script
  *    (i.e. application controller).
  *
+ * This is more or less a finished script. Doesn't need the "api call" idiom
+ * that the popup <-> controller IPC needs.
+ *
  * @module
  */
-
 
 
 let detect_msg = {type : "to_aepp",
@@ -26,12 +28,12 @@ let detect_msg = {type : "to_aepp",
  * Spam the "connection.announcePresence" (awcp terminology: "detect") message
  */
 async function
-spam_detect
+c_spam_detect
     ()
 {
     while (true) {
         window.postMessage(detect_msg);
-        await sleep(3000);
+        await c_sleep(3000);
     }
 }
 
@@ -41,7 +43,7 @@ spam_detect
  * Hack from stack overflow somewhere to sleep for the given number of ms
  */
 async function
-sleep
+c_sleep
     (ms: number)
     : Promise<void>
 {
@@ -51,20 +53,21 @@ sleep
 
 
 /**
- * Relays messages from page scripts to the background script
+ * Relays messages between page scripts and the background script
  */
 async function
-a2w_handler
+c_a2w_handler
     (msg: {data: {type? : "to_aepp" | "to_waellet"}})
+    : Promise<void>
 {
 
     //console.error('JR: a2w_handler', {msg: msg});
     function onSuccessCase(response_from_bg: any) {
-        console.error('JR A2w success case', response_from_bg);
+        console.log('jr: c_a2w_handler success ', response_from_bg);
         window.postMessage(response_from_bg);
     }
     function onErrorCase(error: any) {
-        console.error('JR: error from controller', error);
+        console.error('jr: c_a2w_handler: error from controller', error);
     }
 
     // branch
@@ -73,47 +76,31 @@ a2w_handler
     // send it to the wallet
     // otherwise ignore it
     if ("to_waellet" === msg.data.type) {
-        console.error('JR: WAEEEEEEE');
-        browser.runtime.sendMessage(msg.data).then(
-            onSuccessCase,
-            onErrorCase
-        );
-        //window.postMessage(response);
+        console.log('jr: c_a2w_handler relaying message', msg.data);
+        browser.runtime
+            .sendMessage({frum: 'content',
+                          data: msg.data})
+            .then(onSuccessCase,
+                  onErrorCase);
     }
     // otherwise ignore
 }
-
-
-
-///**
-// * Relays messages from background scripts to the page script
-// */
-//function
-//w2a_handler
-//    (msg: any)
-//{
-//    window.postMessage(msg);
-//}
-
 
 
 /**
  * Main function
  */
 async function
-jr_content_main
+c_main
     ()
 {
+    console.log('c_main');
 
-   // relay page messages back to the controller
-   window.addEventListener('message', a2w_handler);
+    // relay messages back and forth between page script and controller
+    window.addEventListener('message', c_a2w_handler);
 
-   //// relay controller messages back to page
-   //browser.runtime.onMessage.addListener(w2a_handler);
-
-   // spam detect
-   spam_detect();
+    // spam the detect message
+    c_spam_detect();
 }
 
-
-jr_content_main();
+c_main()
