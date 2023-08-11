@@ -97,10 +97,6 @@ b_main
 {
     console.log('b_main');
 
-    // get state
-    let state: bi_state = await bi_get_state();
-    console.log(state);
-
     // handle messages from content or popup scripts
     browser.runtime.onMessage.addListener(bi_runtime_msg_handler);
 }
@@ -113,6 +109,7 @@ b_main
 //=============================================================================
 //=============================================================================
 // !bi_types
+// !bi_state
 
 /**
  * @example
@@ -256,6 +253,7 @@ bi_msg_handler_content
      sendResponse : any)
     : Promise<bi_w2a_return_data>
 {
+    console.log('bi_msg_handler_content', {msg: msg});
     //console.log('msg', msg);
     //console.log('sender', sender);
     //console.log('sendResponse', sendResponse);
@@ -282,6 +280,7 @@ bi_msg_handler_content
     }
 
 
+    console.log('jr bg content message handler method:', msg.data.method);
     switch (msg.data.method) {
         case "connection.open":
             return w2a_ok({id        : "jr",
@@ -292,15 +291,22 @@ bi_msg_handler_content
 
         // TODO: factor this out into a function
         case "address.subscribe":
+            console.log('jr bg content message handler address.subscribe');
             // get the state
             let i_state : bi_state = await bi_get_state();
+
+            console.log('poop');
 
             // get the keypairs
             // for now only getting the first one
             let address_bytes : Uint8Array = i_state.keypairs[0].publicKey;
 
+            console.log('pee');
+
             // convert it to a string
-            let address_ak_str : string    = vdk_aeser.pubkey2ak_str(address_bytes);
+            let address_ak_str : string    = await vdk_aeser.pubkey2ak_str(address_bytes);
+
+            console.log('poopoo peepee');
 
             return w2a_ok({subscription : ["connected"],
                            address      : {current   : {address_ak_str: {}},
@@ -425,11 +431,13 @@ bi_get_state
     // if there is such a state, get it
     // @ts-ignore ts doesn't understand querying if a key exists
     if (!!(gotten_state.jr_state)) {
-        // @ts-ignore ts doesn't understand that we have proved that the key exists
+        console.log('foo');
+        // FIXME: write s2i
         return bi_s2i(gotten_state);
     }
     // otherwise return default state
     else {
+        console.log('bar');
         // set the state
         let default_i_state : bi_state  = bi_state_default();
         await bi_set_state(default_i_state);
