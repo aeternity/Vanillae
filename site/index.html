@@ -95,12 +95,14 @@
     TypeScript stuff (hurray).</p>
 
     <p>Vanillae started as our own internal toolset that we developed in the
-    process of making <a href="https://aegora.jp/">Aegora.jp</a>.  In
-    particular, Craig developed Vanillae.erl because talking to the blockchain
-    was needlessly annoying, and Peter developed Sidekick because the Æternity
-    JavaScript SDK was (is) impossible to use.  We then open-sourced our
-    tooling, and the Æternity Foundation decided to pay us to continue to
-    develop it and expand it.</p>
+    process of making <a href="https://aegora.jp/">Aegora.jp</a>.  Aegora is a
+    normal, vanilla, e-commerce site.  We just happen to use Æternity as the
+    payment backend. In particular, Craig developed Vanillae.erl because
+    talking to the blockchain from the server backend was needlessly annoying,
+    and Peter developed Sidekick because the Æternity JavaScript SDK was (is)
+    impossible to use.  We then open-sourced our "talk to Æternity" tooling,
+    and the Æternity Foundation decided to pay us to continue to develop it and
+    expand it.</p>
 
     <p>Aegora is the first normal e-commerce platform that utilizes any form of
     cryptocurrency.  We would like if Aegora made us billionaires, but really
@@ -120,17 +122,34 @@
 
     <p>Our hypothesis is that most cryptocurrencies (i.e. every coin except
     Æternity) are technically deficient to the point that they are totally
-    useless in the space of Things That Actually Have To Work (i.e.
-    business).</p>
+    useless in The Space Of Things That Actually Have To Work (e.g.
+    non-scam commerce).  To test this hypothesis, our goal is to make Æternity
+    easily usable and see if people start using it in The Space Of Things That
+    Actually Have To Work.</p>
+
+    <p>As of July 2023, Æternity is still in the same usability class as Arch
+    Linux.  Our goal with this project to get to like Debian.<p>
+
+    <p>From our personal experience building Aegora, <i>once you understand how
+    to use it</i>, Æternity is <b><i>by far</i></b> the easiest electronic
+    payment system to use in a commercial application.  It is the genuine
+    manifestation of Satoshi's dream.</p>
 </div>
 
 <div class="section yellowish" id="s-vanillae-erl">
     <h2>4. Vanillae.erl</h2>
 
-    <p>
-        This is an Erlang application that smooths over the rough edges
-        involved in talking to Æternity nodes.
-    </p>
+    <p>This is an Erlang application that smooths over the rough edges
+    involved in talking to Æternity nodes from an Erlang program.</p>
+
+    <p>Vanillae.erl is also a standard that is meant to be mimicked in other
+    languages.  The idea is to have a "library" (Erlangers: it's an Erlang
+    application) of Erlang function calls that return natural Erlang data
+    structures.  The API is designed in such a way that the API should
+    generalize to other languages.  We would like there to be a Vanillae.py for
+    instance (Python 2 of course), which would maybe require startup or
+    something, maybe the natural idiom would be whatever you do to make `with`
+    syntax work, whatever.  The point is, there should be a 
 </div>
 
 <div class="section skyish" id="s-sidekick">

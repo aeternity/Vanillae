@@ -1,6 +1,6 @@
-import * as ae_node from './jex_include/local-parasite-0.2.0/dist/ae_node.js';
-import * as awcp    from './jex_include/local-awcp-0.2.1/dist/awcp.js';
-import * as sk      from './jex_include/local-sidekick-0.2.1/dist/sidekick.js';
+import * as ae_node from './jex_include/local-parasite-0.2.2/dist/ae_node.js';
+import * as awcp    from './jex_include/local-awcp-0.2.2/dist/awcp.js';
+import * as sk      from './jex_include/local-sidekick-0.2.2/dist/sidekick.js';
 
 var pv_address: string;
 var pv_spendtx_base64: string;
@@ -181,6 +181,7 @@ form_tx
     //
 }
 
+
 async function
 sign_tx
     (logger: sk.Logger)
@@ -196,6 +197,24 @@ sign_tx
     let signedTx = await sk.tx_sign_noprop('sk-tx-sign-1', sign_params, sk.TIMEOUT_DEF_TX_SIGN_NOPROP_MS, 'sign transaction timed out', logger);
     document.getElementById("sign-spendtx-result")!.innerHTML = JSON.stringify(signedTx, undefined, 4);
 }
+
+
+async function
+sign_tx_prop
+    (logger: sk.Logger)
+    : Promise<void>
+{
+    let sign_params = {
+        tx: pv_spendtx_base64,
+        // returnsigned: false tells it to propagate the transaction
+        // returnsigned: true just signs it and returns the signed tx back
+        returnSigned: false as false,
+        networkId: "ae_uat"
+    };
+    let signedTx = await sk.tx_sign_yesprop('sk-tx-sign-2', sign_params, sk.TIMEOUT_DEF_TX_SIGN_NOPROP_MS, 'sign transaction timed out', logger);
+    document.getElementById("sign-spendtx-prop-result")!.innerHTML = JSON.stringify(signedTx, undefined, 4);
+}
+
 
 async function
 sign_msg
@@ -224,6 +243,7 @@ main
     document.getElementById('address')!.onclick = function() { address(logger); };
     document.getElementById('mk-spendtx')!.onclick = function() { form_tx(logger); };
     document.getElementById('sign-spendtx')!.onclick = function() { sign_tx(logger); };
+    document.getElementById('sign-spendtx-prop')!.onclick = function() { sign_tx_prop(logger); };
     document.getElementById('sign-message')!.onclick = function() { sign_msg(logger); };
 
     //set_pv_address("ak_2XhCkjzTwcq1coXSSzHJoMZkUzTwnjH88zmPGkkowUsFNTo9UE");
