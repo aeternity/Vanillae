@@ -19,19 +19,31 @@
  *    between the page script and a generic wallet, and that is already defined
  *    in AWCP.
  *
- * # Naming Conventions
+ * # Naming/Notation Conventions
  *
- * -   `b_...`   -> background script API
- * -   `bi_...`  -> background internal
- * -   `bis_...` -> background internal storage
- *     storage is in json types so we need a separate type layer
+ * ```
+ * - b_...   -> background script API
+ * - bi_...  -> background internal
+ * - bis_... -> background internal storage
+ * - p_...   -> popup script API
+ * - !...    -> bookmark for regex searches to quickly find a section
+ *              bang = bookmark
+ * ```
  *
- * -   `p_...`   -> popup script API
+ *
+ * Re storage: the browser's storage layer for extensions basically stores
+ * the data in JSON, so we need a separate type layer to make sure the
+ * conversion between the program's internal state and what the browser
+ * stores doesn't get fucked up.  Despite the fact that JSON is magical fairy
+ * dust that seamlessly encodes/decodes losslessly to and from any type, I
+ * still am much more comfortable writing it out myself.
  *
  * @module
  */
 
-import * as awcp from './jex_include/local-awcp-0.2.2/dist/awcp.js';
+
+import * as awcp      from './jex_include/local-awcp-0.2.2/dist/awcp.js';
+import * as vdk_aeser from './jex_include/local-vdk_aeser-0.1.0/dist/vdk_aeser.js';
 
 
 export type {
@@ -100,6 +112,7 @@ b_main
 // INTERNALS: TYPES
 //=============================================================================
 //=============================================================================
+// !bi_types
 
 /**
  * @example
@@ -250,9 +263,24 @@ bi_msg_handler_content
     let msg_method : string          = msg.data.method;
     let msg_id     : string | number = msg.data.id;
 
+
+    // function to encode the ok message
+    // depends on parameters above so makes sense to have it be a lambda
     function w2a_ok(result_for_content_script: any) {
-        return bi_mk_w2a_msg_ok(msg_method, msg_id, result_for_content_script);
+        return bi_mk_w2a_msg_ok(msg_method,
+                                msg_id,
+                                result_for_content_script);
     }
+
+    // function to encode the error message
+    // depends on parameters above so makes sense to have it be a lambda
+    function w2a_err(code: number, message: string) {
+        return bi_mk_w2a_msg_err(msg_method,
+                                 msg_id,
+                                 code,
+                                 message);
+    }
+
 
     switch (msg.data.method) {
         case "connection.open":
@@ -277,13 +305,17 @@ bi_msg_handler_content
             return w2a_ok({subscription : ["connected"],
                            address      : {current   : {address_ak_str: {}},
                                            connected : {}}});
+
+        // default is NYI
+        default:
+            return w2a_err(awcp.ERROR_CODE_RpcMethodNotFoundError, 'not yet implemented');
     }
 }
 
 
 
 /**
- * Wrap up bs for w2a message
+ * SUCCESS CASE: Wrap up bs for w2a message
  *
  * This really should go into the AWCP library but I'm lazy
  *
@@ -302,6 +334,31 @@ bi_mk_w2a_msg_ok
                     method  : method,
                     id      : id,
                     result  : result}};
+}
+
+
+
+/**
+ * ERROR CASE: Wrap up bs for w2a message
+ *
+ * This really should go into the AWCP library but I'm lazy
+ *
+ * @internal
+ */
+function
+bi_mk_w2a_msg_err
+    (method  : string,
+     id      : string | number,
+     code    : number,
+     message : string)
+    : awcp.EventData_W2A<awcp.RpcResp_error<string>>
+{
+    return {type : "to_aepp",
+            data : {jsonrpc : "2.0",
+                    method  : method,
+                    id      : id,
+                    error   : {code    : code,
+                               message : message}}};
 }
 
 
@@ -424,6 +481,8 @@ bi_i2s
     // convert keypairs
     let i_keypairs : Array<bi_nacl_keypair>  = internal_state.keypairs;
     let s_keypairs : Array<bis_nacl_keypair> = i_keypairs.map(bi_i2s_keypair);
+
+    return {jr_state : {keypairs: s_keypairs}};
 }
 
 
