@@ -21,9 +21,12 @@
  *
  * # Naming Conventions
  *
- * - `b_...` -> background script API
- * - `_...` -> internal
- * - `p_...` -> popup script API
+ * -   `b_...`   -> background script API
+ * -   `bi_...`  -> background internal
+ * -   `bis_...` -> background internal storage
+ *     storage is in json types so we need a separate type layer
+ *
+ * -   `p_...`   -> popup script API
  *
  * @module
  */
@@ -46,22 +49,30 @@ export {
 
 
 //=============================================================================
+//=============================================================================
 // API: GLOBAL TYPES
+//=============================================================================
 //=============================================================================
 
 
+//=============================================================================
 //=============================================================================
 // API: POPUP TYPES
 //=============================================================================
+//=============================================================================
 
 
+//=============================================================================
 //=============================================================================
 // API: POPUP SCRIPT
 //=============================================================================
+//=============================================================================
 
 
 //=============================================================================
+//=============================================================================
 // API: BACKGROUND SCRIPT
+//=============================================================================
 //=============================================================================
 
 /**
@@ -75,17 +86,19 @@ b_main
     console.log('b_main');
 
     // get state
-    let state: _state = await _get_state();
+    let state: bi_state = await bi_get_state();
     console.log(state);
 
     // handle messages from content or popup scripts
-    browser.runtime.onMessage.addListener(_runtime_msg_handler);
+    browser.runtime.onMessage.addListener(bi_runtime_msg_handler);
 }
 
 
 
 //=============================================================================
+//=============================================================================
 // INTERNALS: TYPES
+//=============================================================================
 //=============================================================================
 
 /**
@@ -104,39 +117,71 @@ b_main
  *
  * @internal
  */
-type _a2w_calldata
+type bi_a2w_calldata
     = awcp.EventData_A2W<awcp.RpcCall<string, any>>;
                                    // method  params
 
 
 
 /**
- * Return data
+ * Return data for queries from a page script
+ *
+ * @internal
  */
-type _w2a_return_data
+type bi_w2a_return_data
     = awcp.EventData_W2A<awcp.RpcResp<string, any>>;
 
 
 
 /**
- * Type from NaCL
+ * Type copied from NaCL
+ *
+ * @internal
  */
-type _nacl_keypair
+type bi_nacl_keypair
     = {secretKey : Uint8Array,
        publicKey : Uint8Array};
 
 
 
 /**
- * JR state
+ * JR state used internally
+ *
+ * @internal
  */
-type _state = {keypairs: Array<_nacl_keypair>};
+type bi_state
+    = {keypairs: Array<bi_nacl_keypair>};
 
+
+
+/**
+ * JR storage state
+ *
+ * Storage is in JSON so we have to have a different type for storage and for
+ * what's actually used during ordinary data processing.
+ *
+ * @internal
+ */
+type bis_state
+    = {jr_state: {keypairs: Array<bis_nacl_keypair>}};
+
+
+
+/**
+ * How keypairs are stored
+ *
+ * @internal
+ */
+type bis_nacl_keypair
+    = {secretKey : Array<number>,
+       publicKey : Array<number>};
 
 
 
 //=============================================================================
+//=============================================================================
 // INTERNALS: FUNCTIONS
+//=============================================================================
 //=============================================================================
 
 
@@ -149,39 +194,54 @@ type _state = {keypairs: Array<_nacl_keypair>};
  * @internal
  */
 async function
-_runtime_msg_handler
+bi_runtime_msg_handler
     (msg          : {frum: 'content' | 'popup',
                      data: any},
      sender       : any,
      sendResponse : any)
-    : Promise<_w2a_return_data | _popup_return_data>
+    : Promise<bi_w2a_return_data | bi_popup_return_data>
 {
     //console.log('msg', msg);
     //console.log('sender', sender);
     //console.log('sendResponse', sendResponse);
 
     switch (msg.frum) {
+        // messages from the content script (i.e. from page scripts)
         case 'content':
-            return await _msg_handler_content(msg.data as _a2w_calldata, sender, sendResponse);
+            return await bi_msg_handler_content(msg.data as bi_a2w_calldata, sender, sendResponse);
+        // messages from the popup window
         case 'popup':
-            return await _msg_handler_popup(msg.data as _popup_calldata, sender, sendResponse);
+            return await bi_msg_handler_popup(msg.data as bi_popup_calldata, sender, sendResponse);
     }
 }
 
 
 
+//-----------------------------------------------------------------------------
+// INTERNALS: CONTENT SCRIPT MESSAGE HANDLING
+//-----------------------------------------------------------------------------
+
 /**
  * Handle messages from the content script
  *
  * Note to self: `sendResponse` is fake. Doesn't work. Instead just return the
- * response
+ * response.
+ *
+ * Literally the way it works is that
+ *
+ * - IF this is a non-async function (i.e. does NOT return a `Promise`), THEN
+ *   `sendResponse` is fake and the runtime sends back the return value of the
+ *   function. This is our case.
+ * - ELSE `sendResponse` works. Presumably this is for backward compabitility.
+ *
+ * @internal
  */
 async function
-_msg_handler_content
-    (msg          : _a2w_calldata,
+bi_msg_handler_content
+    (msg          : bi_a2w_calldata,
      sender       : any,
      sendResponse : any)
-    : Promise<_w2a_return_data>
+    : Promise<bi_w2a_return_data>
 {
     //console.log('msg', msg);
     //console.log('sender', sender);
@@ -191,7 +251,7 @@ _msg_handler_content
     let msg_id     : string | number = msg.data.id;
 
     function w2a_ok(result_for_content_script: any) {
-        return mk_w2a_msg_ok(msg_method, msg_id, result_for_content_script);
+        return bi_mk_w2a_msg_ok(msg_method, msg_id, result_for_content_script);
     }
 
     switch (msg.data.method) {
@@ -199,76 +259,38 @@ _msg_handler_content
             return w2a_ok({id        : "jr",
                            name      : "JR",
                            networkId : "ae_uat",
-                           origin    : "foobar",
+                           origin    : browser.runtime.getURL('/'),
                            type      : "extension"});
+
+        // TODO: factor this out into a function
         case "address.subscribe":
+            // get the state
+            let i_state : bi_state = await bi_get_state();
+
+            // get the keypairs
+            // for now only getting the first one
+            let address_bytes : Uint8Array = i_state.keypairs[0].publicKey;
+
+            // convert it to a string
+            let address_ak_str : string    = vdk_aeser.pubkey2ak_str(address_bytes);
+
             return w2a_ok({subscription : ["connected"],
-                           address      : {current   : {"bobs": {}},
+                           address      : {current   : {address_ak_str: {}},
                                            connected : {}}});
     }
 }
 
 
 
-
-
-
-
-
 /**
- * fetch the state from local storage
+ * Wrap up bs for w2a message
  *
- * if there is no state make an initial state and store it
- */
-async function
-_get_state
-    ()
-    : Promise<_state>
-{
-    console.log('jr bg _get_state');
-    // this may or may not have the keyword "jr_state"
-    let gotten_state : object = await browser.storage.local.get();
-
-    console.log('jr bg gotten_state', gotten_state);
-
-    // if there is such a state, get it
-    // @ts-ignore ts doesn't understand querying if a key exists
-    if (!!(gotten_state.jr_state)) {
-        // @ts-ignore ts doesn't understand that we have proved that the key exists
-        return gotten_state.jr_state;
-    }
-    // otherwise return default state
-    else {
-        return _state_default();
-    }
-}
-
-
-
-/**
- * default state for JR
+ * This really should go into the AWCP library but I'm lazy
+ *
+ * @internal
  */
 function
-_state_default
-    ()
-    : _state
-{
-    console.log('jr_state_default');
-    // if no key, generate one
-    // @ts-ignore ts doesn't like that nacl is dumb. i don't like it either
-    let init_keypair : nacl_keypair = nacl.sign.keyPair() as nacl_keypair;
-    let default_state = { keypairs: [init_keypair] };
-    console.log('jr_state_default default_state', default_state);
-    return default_state;
-}
-
-
-
-/**
- * wrap up bs for w2a message
- */
-function
-mk_w2a_msg_ok
+bi_mk_w2a_msg_ok
     <result_t extends any>
     (method : string,
      id     : string | number,
@@ -284,28 +306,189 @@ mk_w2a_msg_ok
 
 
 
+//----------------------------------------------------------------------------
+// INTERNALS: POPUP WINDOW MESSAGE HANDLING
+//----------------------------------------------------------------------------
 
 
-
-
-type _popup_calldata
+type bi_popup_calldata
     = 'init';
 
 
-type _popup_return_data
+type bi_popup_return_data
     = 'die';
 
 
 /**
  * Handle messages from the popup
+ *
+ * @internal
  */
 async function
-_msg_handler_popup
-    (msg          : _popup_calldata,
+bi_msg_handler_popup
+    (msg          : bi_popup_calldata,
      sender       : any,
      sendResponse : any)
-    : Promise<_popup_return_data>
+    : Promise<bi_popup_return_data>
 {
     console.log('jr bg_msg_handler_popup msg', msg);
     return 'die';
+}
+
+
+
+//=============================================================================
+//=============================================================================
+// INTERNALS: STORAGE API
+//=============================================================================
+//=============================================================================
+
+
+/**
+ * Fetch the state from local storage
+ *
+ * if there is no state make an initial state and store it
+ *
+ * @internal
+ */
+async function
+bi_get_state
+    ()
+    : Promise<bi_state>
+{
+    console.log('jr bg bi_get_state');
+    // this may or may not have the keyword "jr_state"
+    let gotten_state : {jr_state?: bi_state} = await browser.storage.local.get();
+
+    console.log('jr bg gotten_state', gotten_state);
+
+    // problem: browser storage is JSON basically
+    // so we need to convert our state to and from json
+
+    // if there is such a state, get it
+    // @ts-ignore ts doesn't understand querying if a key exists
+    if (!!(gotten_state.jr_state)) {
+        // @ts-ignore ts doesn't understand that we have proved that the key exists
+        return bi_s2i(gotten_state);
+    }
+    // otherwise return default state
+    else {
+        // set the state
+        let default_i_state : bi_state  = bi_state_default();
+        await bi_set_state(default_i_state);
+        // return it
+        return default_i_state;
+    }
+}
+
+
+
+/**
+ * Set the state. Blocks until state is set, exception is thrown if there is an
+ * exception.
+ *
+ * @internal
+ */
+async function
+bi_set_state
+    (i_state : bi_state)
+    : Promise<void>
+{
+    console.log('jr bg bi_set_state internal state:', i_state);
+
+    // convert to storage state
+    let s_state : bis_state = bi_i2s(i_state);
+
+    console.log('jr bg bi_set_state storage state:', s_state);
+
+    // store
+    await browser.storage.local.set(s_state);
+}
+
+
+
+//-----------------------------------------------------------------------------
+// INTERNALS: INTERNAL->STORAGE TYPE COERCION
+//-----------------------------------------------------------------------------
+
+/**
+ * Internal state to storage state converter
+ *
+ * @internal
+ */
+function
+bi_i2s
+    (internal_state : bi_state)
+    : bis_state
+{
+    // convert keypairs
+    let i_keypairs : Array<bi_nacl_keypair>  = internal_state.keypairs;
+    let s_keypairs : Array<bis_nacl_keypair> = i_keypairs.map(bi_i2s_keypair);
+}
+
+
+
+/**
+ * JSONify a keypair
+ *
+ * basically turn each array into numbers
+ *
+ * @internal
+ */
+function
+bi_i2s_keypair
+    (i_keypair : bi_nacl_keypair)
+    : bis_nacl_keypair
+{
+    let i_secretKey : Uint8Array    = i_keypair.secretKey;
+    let i_publicKey : Uint8Array    = i_keypair.publicKey;
+    let s_secretKey : Array<number> = bi_i2s_bytes2nums(i_secretKey);
+    let s_publicKey : Array<number> = bi_i2s_bytes2nums(i_publicKey);
+    return {secretKey : s_secretKey,
+            publicKey : s_publicKey};
+}
+
+
+
+/**
+ * Convert a byte array to an array of numbers
+ *
+ * @internal
+ */
+function
+bi_i2s_bytes2nums
+    (bytes: Uint8Array)
+    : Array<number>
+{
+    let arr : Array<number> = [];
+    for (let this_byte of bytes) {
+        arr.push(this_byte);
+    }
+    return arr;
+}
+
+
+
+/**
+ * Default state for JR
+ *
+ * Note
+ * 1. This returns the *internal* state that lives in RAM, **NOT** what is
+ *    stored in browser storage
+ * 2. This function is **NOT** deterministic. It randomly generates a keypair
+ *
+ * @internal
+ */
+function
+bi_state_default
+    ()
+    : bi_state
+{
+    console.log('jr_state_default');
+    // if no key, generate one
+    // @ts-ignore ts doesn't like that nacl is dumb. i don't like it either
+    let init_keypair  : bi_nacl_keypair = nacl.sign.keyPair() as bi_nacl_keypair;
+    let default_state : bi_state        = { keypairs: [init_keypair] };
+    console.log('jr_state_default default_state', default_state);
+    return default_state;
 }

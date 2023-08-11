@@ -21,7 +21,7 @@ let detect_msg = {type : "to_aepp",
                           params  : {id        : "jr",
                                      name      : "JR",
                                      networkId : "ae_uat",
-                                     origin    : "foobar",
+                                     origin    : browser.runtime.getURL('/'),
                                      type      : "extension"}}};
 
 /**
