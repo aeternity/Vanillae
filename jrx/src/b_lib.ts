@@ -38,6 +38,12 @@
  * dust that seamlessly encodes/decodes losslessly to and from any type, I
  * still am much more comfortable writing it out myself.
  *
+ *
+ * FIXME: check bytes or sth for keypair storage to guard against json fuckery
+ * FIXME: versioned storage
+ * FIXME: move some of the AWCP data making functions to the AWCP lib
+ * FIXME: the address_subscribe data scraping nonsense needs to be factored out
+ *
  * @module
  */
 
@@ -108,8 +114,7 @@ b_main
 // INTERNALS: TYPES
 //=============================================================================
 //=============================================================================
-// !bi_types
-// !bi_state
+// !bi_types !bi_state !bi-types !bi-state
 
 /**
  * @example
@@ -295,27 +300,80 @@ bi_msg_handler_content
             // get the state
             let i_state : bi_state = await bi_get_state();
 
-            console.log('poop');
+            console.log('foof');
 
             // get the keypairs
             // for now only getting the first one
             let address_bytes : Uint8Array = i_state.keypairs[0].publicKey;
 
-            console.log('pee');
+            console.log('fee');
 
             // convert it to a string
             let address_ak_str : string    = await vdk_aeser.pubkey2ak_str(address_bytes);
 
-            console.log('poopoo peepee');
+            // of course to create the dumb return object we have to be dumb
+            // ourselves
 
-            return w2a_ok({subscription : ["connected"],
-                           address      : {current   : {address_ak_str: {}},
-                                           connected : {}}});
+            console.log('foofoo feefee');
+
+            return w2a_ok(bi_address_reply(address_ak_str, []));
 
         // default is NYI
         default:
             return w2a_err(awcp.ERROR_CODE_RpcMethodNotFoundError, 'not yet implemented');
     }
+}
+
+
+/**
+ * Make the dumb address_subscribe thing
+ *
+ * @internal
+ */
+function
+bi_address_reply
+    (current_pubkey_str : string,
+     other_pubkey_strs  : Array<string>)
+    : awcp.Result_W2A_address_subscribe
+{
+    // From the AWCP docs:
+    //
+    //      @example
+    //      This is if the user has many keypairs. The currently selected one is under
+    //      `current`.  Craig, I agree this is stupid, but that's how it works.
+    //
+    //      {
+    //          "subscription": [
+    //              "connected"
+    //          ],
+    //          "address": {
+    //              "current": {
+    //                  "ak_25C3xaAGQddyKAnaLLMjAhX24xMktH2NNZxY3fMaZQLMGED2Nf": {}
+    //              },
+    //              "connected": {
+    //                  "ak_BMtPGuqDhWLnMVL4t6VFfS32y2hd8TSYwiYa2Z3VdmGzgNtJP": {},
+    //                  "ak_25BqQuiVCasiqTkXHEffq7XCsuYEtgjNeZFeVFbuRtJkfC9NyX": {},
+    //                  "ak_4p6gGoCcwQzLXd88KhdjRWYgd4MfTsaCeD8f99pzZhJ6vzYYV": {}
+    //              }
+    //          }
+    //      }
+
+    // so we make the "object" in the "current" field
+    // this is so dumb but
+    let current_obj = {};
+    // @ts-ignore shut the fuck up i know this is stupid
+    current_obj[current_pubkey_str] = {};
+
+    // make the object in the "connected" field
+    let connected_obj = {};
+    for (let this_pubkey_str of other_pubkey_strs) {
+        // @ts-ignore shut the fuck up i know this is stupid
+        connected_obj[this_pubkey_str] = {};
+    }
+
+    return {subscription : ['connected'],
+            address      : {current   : current_obj,
+                            connected : connected_obj}};
 }
 
 
@@ -410,7 +468,7 @@ bi_msg_handler_popup
 /**
  * Fetch the state from local storage
  *
- * if there is no state make an initial state and store it
+ * If there is no state make an initial state and store it
  *
  * @internal
  */
@@ -420,20 +478,37 @@ bi_get_state
     : Promise<bi_state>
 {
     console.log('jr bg bi_get_state');
+
+    // so
+    // - if extension has NEVER committed state (i.e. this is the first
+    //   invocation), there will be NO key "jr_state"
+    // - if we have committed state, that key will exist
+    //
+    // right now our game is branching on whether or not there is existing
+    // state in the browser's storage
+    //
+    // - if there is state, we simply fetch it from storage, convert it to a
+    //   type suitable for use in code (e.g. keypairs are byte arrays rather
+    //   than dumb JSON number arrays)
+    // - if there is no state, we create a default initial state, commit it,
+    //   and hand it back to the calling code
+
     // this may or may not have the keyword "jr_state"
-    let gotten_state : {jr_state?: bi_state} = await browser.storage.local.get();
+    let gotten_state : ({} | bis_state) = await browser.storage.local.get();
 
     console.log('jr bg gotten_state', gotten_state);
 
     // problem: browser storage is JSON basically
     // so we need to convert our state to and from json
 
+
     // if there is such a state, get it
     // @ts-ignore ts doesn't understand querying if a key exists
     if (!!(gotten_state.jr_state)) {
         console.log('foo');
-        // FIXME: write s2i
-        return bi_s2i(gotten_state);
+        // TS doesn't know we've proven the key exists and so therefore this is
+        // of type bis_state
+        return bi_s2i(gotten_state as bis_state);
     }
     // otherwise return default state
     else {
@@ -542,7 +617,7 @@ bi_i2s_bytes2nums
  * Note
  * 1. This returns the *internal* state that lives in RAM, **NOT** what is
  *    stored in browser storage
- * 2. This function is **NOT** deterministic. It randomly generates a keypair
+ * 2. This function is **NOT** deterministic. It randomly generates a keypair.
  *
  * @internal
  */
@@ -558,4 +633,44 @@ bi_state_default
     let default_state : bi_state        = { keypairs: [init_keypair] };
     console.log('jr_state_default default_state', default_state);
     return default_state;
+}
+
+
+
+//-----------------------------------------------------------------------------
+// INTERNALS: STORAGE->INTERNAL TYPE COERCION
+//-----------------------------------------------------------------------------
+
+/**
+ * Storage -> internal state converter
+ *
+ * @internal
+ */
+function
+bi_s2i
+    (s_state : bis_state)
+    : bi_state
+{
+    // for now bis_state is just keypairs
+    let s_keypairs : Array<bis_nacl_keypair> = s_state.jr_state.keypairs;
+
+    // convert numbers to byte array
+    function nums2bytes(nums: Array<number>): Uint8Array {
+        return new Uint8Array(nums);
+    }
+
+    // convert storage keypair to normal keypair
+    function keypair_s2i(s_keypair: bis_nacl_keypair): bi_nacl_keypair {
+        let s_secretKey : Array<number> = s_keypair.secretKey;
+        let s_publicKey : Array<number> = s_keypair.publicKey;
+        let i_secretKey : Uint8Array    = nums2bytes(s_secretKey);
+        let i_publicKey : Uint8Array    = nums2bytes(s_publicKey);
+        return {secretKey : i_secretKey,
+                publicKey : i_publicKey};
+    }
+
+    // convert each keypair
+    let i_keypairs : Array<bi_nacl_keypair> = s_keypairs.map(keypair_s2i);
+
+    return {keypairs: i_keypairs};
 }
