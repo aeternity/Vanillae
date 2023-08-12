@@ -1,0 +1,6 @@
+{type, library}.
+{realm, local}.
+{name, vdk_aeser}.
+{version, "0.1.0"}.
+{deps, ["local-vdk_base58-0.1.0",
+        "local-vdk_binary-0.1.0"]}.
