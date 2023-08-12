@@ -43,6 +43,9 @@
  * FIXME: versioned storage
  * FIXME: move some of the AWCP data making functions to the AWCP lib
  * FIXME: the address_subscribe data scraping nonsense needs to be factored out
+ * FIXME: quiet mode (undetectable by default)
+ * FIXME: ask user if he wants to connect/address/etc
+ * FIXME: ask user if he wants to sign messages
  *
  * @module
  */
@@ -266,6 +269,9 @@ bi_msg_handler_content
     let msg_method : string          = msg.data.method;
     let msg_id     : string | number = msg.data.id;
 
+    // get the state
+    let i_state : bi_state = await bi_get_state();
+
 
     // function to encode the ok message
     // depends on parameters above so makes sense to have it be a lambda
@@ -287,6 +293,7 @@ bi_msg_handler_content
 
     console.log('jr bg content message handler method:', msg.data.method);
     switch (msg.data.method) {
+        // right now just give connect info back
         case "connection.open":
             return w2a_ok({id        : "jr",
                            name      : "JR",
@@ -294,29 +301,28 @@ bi_msg_handler_content
                            origin    : browser.runtime.getURL('/'),
                            type      : "extension"});
 
-        // TODO: factor this out into a function
+        // right now just give address back
         case "address.subscribe":
             console.log('jr bg content message handler address.subscribe');
-            // get the state
-            let i_state : bi_state = await bi_get_state();
-
-            console.log('foof');
-
             // get the keypairs
             // for now only getting the first one
             let address_bytes : Uint8Array = i_state.keypairs[0].publicKey;
-
-            console.log('fee');
-
             // convert it to a string
             let address_ak_str : string    = await vdk_aeser.pubkey2ak_str(address_bytes);
-
-            // of course to create the dumb return object we have to be dumb
-            // ourselves
-
-            console.log('foofoo feefee');
-
             return w2a_ok(bi_address_reply(address_ak_str, []));
+
+        // right now just sign message
+        case "message.sign":
+            let secret_key        : Uint8Array = i_state.keypairs[0].secretKey;
+            let msg_str           : string     = msg.data.params.message;
+            // use nacl detached signatures
+            // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L141-L143
+            // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L160-L167
+            let hashed_salted_msg : Uint8Array = vdk_aecrypt.hash_and_salt_msg(msg_str);
+            let signature         : Uint8Array = nacl.sign.detached(hashed_salted_msg, secret_key);
+            let signature_str     : string     = vdk_binary.bytes_to_hex_str(signature);
+            return w2a_ok({signature: signature_str});
+
 
         // default is NYI
         default:
