@@ -361,13 +361,13 @@ bi_address_reply
     // so we make the "object" in the "current" field
     // this is so dumb but
     let current_obj = {};
-    // @ts-ignore shut the fuck up i know this is stupid
+    // @ts-ignore shut up tsc i know this is stupid it's not my fault
     current_obj[current_pubkey_str] = {};
 
     // make the object in the "connected" field
     let connected_obj = {};
     for (let this_pubkey_str of other_pubkey_strs) {
-        // @ts-ignore shut the fuck up i know this is stupid
+        // @ts-ignore shut up tsc i know this is stupid it's not my fault
         connected_obj[this_pubkey_str] = {};
     }
 
