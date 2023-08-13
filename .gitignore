@@ -3,3 +3,5 @@
 erl_crash.dump
 *.beam
 __pycache__
+jex_include
+jex_mindist
