@@ -51,8 +51,10 @@
  */
 
 
-import * as awcp      from './jex_include/local-awcp-0.2.2/dist/awcp.js';
-import * as vdk_aeser from './jex_include/local-vdk_aeser-0.1.0/dist/vdk_aeser.js';
+import * as awcp        from './jex_include/local-awcp-0.2.2/dist/awcp.js';
+import * as vdk_aecrypt from './jex_include/local-vdk_aecrypt-0.1.0/dist/vdk_aecrypt.js';
+import * as vdk_aeser   from './jex_include/local-vdk_aeser-0.1.0/dist/vdk_aeser.js';
+import * as vdk_binary  from './jex_include/local-vdk_binary-0.1.0/dist/vdk_binary.js';
 
 
 export type {
@@ -313,6 +315,7 @@ bi_msg_handler_content
 
         // right now just sign message
         case "message.sign":
+            console.log('jr bg content message handler message sign');
             let secret_key        : Uint8Array = i_state.keypairs[0].secretKey;
             let msg_str           : string     = msg.data.params.message;
             // use nacl detached signatures
