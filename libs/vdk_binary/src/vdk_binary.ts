@@ -8,9 +8,15 @@ export {
     // basic bytes functions
     bytes_eq,
     bytes_concat,
+    bytes_concat_arr,
     strong_rand_bytes,
     bytes_to_bigint,
+    bytes_to_bigint_little,
     bigint_to_bytes,
+    bigint_to_bytes_little,
+    encode_utf8,
+    bytes_zeros,
+    bytes_to_hex_str,
     // basic bits functions
     bits_null,
     bits_zeros,
@@ -54,7 +60,7 @@ bytes_eq
 
 
 /**
- * Concatenate two arrays
+ * Concatenate two byte arrays
  */
 function
 bytes_concat
@@ -92,6 +98,22 @@ bytes_concat
 
 
 /**
+ * Concatenate an arbitrary number of byte arrays
+ *
+ * Calling with the empty array as an argument returns an empty byte array
+ */
+function
+bytes_concat_arr
+    (arrays : Array<Uint8Array>)
+    : Uint8Array
+{
+    // reduce is what js calls foldl
+    return arrays.reduce(bytes_concat, new Uint8Array([]));
+}
+
+
+
+/**
  * Cryptographically random bytes
  */
 function
@@ -110,6 +132,8 @@ strong_rand_bytes
  * Convert a byte array to a bigint
  *
  * Equivalent to `binary:decode_unsigned/1` from Erlang
+ *
+ * Big endian byte order
  */
 function
 bytes_to_bigint
@@ -130,9 +154,30 @@ bytes_to_bigint
 
 
 /**
+ * Convert a byte array to a bigint
+ *
+ * Equivalent to `binary:decode_unsigned/1` from Erlang
+ *
+ * Little endian byte order
+ */
+function
+bytes_to_bigint_little
+    (bytes: Uint8Array)
+    : bigint
+{
+    // reverse bytes and then call bytes_to_bigint
+    bytes.reverse();
+    return bytes_to_bigint(bytes);
+}
+
+
+
+/**
  * Convert a bigint to a byte array
  *
  * Equivalent to `binary:encode_unsigned/1` from Erlang
+ *
+ * Big endian byte order
  *
  * Requires input to be positive
  */
@@ -151,10 +196,98 @@ bigint_to_bytes
         q /= 256n;
         arr_reverse.push(r);
     }
+    // i wrote the big endian implementation first
+    // so leaving as is
+    // but if we wanted to be more l33t we would refactor this as calling
+    // `bigint_to_bytes_little` and reversing the result
     arr_reverse.reverse();
     return new Uint8Array(arr_reverse);
 }
 
+
+
+/**
+ * Same as `bigint_to_bytes` but result array is reversed (i.e. little endian
+ * byte order)
+ */
+function
+bigint_to_bytes_little
+    (q: bigint)
+    : Uint8Array
+{
+    // copied from big endian implementation
+    if (q < 0n) {
+        throw new Error('q < 0n: ' + q);
+    }
+
+    let arr_reverse = [];
+    while (q > 0n) {
+        let r = Number(q % 256n);
+        q /= 256n;
+        arr_reverse.push(r);
+    }
+    // ah: BIG endian notation reverses the array
+    // we will just not do that
+    // arr_reverse.reverse();
+    return new Uint8Array(arr_reverse);
+}
+
+
+
+/**
+ * Encode a string in utf8
+ */
+function
+encode_utf8
+    (str : string)
+    : Uint8Array
+{
+    return (new TextEncoder()).encode(str);
+}
+
+
+
+/**
+ * Given number of zero bytes
+ */
+function
+bytes_zeros
+    (byte_length: number)
+    : Uint8Array
+{
+    let result : Uint8Array = new Uint8Array(byte_length);
+    for (let i0=0; i0<byte_length; i0++) {
+        result[i0] = 0;
+    }
+    return result;
+}
+
+
+
+/**
+ * Encode a byte string in hexadecimal
+ */
+function
+bytes_to_hex_str
+    (bytes: Uint8Array)
+    : string
+{
+    // make sure each byte is a 2 digit string
+    function byte_to_hex2(n: number): string {
+        if (n < 16)
+            return '0' + n.toString(16);
+        else
+            return n.toString(16);
+    }
+
+    let result: string = '';
+
+    for (let n of bytes) {
+        result += byte_to_hex2(n);
+    }
+
+    return result;
+}
 
 
 /**

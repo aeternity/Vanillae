@@ -1,0 +1,5 @@
+{type, library}.
+{realm, local}.
+{name, vdk_colors}.
+{version, "0.1.0"}.
+{deps, []}.
