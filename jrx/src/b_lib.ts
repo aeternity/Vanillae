@@ -390,8 +390,8 @@ tx_sign
     // SerializedObject can either be the object or the hash of the object
     // let's stick with hash for now
     let network_id      : Uint8Array = vdk_binary.encode_utf8('ae_uat');
-    let tx_hash_bytes   : Uint8Array = hash(tx_bytes);
-    let sign_data       : Uint8Array = vdk_binary.bytes_concat(network_id, tx_hash_bytes);
+    // let tx_hash_bytes   : Uint8Array = hash(tx_bytes);
+    let sign_data       : Uint8Array = vdk_binary.bytes_concat(network_id, tx_bytes);
     // @ts-ignore yes nacl is stupid
     let signature       : Uint8Array = nacl.sign.detached(sign_data, secret_key);
     let signed_tx_bytes : Uint8Array = vdk_aeser.signed_tx([signature], tx_bytes);
