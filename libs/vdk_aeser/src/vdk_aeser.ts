@@ -64,11 +64,11 @@ pubkey2ak_str
 */
 async function
 add_check_bytes
-    (pubkey_bytes : Uint8Array)
+    (data_bytes : Uint8Array)
     : Promise<Uint8Array>
 {
-    let check_bytes : Uint8Array = await shasha4(pubkey_bytes);
-    return vdk_binary.bytes_concat(pubkey_bytes, check_bytes);
+    let check_bytes : Uint8Array = await shasha4(data_bytes);
+    return vdk_binary.bytes_concat(data_bytes, check_bytes);
 }
 
 
@@ -241,8 +241,7 @@ base64check
      data_bytes : Uint8Array)
     : Promise<string>
 {
-    let check_bytes : Uint8Array = await shasha4(data_bytes);
-    let full_bytes  : Uint8Array = vdk_binary.bytes_concat(check_bytes, data_bytes);
+    let full_bytes  : Uint8Array = await add_check_bytes(data_bytes);
     let full_str    : string     = vdk_base64.encode(full_bytes);
     return prefix + '_' + full_str;
 }
@@ -254,8 +253,7 @@ base58check
      data_bytes : Uint8Array)
     : Promise<string>
 {
-    let check_bytes : Uint8Array = await shasha4(data_bytes);
-    let full_bytes  : Uint8Array = vdk_binary.bytes_concat(check_bytes, data_bytes);
+    let full_bytes  : Uint8Array = await add_check_bytes(data_bytes);
     let full_str    : string     = vdk_base58.encode(full_bytes);
     return prefix + '_' + full_str;
 }
