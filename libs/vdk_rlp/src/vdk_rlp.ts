@@ -19,8 +19,12 @@ export {
     decoded_data,
     decode_result,
     decode,
-    encode
+    encode,
+    encode_uint,
+    encode_biguint
 }
+
+import * as vdk_binary from './jex_include/local-vdk_binary-0.1.0/dist/vdk_binary.js';
 
 
 //=============================================================================
@@ -518,4 +522,30 @@ is_list
     : boolean
 {
     return (x instanceof Array);
+}
+
+
+
+/**
+ * Encode an non-negative integer into RLP
+ */
+function
+encode_uint
+    (n: number)
+    : Uint8Array
+{
+    return encode_biguint(BigInt(n));
+}
+
+
+/**
+ * Encode an unsigned BigInt into RLP
+ */
+function
+encode_biguint
+    (n: bigint)
+    : Uint8Array
+{
+    let bytes : Uint8Array = vdk_binary.bigint_to_bytes(n);
+    return encode(bytes);
 }

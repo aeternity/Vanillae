@@ -270,5 +270,10 @@ signed_tx
      tx         : Uint8Array)
     : Uint8Array
 {
-    return vdk_rlp.encode([signatures, tx]);
+    // tag for signed tx
+    let tag_bytes = vdk_rlp.encode_uint(11);
+    // not sure what version number should be but guessing 1
+    let vsn_bytes = vdk_rlp.encode_uint(1);
+    // result is [tag, vsn, signatures, tx]
+    return vdk_rlp.encode([tag_bytes, vsn_bytes, signatures, tx]);
 }

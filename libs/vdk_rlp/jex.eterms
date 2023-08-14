@@ -2,4 +2,4 @@
 {realm, local}.
 {name, vdk_rlp}.
 {version, "0.1.0"}.
-{deps, []}.
+{deps, ["local-vdk_binary-0.1.0"]}.

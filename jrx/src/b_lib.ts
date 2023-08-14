@@ -52,6 +52,7 @@
 
 
 import * as awcp        from './jex_include/local-awcp-0.2.2/dist/awcp.js';
+// @ts-ignore yes i know blake is stupid
 import * as blake2b     from './jex_include/local-blakejs-1.2.1/dist/blake2b.js';
 //import * as vdk_aecrypt from './jex_include/local-vdk_aecrypt-0.1.0/dist/vdk_aecrypt.js';
 import * as vdk_aeser   from './jex_include/local-vdk_aeser-0.1.0/dist/vdk_aeser.js';
@@ -326,7 +327,7 @@ bi_msg_handler_content
         case "transaction.sign":
             console.log('jr bg content message handler transaction sign');
             let tx_str : string = msg.data.params.tx;
-            console.log('transaction: ', tx);
+            console.log('transaction: ', tx_str);
             let result          = await tx_sign(tx_str, secret_key)
             console.log('signed transaction: ', result.signedTransaction);
             return w2a_ok(result);
@@ -358,6 +359,7 @@ msg_sign
     // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L141-L143
     // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L160-L167
     let hashed_salted_msg : Uint8Array = hash_and_salt_msg(msg_str);
+    // @ts-ignore yes nacl is stupid
     let signature         : Uint8Array = nacl.sign.detached(hashed_salted_msg, secret_key);
     let signature_str     : string     = vdk_binary.bytes_to_hex_str(signature);
     return {signature: signature_str};
@@ -382,6 +384,7 @@ tx_sign
     : Promise<{signedTransaction : string}>
 {
     let tx_bytes        : Uint8Array = (await vdk_aeser.unbaseNcheck(tx_str)).bytes;
+    // @ts-ignore yes nacl is stupid
     let signature       : Uint8Array = nacl.sign.detached(tx_bytes, secret_key);
     let signed_tx_bytes : Uint8Array = vdk_aeser.signed_tx([signature], tx_bytes);
     let signed_tx_str   : string     = await vdk_aeser.baseNcheck('tx', signed_tx_bytes);
