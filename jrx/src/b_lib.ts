@@ -384,8 +384,9 @@ tx_sign
     : Promise<{signedTransaction : string}>
 {
     let tx_bytes        : Uint8Array = (await vdk_aeser.unbaseNcheck(tx_str)).bytes;
+    let tx_hash_bytes   : Uint8Array = hash(tx_bytes);
     // @ts-ignore yes nacl is stupid
-    let signature       : Uint8Array = nacl.sign.detached(tx_bytes, secret_key);
+    let signature       : Uint8Array = nacl.sign.detached(tx_hash_bytes, secret_key);
     let signed_tx_bytes : Uint8Array = vdk_aeser.signed_tx([signature], tx_bytes);
     let signed_tx_str   : string     = await vdk_aeser.baseNcheck('tx', signed_tx_bytes);
     return {signedTransaction: signed_tx_str};
@@ -824,9 +825,22 @@ hash_and_salt_msg
     : Uint8Array
 {
     let message_bytes : Uint8Array = vdk_binary.encode_utf8(message_str);
-    return blake2b.blake2b(salt_msg(message_bytes), // bytes to hash
-                           undefined,               // key (optional)
-                           32);                     // resulting byte length
+    let salted_bytes  : Uint8Array = salt_msg(message_bytes);
+    return hash(salted_bytes);
+}
+
+
+/**
+ * Blake2 hash of data
+ */
+function
+hash
+    (data_bytes : Uint8Array)
+    : Uint8Array
+{
+    return blake2b.blake2b(data_bytes,      // bytes to hash
+                           undefined,       // key (optional)
+                           32);             // resulting byte length
 }
 
 
