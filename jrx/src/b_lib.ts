@@ -295,6 +295,10 @@ bi_msg_handler_content
 
 
     console.log('jr bg content message handler method:', msg.data.method);
+
+    let public_key        : Uint8Array = i_state.keypairs[0].publicKey;
+    let secret_key        : Uint8Array = i_state.keypairs[0].secretKey;
+
     switch (msg.data.method) {
         // right now just give connect info back
         case "connection.open":
@@ -307,26 +311,25 @@ bi_msg_handler_content
         // right now just give address back
         case "address.subscribe":
             console.log('jr bg content message handler address.subscribe');
-            // get the keypairs
-            // for now only getting the first one
-            let address_bytes : Uint8Array = i_state.keypairs[0].publicKey;
             // convert it to a string
-            let address_ak_str : string    = await vdk_aeser.pubkey2ak_str(address_bytes);
+            let address_ak_str : string    = await vdk_aeser.pubkey2ak_str(public_key);
+            console.log('public key:', address_ak_str);
             return w2a_ok(bi_address_reply(address_ak_str, []));
 
         // right now just sign message
         case "message.sign":
             console.log('jr bg content message handler message sign');
-            let secret_key        : Uint8Array = i_state.keypairs[0].secretKey;
-            let msg_str           : string     = msg.data.params.message;
-            // use nacl detached signatures
-            // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L141-L143
-            // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L160-L167
-            let hashed_salted_msg : Uint8Array = hash_and_salt_msg(msg_str);
-            let signature         : Uint8Array = nacl.sign.detached(hashed_salted_msg, secret_key);
-            let signature_str     : string     = vdk_binary.bytes_to_hex_str(signature);
-            return w2a_ok({signature: signature_str});
+            let msg_str : string = msg.data.params.message;
+            return w2a_ok(msg_sign(msg_str, secret_key));
 
+        // right now just sign tx
+        case "transaction.sign":
+            console.log('jr bg content message handler transaction sign');
+            let tx_str : string = msg.data.params.tx;
+            console.log('transaction: ', tx);
+            let result          = await tx_sign(tx_str, secret_key)
+            console.log('signed transaction: ', result.signedTransaction);
+            return w2a_ok(result);
 
         // default is NYI
         default:
@@ -334,6 +337,56 @@ bi_msg_handler_content
     }
 }
 
+
+/**
+ * Fucking js block scope rules
+ *
+ * NOOOOOOOO YOU CAN'T DECLARE TWO DIFFERENT VARIABLES WITH THE SAME NAME IN
+ * TWO DIFFERENT CASES EVEN THOUGH THEY'RE MUTUALLY EXCLUSIVE
+ *
+ * wojak.jpg
+ *
+ * @internal
+ */
+function
+msg_sign
+    (msg_str    : string,
+     secret_key : Uint8Array)
+    : {signature : string}
+{
+    // use nacl detached signatures
+    // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L141-L143
+    // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L160-L167
+    let hashed_salted_msg : Uint8Array = hash_and_salt_msg(msg_str);
+    let signature         : Uint8Array = nacl.sign.detached(hashed_salted_msg, secret_key);
+    let signature_str     : string     = vdk_binary.bytes_to_hex_str(signature);
+    return {signature: signature_str};
+}
+
+
+
+/**
+ * Fucking js block scope rules
+ *
+ * NOOOOOOOO YOU CAN'T DECLARE TWO DIFFERENT VARIABLES WITH THE SAME NAME IN
+ * TWO DIFFERENT CASES EVEN THOUGH THEY'RE MUTUALLY EXCLUSIVE
+ *
+ * wojak.jpg
+ *
+ * @internal
+ */
+async function
+tx_sign
+    (tx_str    : string,
+     secret_key : Uint8Array)
+    : Promise<{signedTransaction : string}>
+{
+    let tx_bytes        : Uint8Array = (await vdk_aeser.unbaseNcheck(tx_str)).bytes;
+    let signature       : Uint8Array = nacl.sign.detached(tx_bytes, secret_key);
+    let signed_tx_bytes : Uint8Array = vdk_aeser.signed_tx([signature], tx_bytes);
+    let signed_tx_str   : string     = await vdk_aeser.baseNcheck('tx', signed_tx_bytes);
+    return {signedTransaction: signed_tx_str};
+}
 
 /**
  * Make the dumb address_subscribe thing
