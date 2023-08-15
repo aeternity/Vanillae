@@ -21,7 +21,12 @@ export {
     shasha4,
     unbaseNcheck,
     baseNcheck,
-    signed_tx
+    signed_tx,
+    mansplain
+}
+
+export type {
+    baseNchecked
 }
 
 
@@ -165,8 +170,11 @@ unbase64check
     : Promise<baseNchecked>
 {
     let bytes               : Uint8Array = vdk_base64.decode(baseNstr);
-    let check_bytes         : Uint8Array = bytes.slice(0, 4);
-    let data_bytes          : Uint8Array = bytes.slice(4);
+    // ah ok here is the bug
+    let bytes_len           : number     = bytes.byteLength;
+    let data_bytes_len      : number     = bytes_len - 4;
+    let data_bytes          : Uint8Array = bytes.slice(0, data_bytes_len);
+    let check_bytes         : Uint8Array = bytes.slice(data_bytes_len);
     let correct_check_bytes : Uint8Array = await shasha4(data_bytes);
     let check_passed        : boolean    = vdk_binary.bytes_eq(correct_check_bytes, check_bytes);
     return {bytes        : data_bytes,
@@ -180,8 +188,10 @@ unbase58check
     : Promise<baseNchecked>
 {
     let bytes               : Uint8Array = vdk_base58.decode(baseNstr);
-    let check_bytes         : Uint8Array = bytes.slice(0, 4);
-    let data_bytes          : Uint8Array = bytes.slice(4);
+    let bytes_len           : number     = bytes.byteLength;
+    let data_bytes_len      : number     = bytes_len - 4;
+    let data_bytes          : Uint8Array = bytes.slice(0, data_bytes_len);
+    let check_bytes         : Uint8Array = bytes.slice(data_bytes_len);
     let correct_check_bytes : Uint8Array = await shasha4(data_bytes);
     let check_passed        : boolean    = vdk_binary.bytes_eq(correct_check_bytes, check_bytes);
     return {bytes        : data_bytes,
@@ -276,4 +286,41 @@ signed_tx
     let vsn_bytes = vdk_rlp.encode_uint(1);
     // result is [tag, vsn, signatures, tx]
     return vdk_rlp.encode([tag_bytes, vsn_bytes, signatures, tx]);
+}
+
+
+
+/**
+ * Take apart some API-encoded data and show its component parts
+ *
+ * For debugging purposes
+ */
+async function
+mansplain
+    (api_str : string)
+    : Promise<object>
+{
+    let prefix : string
+
+    let x = await unbaseNcheck(api_str);
+
+    let check_passed : boolean    = x.check_passed;
+    let data_bytes   : Uint8Array = x.bytes;
+
+    let mansplained_data : object = mansplain_bytes(data_bytes);
+
+    return {check_passed : check_passed,
+            data         : mansplained_data};
+}
+
+
+/**
+ * Take RLP encoded bytes and mansplain them
+ */
+function
+mansplain_bytes
+    (data_bytes : Uint8Array)
+    : object
+{
+    return vdk_rlp.decode(data_bytes);
 }
