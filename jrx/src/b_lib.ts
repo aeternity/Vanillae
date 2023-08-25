@@ -34,12 +34,12 @@
  * Re storage: the browser's storage layer for extensions basically stores
  * the data in JSON, so we need a separate type layer to make sure the
  * conversion between the program's internal state and what the browser
- * stores doesn't get fucked up.  Despite the fact that JSON is magical fairy
- * dust that seamlessly encodes/decodes losslessly to and from any type, I
- * still am much more comfortable writing it out myself.
+ * stores doesn't get fornicated up.  Despite the fact that JSON is magical
+ * fairy dust that seamlessly encodes/decodes losslessly to and from any type,
+ * I still am much more comfortable writing it out myself.
  *
  *
- * FIXME: check bytes or sth for keypair storage to guard against json fuckery
+ * FIXME: check bytes or sth for keypair storage to guard against json fornicateery
  * FIXME: versioned storage
  * FIXME: move some of the AWCP data making functions to the AWCP lib
  * FIXME: the address_subscribe data scraping nonsense needs to be factored out
@@ -340,7 +340,7 @@ bi_msg_handler_content
 
 
 /**
- * Fucking js block scope rules
+ * Fornicating js block scope rules
  *
  * NOOOOOOOO YOU CAN'T DECLARE TWO DIFFERENT VARIABLES WITH THE SAME NAME IN
  * TWO DIFFERENT CASES EVEN THOUGH THEY'RE MUTUALLY EXCLUSIVE
@@ -368,7 +368,7 @@ msg_sign
 
 
 /**
- * Fucking js block scope rules
+ * Fornicating js block scope rules
  *
  * NOOOOOOOO YOU CAN'T DECLARE TWO DIFFERENT VARIABLES WITH THE SAME NAME IN
  * TWO DIFFERENT CASES EVEN THOUGH THEY'RE MUTUALLY EXCLUSIVE
