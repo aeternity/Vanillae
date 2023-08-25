@@ -1584,27 +1584,39 @@ coerce_bindings(VarTypes, Terms, Direction) ->
     DefLength = length(VarTypes),
     ArgLength = length(Terms),
     if
-        DefLength =:= ArgLength -> coerce_zipped_bindings(lists:zip(VarTypes, Terms), Direction);
+        DefLength =:= ArgLength -> coerce_zipped_bindings(lists:zip(VarTypes, Terms), Direction, arg);
         DefLength >   ArgLength -> {error, too_few_args};
         DefLength   < ArgLength -> {error, too_many_args}
     end.
 
-coerce_zipped_bindings(Bindings, Direction) ->
-    coerce_zipped_bindings(Bindings, Direction, [], []).
+coerce_zipped_bindings(Bindings, Direction, Tag) ->
+    coerce_zipped_bindings(Bindings, Direction, Tag, [], []).
 
-coerce_zipped_bindings([Next | Rest], Direction, Good, Broken) ->
+coerce_zipped_bindings([Next | Rest], Direction, Tag, Good, Broken) ->
     {{ArgName, Type}, Term} = Next,
     case coerce(Type, Term, Direction) of
         {ok, NewTerm} ->
-            coerce_zipped_bindings(Rest, Direction, [NewTerm | Good], Broken);
-        {error, Error} ->
-            coerce_zipped_bindings(Rest, Direction, Good, [{ArgName, Error} | Broken])
+            coerce_zipped_bindings(Rest, Direction, Tag, [NewTerm | Good], Broken);
+        {error, Errors} ->
+            Wrapped = wrap_errors({Tag, ArgName}, Errors),
+            coerce_zipped_bindings(Rest, Direction, Tag, Good, [Wrapped | Broken])
     end;
-coerce_zipped_bindings([], _, Good, []) ->
+coerce_zipped_bindings([], _, _, Good, []) ->
     {ok, lists:reverse(Good)};
-coerce_zipped_bindings([], _, _, Broken) ->
-    {error, {args, lists:reverse(Broken)}}.
+coerce_zipped_bindings([], _, _, _, Broken) ->
+    {error, combine_errors(Broken)}.
 
+wrap_errors(Location, Errors) ->
+    F = fun({Error, Path}) ->
+                {Error, [Location | Path]}
+        end,
+    lists:map(F, Errors).
+
+combine_errors(Broken) ->
+    F = fun(NextErrors, Acc) ->
+                NextErrors ++ Acc
+        end,
+    lists:foldl(F, [], Broken).
 
 coerce({_, _, integer}, S, _) when is_integer(S) ->
     {ok, S};
@@ -1613,16 +1625,16 @@ coerce({O, N, integer},  S, to_fate) when is_list(S) ->
         Val = list_to_integer(S),
         {ok, Val}
     catch
-        error:badarg -> {error, {invalid, O, N, S}}
+        error:badarg -> single_error({invalid, O, N, S})
     end;
 coerce({O, N, address},  S, to_fate) ->
     try
         case aeser_api_encoder:decode(unicode:characters_to_binary(S)) of
             {account_pubkey, Key} -> {ok, {address, Key}};
-            _                     -> {error, bad_pubkey}
+            _                     -> single_error({invalid, O, N, S})
         end
     catch
-        error:_ -> {error, {invalid, O, N, S}}
+        error:_ -> single_error({invalid, O, N, S})
     end;
 coerce({_, _, address}, {address, Bin}, from_fate) ->
     Address = aeser_api_encoder:encode(account_pubkey, Bin),
@@ -1631,10 +1643,10 @@ coerce({O, N, contract}, S, to_fate) ->
     try
         case aeser_api_encoder:decode(unicode:characters_to_binary(S)) of
             {contract_pubkey, Key} -> {ok, {contract, Key}};
-            _                      -> {error, bad_contract}
+            _                      -> single_error({invalid, O, N, S})
         end
     catch
-        error:_ -> {error, {invalid, O, N, S}}
+        error:_ -> single_error({invalid, O, N, S})
     end;
 coerce({_, _, contract}, {contract, Bin}, from_fate) ->
     Address = aeser_api_encoder:encode(contract_pubkey, Bin),
@@ -1643,8 +1655,8 @@ coerce({_, _, boolean}, true, _) ->
     {ok, true};
 coerce({_, _, boolean}, false, _) ->
     {ok, false};
-coerce({_, _, boolean},  _, _) ->
-    {error, not_bool};
+coerce({O, N, boolean},  S, _) ->
+    single_error({invalid, O, N, S});
 coerce({O, N, string}, Str, Direction) ->
     Result = case Direction of
                  to_fate -> unicode:characters_to_binary(Str);
@@ -1652,16 +1664,16 @@ coerce({O, N, string}, Str, Direction) ->
              end,
     case Result of
         {error, _, _} ->
-            {error, invalid_string, O, N, Str};
+            single_error({invalid, O, N, Str});
         {incomplete, _, _} ->
-            {error, invalid_string, O, N, Str};
+            single_error({invalid, O, N, Str});
         StrBin ->
             {ok, StrBin}
     end;
 coerce({_, _, {list, [Type]}}, Data, Direction) when is_list(Data) ->
-    coerce_list(Type, Data, Direction, []);
+    coerce_list(Type, Data, Direction);
 coerce({_, _, {map, [KeyType, ValType]}}, Data, Direction) when is_map(Data) ->
-    coerce_map(KeyType, ValType, maps:iterator(Data), Direction, #{});
+    coerce_map(KeyType, ValType, Data, Direction);
 coerce({O, N, {tuple, ElementTypes}}, Data, to_fate) when is_tuple(Data) ->
     ElementList = tuple_to_list(Data),
     coerce_tuple(O, N, ElementTypes, ElementList, to_fate);
@@ -1675,7 +1687,7 @@ coerce({O, N, {variant, Variants}}, Data, to_fate) when is_tuple(Data), tuple_si
             coerce_variant2(O, N, Variants, Name, Tag, TermTypes, Terms, to_fate);
         not_found ->
             ValidNames = [Valid || {Valid, _} <- Variants],
-            {error, {adt_invalid, O, N, Name, ValidNames}}
+            single_error({invalid_variant, O, N, Name, ValidNames})
     end;
 coerce({O, N, {variant, Variants}}, Name, to_fate) when is_list(Name) ->
     coerce({O, N, {variant, Variants}}, {Name}, to_fate);
@@ -1685,8 +1697,8 @@ coerce({O, N, {variant, Variants}}, {variant, _, Tag, Tuple}, from_fate) ->
     coerce_variant2(O, N, Variants, Name, Tag, TermTypes, Terms, from_fate);
 coerce({O, N, {record, MemberTypes}}, Map, to_fate) when is_map(Map) ->
     coerce_map_to_record(O, N, MemberTypes, Map);
-coerce({_, _, {record, MemberTypes}}, {tuple, Tuple}, from_fate) ->
-    coerce_record_to_map(MemberTypes, Tuple);
+coerce({O, N, {record, MemberTypes}}, {tuple, Tuple}, from_fate) ->
+    coerce_record_to_map(O, N, MemberTypes, Tuple);
 coerce({O, N, {unknown_type, _}}, Data, _) ->
     case N of
         already_normalized ->
@@ -1703,37 +1715,59 @@ coerce({O, N, _}, Data, from_fate) ->
             io:format("Warning: Unimplemented type ~p (i.e. ~p).~nUsing term as is:~n~p~n", [O, N, Data])
     end,
     {ok, Data};
-coerce({O, N, _}, Data, _) -> {error, {invalid, O, N, Data}}.
+coerce({O, N, _}, Data, _) -> single_error({invalid, O, N, Data}).
 
-coerce_list(Type, [Next | Rest], Direction, Acc) ->
+coerce_list(Type, Elements, Direction) ->
+    % 0 index since it represents a sophia list
+    coerce_list(Type, Elements, Direction, 0, [], []).
+
+coerce_list(Type, [Next | Rest], Direction, Index, Good, Broken) ->
     case coerce(Type, Next, Direction) of
-        {ok, Coerced} -> coerce_list(Type, Rest, Direction, [Coerced | Acc]);
-        Error -> Error
+        {ok, Coerced} -> coerce_list(Type, Rest, Direction, Index + 1, [Coerced | Good], Broken);
+        {error, Errors} ->
+            Wrapped = wrap_errors({index, Index}, Errors),
+            coerce_list(Type, Rest, Direction, Index + 1, Good, [Wrapped | Broken])
     end;
-coerce_list(_Type, [], _, Acc) ->
-    {ok, lists:reverse(Acc)}.
+coerce_list(_Type, [], _, _, Good, []) ->
+    {ok, lists:reverse(Good)};
+coerce_list(_, [], _, _, _, Broken) ->
+    {error, combine_errors(Broken)}.
 
-coerce_map(KeyType, ValType, Remaining, Direction, Acc) ->
+coerce_map(KeyType, ValType, Data, Direction) ->
+    coerce_map(KeyType, ValType, maps:iterator(Data), Direction, #{}, []).
+
+coerce_map(KeyType, ValType, Remaining, Direction, Good, Broken) ->
     case maps:next(Remaining) of
         {K, V, RemainingAfter} ->
-            coerce_map2(KeyType, ValType, RemainingAfter, Direction, Acc, K, V);
-        none -> {ok, Acc}
+            coerce_map2(KeyType, ValType, RemainingAfter, Direction, Good, Broken, K, V);
+        none -> coerce_map_finish(Good, Broken)
     end.
 
-coerce_map2(KeyType, ValType, Remaining, Direction, Acc, K, V) ->
+coerce_map2(KeyType, ValType, Remaining, Direction, Good, Broken, K, V) ->
     case coerce(KeyType, K, Direction) of
         {ok, KFATE} ->
-            coerce_map3(KeyType, ValType, Remaining, Direction, Acc, KFATE, V);
-        Error -> Error
+            coerce_map3(KeyType, ValType, Remaining, Direction, Good, Broken, K, V, KFATE);
+        {error, Errors} ->
+            Wrapped = wrap_errors(map_key, Errors),
+            % Continue as if the key coerced successfully, so that we can give
+            % errors for both the key and the value.
+            coerce_map3(KeyType, ValType, Remaining, Direction, Good, [Wrapped | Broken], K, V, error)
     end.
 
-coerce_map3(KeyType, ValType, Remaining, Direction, Acc, KFATE, V) ->
+coerce_map3(KeyType, ValType, Remaining, Direction, Good, Broken, K, V, KFATE) ->
     case coerce(ValType, V, Direction) of
         {ok, VFATE} ->
-            NewAcc = Acc#{KFATE => VFATE},
-            coerce_map(KeyType, ValType, Remaining, Direction, NewAcc);
-        Error -> Error
+            NewGood = Good#{KFATE => VFATE},
+            coerce_map(KeyType, ValType, Remaining, Direction, NewGood, Broken);
+        {error, Errors} ->
+            Wrapped = wrap_errors({map_value, K}, Errors),
+            coerce_map(KeyType, ValType, Remaining, Direction, Good, [Wrapped | Broken])
     end.
+
+coerce_map_finish(Good, []) ->
+    {ok, Good};
+coerce_map_finish(_, Broken) ->
+    {error, combine_errors(Broken)}.
 
 lookup_variant(Name, Variants) -> lookup_variant(Name, Variants, 0).
 
@@ -1744,21 +1778,28 @@ lookup_variant(_Name, [], _Tag) ->
     not_found.
 
 coerce_tuple(O, N, TermTypes, Terms, Direction) ->
-    case coerce_tuple_elements(TermTypes, Terms, Direction, []) of
+    case coerce_tuple_elements(TermTypes, Terms, Direction, tuple_element) of
         {ok, Converted} ->
             case Direction of
                 to_fate -> {ok, {tuple, list_to_tuple(Converted)}};
                 from_fate -> {ok, list_to_tuple(Converted)}
             end;
         {error, too_few_terms} ->
-            {error, {tuple_too_few_terms, O, N, TermTypes, Terms}};
+            single_error({tuple_too_few_terms, O, N, list_to_tuple(Terms)});
         {error, too_many_terms} ->
-            {error, {tuple_too_many_terms, O, N, TermTypes, Terms}};
-        Error -> Error
+            single_error({tuple_too_many_terms, O, N, list_to_tuple(Terms)});
+        Errors -> Errors
     end.
 
+% Wraps a single error in a list, along with an empty path, so that other
+% accumulating error handlers can work with it.
+single_error(Reason) ->
+    {error, [{Reason, []}]}.
+
 coerce_variant2(O, N, Variants, Name, Tag, TermTypes, Terms, Direction) ->
-    case coerce_tuple_elements(TermTypes, Terms, Direction, []) of
+    % FIXME: we could go through and add the variant tag to the adt_element
+    % paths?
+    case coerce_tuple_elements(TermTypes, Terms, Direction, adt_element) of
         {ok, Converted} ->
             case Direction of
                 to_fate ->
@@ -1769,50 +1810,63 @@ coerce_variant2(O, N, Variants, Name, Tag, TermTypes, Terms, Direction) ->
                     {ok, list_to_tuple([Name | Converted])}
             end;
         {error, too_few_terms} ->
-            {error, {adt_too_few_terms, O, N, Name, TermTypes, Terms}};
+            single_error({adt_too_few_terms, O, N, Name, TermTypes, Terms});
         {error, too_many_terms} ->
-            {error, {adt_too_many_terms, O, N, Name, TermTypes, Terms}};
-        Error -> Error
+            single_error({adt_too_many_terms, O, N, Name, TermTypes, Terms});
+        Errors -> Errors
     end.
 
-coerce_tuple_elements([Type | Types], [Term | Terms], Direction, Acc) ->
+coerce_tuple_elements(Types, Terms, Direction, Tag) ->
+    % The sophia standard library uses 0 indexing for lists, and fst/snd/thd
+    % for tuples... Not sure how we should report errors in tuples, then.
+    coerce_tuple_elements(Types, Terms, Direction, Tag, 0, [], []).
+
+coerce_tuple_elements([Type | Types], [Term | Terms], Direction, Tag, Index, Good, Broken) ->
     case coerce(Type, Term, Direction) of
-        {ok, Value} -> coerce_tuple_elements(Types, Terms, Direction, [Value | Acc]);
-        Error -> Error
+        {ok, Value} -> coerce_tuple_elements(Types, Terms, Direction, Tag, Index + 1, [Value | Good], Broken);
+        {error, Errors} ->
+            Wrapped = wrap_errors({Tag, Index}, Errors),
+            coerce_tuple_elements(Types, Terms, Direction, Tag, Index + 1, Good, [Wrapped | Broken])
     end;
-coerce_tuple_elements([], [], _, Acc) ->
-    {ok, lists:reverse(Acc)};
-coerce_tuple_elements(_, [], _, _) ->
+coerce_tuple_elements([], [], _, _, _, Good, []) ->
+    {ok, lists:reverse(Good)};
+coerce_tuple_elements([], [], _, _, _, _, Broken) ->
+    {error, combine_errors(Broken)};
+coerce_tuple_elements(_, [], _, _, _, _, _) ->
     {error, too_few_terms};
-coerce_tuple_elements([], _, _, _) ->
+coerce_tuple_elements([], _, _, _, _, _, _) ->
     {error, too_many_terms}.
 
 coerce_map_to_record(O, N, MemberTypes, Map) ->
     case zip_record_fields(MemberTypes, Map) of
         {ok, Zipped} ->
-            case coerce_zipped_bindings(Zipped, to_fate) of
+            case coerce_zipped_bindings(Zipped, to_fate, field) of
                 {ok, Converted} ->
                     {ok, {tuple, list_to_tuple(Converted)}};
-                Error -> Error % FIXME when do we wrap errors vs propogate
-                               % them? Hard to say until we actually render
-                               % them.
+                Errors -> Errors
             end;
         {error, {missing_fields, Missing}} ->
-            {error, {missing_fields, O, N, Missing}};
+            single_error({missing_fields, O, N, Missing});
         {error, {unexpected_fields, Unexpected}} ->
             Names = [Name || {Name, _} <- maps:to_list(Unexpected)],
-            {error, {unexpected_fields, O, N, Names}}
+            single_error({unexpected_fields, O, N, Names})
     end.
 
-coerce_record_to_map(MemberTypes, Tuple) ->
+coerce_record_to_map(O, N, MemberTypes, Tuple) ->
     Names = [Name || {Name, _} <- MemberTypes],
     Types = [Type || {_, Type} <- MemberTypes],
     Terms = tuple_to_list(Tuple),
-    case coerce_tuple_elements(Types, Terms, from_fate, []) of
+    % FIXME: We could go through and change the record_element paths into field
+    % paths?
+    case coerce_tuple_elements(Types, Terms, from_fate, record_element) of
         {ok, Converted} ->
             Map = maps:from_list(lists:zip(Names, Converted)),
             {ok, Map};
-        Error -> Error
+        {error, too_few_terms} ->
+            single_error({record_too_few_terms, O, N, Tuple});
+        {error, too_many_terms} ->
+            single_error({record_too_many_terms, O, N, Tuple});
+        Errors -> Errors
     end.
 
 zip_record_fields(Fields, Map) ->
@@ -1904,7 +1958,7 @@ encode_call_data({aaci, _ContractName, FunDefs, _TypeDefs}, Fun, Args) ->
 encode_call_data2(ArgDef, Fun, Args) ->
     case coerce_bindings(ArgDef, Args, to_fate) of
         {ok, Coerced} -> aeb_fate_abi:create_calldata(Fun, Coerced);
-        Error -> Error
+        Errors -> Errors
     end.
 
 verify_signature(Sig, Message, PubKey) ->
