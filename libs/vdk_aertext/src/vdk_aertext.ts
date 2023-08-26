@@ -1,5 +1,5 @@
 /**
- * FÆRT: Fast Æternity Recovery Text
+ * ÆRText: Æternity Recovery Text
  *
  * Reference: https://gitlab.com/zxq9/passgas/-/blob/83607fedb08be5dfd03210e331f9c76125bb3467/fullofbeans
  *
