@@ -14,3 +14,16 @@ protocol is structured.
 [Sidekick](../../sidekick/) exhibits how to use this from the perspective of
 the page script (aepp), and [Jack Russell](../../jrx) exhibits how to use this
 from the perspective of the waellet.
+
+## Building
+
+Requires [Erlang/zx], [jex], [npm], and TypeScript (`npm install -g
+typescript`).
+
+```
+jex install
+```
+
+[Erlang/zx]: https://www.bitchute.com/video/1gCvcoPUR7eJ/
+[jex]: ../../utils/jex/
+[npm]: ../../docs/npm-misc/
