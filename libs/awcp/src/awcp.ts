@@ -15,11 +15,12 @@
  * this.
  *
  * Keep in mind that these messages are not secret. Any browser extension or
- * foreign page script can intercept these messages.  Imagine as an (imperfect)
- * analogy that you work in an office.  Everyone's mail is dumped on the floor
- * in the middle of the office, and you are responsible for picking out which
- * letters are addressed to you.  Anyone else can pick up letters addressed to
- * you, and read them.
+ * foreign page script can intercept these messages, and inject messages of
+ * their own.  Imagine as an (imperfect) analogy that you work in an office.
+ * Everyone's mail is dumped on the floor in the middle of the office. You are
+ * responsible for picking out which letters are addressed to you.  Anyone else
+ * can pick up letters addressed to you, and read them.  Anyone else can also
+ * place their own letters in the pile.
  *
  * This module defines the shape of the messages that are sent. There are several
  * layers to the onion, each corresponding to natural branch points in the
