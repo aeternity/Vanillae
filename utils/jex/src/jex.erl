@@ -586,7 +586,7 @@ mkdocs() ->
     end.
 
 mkdocs2() ->
-    _ = cmd("npx typedoc --entryPointStrategy expand --sort source-order src"),
+    _ = cmd("npx typedoc --entryPointStrategy expand --sort source-order src --readme none"),
     ok.
 
 
