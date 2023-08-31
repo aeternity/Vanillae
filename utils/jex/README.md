@@ -15,9 +15,15 @@ business context, which is the focus of the Vanillae project.
 
 ## Installation
 
+0.  Install system dependencies
+    ```
+    tree rsync
+    ```
 1.  `git clone https://github.com/aeternity/Vanillae.git`
 2.  [Install Erlang and zx](https://www.bitchute.com/video/1gCvcoPUR7eJ/)
-3.  Edit `~/.bashrc` (or `~/.zshrc` or whatever) and add
+3.  Install NPM ["How to install NPM without getting AIDS"](../../docs/npm-misc/README.md)
+4.  Install TypeScript `npm install -g typescript`
+5.  Edit `~/.bashrc` (or `~/.zshrc` or whatever) and add
 
     ```
     alias jex="zx rundir ~/path/to/Vanillae/utils/jex"

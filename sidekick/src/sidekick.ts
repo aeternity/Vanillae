@@ -93,7 +93,7 @@ export {
 // IMPORTS
 //-----------------------------------------------------------------------------
 
-import * as awcp from './jex_include/local-awcp-0.2.2/dist/awcp.js';
+import * as awcp from './jex_include/local-awcp-0.2.3/dist/awcp.js';
 
 
 //-----------------------------------------------------------------------------
