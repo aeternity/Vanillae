@@ -51,7 +51,7 @@
  */
 
 
-import * as awcp        from './jex_include/local-awcp-0.2.2/dist/awcp.js';
+import * as awcp        from './jex_include/local-awcp-0.2.3/dist/awcp.js';
 // @ts-ignore yes i know blake is stupid
 import * as blake2b     from './jex_include/local-blakejs-1.2.1/dist/blake2b.js';
 //import * as vdk_aecrypt from './jex_include/local-vdk_aecrypt-0.1.0/dist/vdk_aecrypt.js';
