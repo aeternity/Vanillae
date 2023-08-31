@@ -11,12 +11,14 @@
  */
 
 
-import * as blakejs    from './jex_include/local-blakejs-1.2.1/dist/index.js';
+// @ts-ignore FIXME yes blake2b sucks
+import * as blake2b    from './jex_include/local-blakejs-1.2.1/dist/blake2b.js';
 import * as vdk_binary from './jex_include/local-vdk_binary-0.1.0/dist/vdk_binary.js';
 
 
 export {
     hash_and_salt_msg,
+    hash,
     salt_msg,
     btc_varuint_encode
 }
@@ -103,10 +105,25 @@ hash_and_salt_msg
     : Uint8Array
 {
     let message_bytes : Uint8Array = vdk_binary.encode_utf8(message_str);
-    return blakejs.blake2b(salt_msg(message_bytes), // bytes to hash
-                           undefined,               // key (optional)
-                           32);                     // resulting byte length
+    let salted_bytes  : Uint8Array = salt_msg(message_bytes);
+    return hash(salted_bytes);
 }
+
+
+
+/**
+ * Blake2 hash of data
+ */
+function
+hash
+    (data_bytes : Uint8Array)
+    : Uint8Array
+{
+    return blake2b.blake2b(data_bytes,      // bytes to hash
+                           undefined,       // key (optional)
+                           32);             // resulting byte length
+}
+
 
 
 /**
