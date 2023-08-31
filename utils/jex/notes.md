@@ -1,0 +1,4 @@
+- need separate development and release modes
+- external packages need an external version and a jex version
+- external packages don't need their own docs
+- need to build tarballs for entire realm
