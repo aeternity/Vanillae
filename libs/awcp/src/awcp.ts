@@ -257,13 +257,13 @@ export {
     RpcResp_W2A_address_subscribe,
     EventData_A2W_address_subscribe,
     EventData_W2A_address_subscribe,
-    //// transaction.sign (propagate)
-    //Params_A2W_tx_sign_yesprop,
-    //Result_W2A_tx_sign_yesprop,
-    //RpcCall_A2W_tx_sign_yesprop,
-    //RpcResp_W2A_tx_sign_yesprop,
-    //EventData_A2W_tx_sign_yesprop,
-    //EventData_W2A_tx_sign_yesprop,
+    // transaction.sign (propagate)
+    Params_A2W_tx_sign_yesprop,
+    Result_W2A_tx_sign_yesprop,
+    RpcCall_A2W_tx_sign_yesprop,
+    RpcResp_W2A_tx_sign_yesprop,
+    EventData_A2W_tx_sign_yesprop,
+    EventData_W2A_tx_sign_yesprop,
     // transaction.sign (do not propagate)
     Params_A2W_tx_sign_noprop,
     Result_W2A_tx_sign_noprop,
@@ -1107,6 +1107,177 @@ type EventData_A2W_address_subscribe
  */
 type EventData_W2A_address_subscribe
     = EventData_W2A<RpcResp_W2A_address_subscribe>;
+
+
+
+//----------------------------------------------------------------------------
+// transaction.sign (do propagate)
+//----------------------------------------------------------------------------
+
+/**
+ * Parameters for "transaction.sign" (do propagate)
+ *
+ * If `returnSigned` is `false`, then Superhero will propagate the transaction.
+ *
+ * (layer 4)
+ *
+ * @example
+ * ```json
+ * {
+ *     "tx": "tx_+FgMAaEBuzbuuWjOzR7ecjOY8+u7HdNk0KoxTQcCDerZELEQ+UShAXtm5sMFBwg25Ol5IFI9w+pZy7/YbFi6BwPqi80KuKdsCoYPJvVhyAAAAYdoYWluYW5h9uAnNQ==",
+ *     "returnSigned": false,
+ *     "networkId": "ae_uat"
+ * }
+ * ```
+ */
+type Params_A2W_tx_sign_yesprop
+    = {tx           : string,
+       returnSigned : false,
+       networkId    : string}
+
+
+
+/**
+ * Success result type for "transaction.sign" (do propagate)
+ *
+ * (layer 4)
+ *
+ * @example
+ * ```json
+ * "transactionHash": {
+ *         "blockHash": "mh_uJZ65APpLtiagJKjTNPZL1g1LJ7oqc2uG44qVqp1gVWwWUgLb",
+ *         "blockHeight": 806313,
+ *         "hash": "th_o3cudpezVywd99a7VMef9Yg7XPixTFueaCqGjdsnqLM99a78t",
+ *         "signatures": [
+ *             "sg_U36NDTFJFP4QEWCdjyhELDUDxsVGZNkq3DrcBCxby4NPUsPjQsFDG7VHN9s7TNUsEAd7qdC5aEjZKrqsKyfqA8apNrotz"
+ *         ],
+ *         "tx": {
+ *             "amount": 10,
+ *             "fee": 16800000000000,
+ *             "nonce": 13,
+ *             "payload": "ba_aGFpbmFuYWbkNu8=",
+ *             "recipientId": "ak_wM8yFU8eSETXU7VSN48HMDmevGoCMiuveQZgkPuRn1nTiRqyv",
+ *             "senderId": "ak_2XhCkjzTwcq1coXSSzHJoMZkUzTwnjH88zmPGkkowUsFNTo9UE",
+ *             "type": "SpendTx",
+ *             "version": 1
+ *         },
+ *         "rawTx": "tx_+KILAfhCuEDOpyHRaYj8MnRwqOzMyRJSh4qud6jRK01wiAWfRHBDo/4e9klk7MsvM0Cr0ENaNkqKfwCDcaga/iDnogN5cukNuFr4WAwBoQHJY35GAOerO8Lmf8ZA6CN2RET0MFXaXVV4pJo3WvoY3KEBe2bmwwUHCDbk6XkgUj3D6lnLv9hsWLoHA+qLzQq4p2wKhg9HjghAAAANh2hhaW5hbmHkTCSc"
+ *     }
+ * ```
+ */
+type Result_W2A_tx_sign_yesprop
+    = {transactionHash : {blockHash   : string,
+                          blockHeight : number,
+                          hash        : string,
+                          signatures  : Array<string>,
+                          tx          : {amount      : number,
+                                         fee         : number,
+                                         nonce       : number,
+                                         payload     : string,
+                                         recipientId : string,
+                                         senderId    : string,
+                                         type        : string,
+                                         version     : number},
+                          rawTx       : string}};
+
+
+/**
+ * Request type for "transaction.sign" (do propagate)
+ *
+ * (layer 3)
+ *
+ * @example
+ * ```json
+ * {
+ *     "jsonrpc": "2.0",
+ *     "id": "sk-tx-sign-1",
+ *     "method": "transaction.sign",
+ *     "params": {
+ *         "tx": "tx_+FgMAaEBuzbuuWjOzR7ecjOY8+u7HdNk0KoxTQcCDerZELEQ+UShAXtm5sMFBwg25Ol5IFI9w+pZy7/YbFi6BwPqi80KuKdsCoYPJvVhyAAAAYdoYWluYW5h9uAnNQ==",
+ *         "returnSigned": true,
+ *         "networkId": "ae_uat"
+ *     }
+ * }
+ * ```
+ */
+type RpcCall_A2W_tx_sign_yesprop
+    = RpcCall<"transaction.sign",
+              Params_A2W_tx_sign_yesprop>;
+
+
+
+/**
+ * Response type for "transaction.sign" (do propagate)
+ *
+ * (layer 3)
+ *
+ * @example
+ * ```json
+ * {
+ *     "jsonrpc": "2.0",
+ *     "id": "sk-tx-sign-1",
+ *     "method": "transaction.sign",
+ *     "result": {
+ *         "signedTransaction": "tx_+KILAfhCuEDxWnvffMvyrkFWnrImYej38rh99vM9f6pORl/yWTvU97nvUcY8/ck8lgtPA8w5odGSDb9LGY/JSZXsmsXhgKkHuFr4WAwBoQG7Nu65aM7NHt5yM5jz67sd02TQqjFNBwIN6tkQsRD5RKEBe2bmwwUHCDbk6XkgUj3D6lnLv9hsWLoHA+qLzQq4p2wKhg8m9WHIAAABh2hhaW5hbmF7X54G"
+ *     }
+ * }
+ * ```
+ */
+type RpcResp_W2A_tx_sign_yesprop
+    = RpcResp<"transaction.sign",
+              Result_W2A_tx_sign_yesprop>;
+
+
+
+/**
+ * Event data for aepp-to-waellet "transaction.sign" (do propagate) message
+ *
+ * (layer 2)
+ *
+ * @example
+ * ```json
+ * {
+ *     "type": "to_waellet",
+ *     "data": {
+ *         "jsonrpc": "2.0",
+ *         "id": "sk-tx-sign-1",
+ *         "method": "transaction.sign",
+ *         "params": {
+ *             "tx": "tx_+FgMAaEBuzbuuWjOzR7ecjOY8+u7HdNk0KoxTQcCDerZELEQ+UShAXtm5sMFBwg25Ol5IFI9w+pZy7/YbFi6BwPqi80KuKdsCoYPJvVhyAAAAYdoYWluYW5h9uAnNQ==",
+ *             "returnSigned": false,
+ *             "networkId": "ae_uat"
+ *         }
+ *     }
+ * }
+ * ```
+ */
+type EventData_A2W_tx_sign_yesprop
+    = EventData_A2W<RpcCall_A2W_tx_sign_yesprop>;
+
+
+
+/**
+ * Event data for waellet-to-aepp "transaction.sign" (do propagate) response
+ *
+ * (layer 2)
+ *
+ * @example
+ * ```json
+ * {
+ *     "type": "to_aepp",
+ *     "data": {
+ *         "jsonrpc": "2.0",
+ *         "id": "sk-tx-sign-1",
+ *         "method": "transaction.sign",
+ *         "result": {
+ *             "signedTransaction": "tx_+KILAfhCuEDxWnvffMvyrkFWnrImYej38rh99vM9f6pORl/yWTvU97nvUcY8/ck8lgtPA8w5odGSDb9LGY/JSZXsmsXhgKkHuFr4WAwBoQG7Nu65aM7NHt5yM5jz67sd02TQqjFNBwIN6tkQsRD5RKEBe2bmwwUHCDbk6XkgUj3D6lnLv9hsWLoHA+qLzQq4p2wKhg8m9WHIAAABh2hhaW5hbmF7X54G"
+ *         }
+ *     }
+ * }
+ * ```
+ */
+type EventData_W2A_tx_sign_yesprop
+    = EventData_W2A<RpcResp_W2A_tx_sign_yesprop>;
 
 
 
