@@ -291,7 +291,7 @@ top_height() ->
 %% Returns the current block height as an integer.
 
 top_block() ->
-    request("/v3/blocks/top").
+    request("/v3/headers/top").
 
 
 -spec kb_current() -> {ok, CurrentBlock} | {error, Reason}
@@ -1811,7 +1811,7 @@ verify_signature2(Sig, Message, PK) ->
     Smashed = iolist_to_binary([PSize, Prefix, MSize, Message]),
     {ok, Hashed} = eblake2:blake2b(32, Smashed),
     Signature = <<(binary_to_integer(Sig, 16)):(64 * 8)>>,
-    Result = enacl:sign_verify_detached(Signature, Hashed, PK),
+    Result = ecu_eddsa:sign_verify_detached(Signature, Hashed, PK),
     {ok, Result}.
 
 
