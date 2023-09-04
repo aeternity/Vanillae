@@ -26,7 +26,7 @@
 %%% @end
 
 -module(vanillae).
--vsn("0.3.0").
+-vsn("0.3.1").
 -behavior(application).
 -author("Craig Everett <ceverett@tsuriai.jp>").
 -copyright("Craig Everett <ceverett@tsuriai.jp>").
@@ -304,16 +304,13 @@ timeout(MS) ->
 
 top_height() ->
     case top_block() of
-        {ok, #{"micro_block" := #{"height" := Height}}} -> {ok, Height};
-        {ok, #{"key_block"   := #{"height" := Height}}} -> {ok, Height};
-        Error                                           -> Error
+        {ok, #{"height" := Height}} -> {ok, Height};
+        Error                       -> Error
     end.
 
 
 -spec top_block() -> {ok, TopBlock} | {error, Reason}
-    when TopBlock :: #{Type := Block},
-         Type     :: string(), % "key_block" | "micro_block"
-         Block    :: keyblock() | microblock_header(),
+    when TopBlock :: microblock_header(),
          Reason   :: ae_error().
 %% @doc
 %% Returns the current block height as an integer.

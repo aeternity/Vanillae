@@ -9,7 +9,7 @@
 %%% @end
 
 -module(vanillae_man).
--vsn("0.3.0").
+-vsn("0.3.1").
 -behavior(gen_server).
 -author("Craig Everett <ceverett@tsuriai.jp>").
 -copyright("Craig Everett <ceverett@tsuriai.jp>").
