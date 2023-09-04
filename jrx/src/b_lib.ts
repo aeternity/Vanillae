@@ -319,7 +319,8 @@ bi_msg_handler_content
         case "message.sign":
             console.log('jr bg content message handler message sign');
             let msg_str : string = msg.data.params.message;
-            return w2a_ok(msg_sign(msg_str, secret_key));
+            let resultt = await msg_sign(msg_str, secret_key)
+            return w2a_ok(resultt);
 
         // right now just sign tx
         case "transaction.sign":
@@ -347,12 +348,24 @@ bi_msg_handler_content
  *
  * @internal
  */
-function
+async function
 msg_sign
     (msg_str    : string,
      secret_key : Uint8Array)
-    : {signature : string}
+    : Promise<{signature : string}>
 {
+    console.log('a');
+    // does the user want to sign the message
+    let confirm_window = await browser.windows.create({url  : '../pages/msg_confirm.html',
+                                                       type : 'popup'});
+    console.log('b');
+    // @ts-ignore shut the fuck up
+    let tabid : number = confirm_window.tabs[0].id;
+    console.log('tabid', tabid);
+
+    let result = await browser.tabs.sendMessage(tabid, {msg_str : msg_str});
+    console.log('result', result);
+
     // use nacl detached signatures
     // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L141-L143
     // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L160-L167
@@ -587,14 +600,14 @@ bi_get_state
     // if there is such a state, get it
     // @ts-ignore ts doesn't understand querying if a key exists
     if (!!(gotten_state.jr_state)) {
-        console.log('foo');
+        console.log('jr state exists');
         // TS doesn't know we've proven the key exists and so therefore this is
         // of type bis_state
         return bi_s2i(gotten_state as bis_state);
     }
     // otherwise return default state
     else {
-        console.log('bar');
+        console.log('jr no state... generating');
         // set the state
         let default_i_state : bi_state  = bi_state_default();
         await bi_set_state(default_i_state);

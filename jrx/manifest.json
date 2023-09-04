@@ -8,7 +8,6 @@
                                "js"      : ["dist/content.js"]}],
  "browser_action"          : {"default_icon"  : "art/jrx-icon-32.png",
                               "default_title" : "Jæck Russell",
-                              "default_popup" : "popup.html"},
- "background"              : {"page" : "background.html"},
- "content_security_policy" : "script-src 'self'; object-src 'self'",
- "permissions"             : ["storage"]}
+                              "default_popup" : "pages/popup.html"},
+ "background"              : {"page" : "pages/background.html"},
+ "permissions"             : ["storage", "history"]}
