@@ -10,7 +10,7 @@ The secondary goal is to enable real-world projects to more easily connect with 
 == Basic operation ==
 All external interfaces expected to be used by authors of programs that use Vanillae are built into the `vanillae' module.
 
-When Vanillae is started as an application a named process called `vanillae_man' is spawned that managed interactions with and the state of the service, as well as a simple-one-for-one supervisor that manages the lifecycle of Vanillae workers (defined in `vanillae_fetcher').
+When Vanillae is started as an application a named process called `vanillae_man' is spawned that manages interactions with and the state of the service, as well as a simple-one-for-one supervisor that manages the lifecycle of Vanillae workers (defined in `vanillae_fetcher').
 
 After startup `vanillae_man' must be given the address and port of a list of Aeternity nodes that are available to service requests. Note that the service nodes will need to have the "dry run" endpoint enabled and the internal service query port made available in order to provide "dry run" and mempool TX submission functionality.
 
