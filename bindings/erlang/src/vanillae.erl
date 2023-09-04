@@ -26,8 +26,8 @@
 %%% @end
 
 -module(vanillae).
--vsn("0.2.0").
-%-behavior(application).
+-vsn("0.3.1").
+-behavior(application).
 -author("Craig Everett <ceverett@tsuriai.jp>").
 -copyright("Craig Everett <ceverett@tsuriai.jp>").
 -license("GPL-3.0-or-later").
@@ -105,16 +105,21 @@
 -type keyblock_hash()       :: string().            % "kh_" ++ _
 -type contract_byte_array() :: string().            % "cb_" ++ _
 -type microblock_hash()     :: string().            % "mh_" ++ _
+
 %-type block_state_hash()    :: string().            % "bs_" ++ _
 %-type proof_of_fraud_hash() :: string() | no_fraud. % "bf_" ++ _
 %-type signature()           :: string().            % "sg_" ++ _
 %-type block_tx_hash()       :: string().            % "bx_" ++ _
+
 -type tx_hash()             :: string().            % "th_" ++ _
+
 %-type name_hash()           :: string().            % "nm_" ++ _
 %-type protocol_info()       :: #{string() => term()}.
 % #{"effective_at_height" => non_neg_integer(),
 %   "version"             => pos_integer()}.
+
 -type keyblock()            :: #{string() => term()}.
+% <pre>
 % #{"beneficiary"   => account_id(),
 %   "hash"          => keyblock_hash(),
 %   "height"        => pos_integer(),
@@ -128,7 +133,9 @@
 %   "target"        => non_neg_integer(),
 %   "time"          => non_neg_integer(),
 %   "version"       => 5}.
+% </pre>
 -type microblock_header()   :: #{string() => term()}.
+% <pre>
 % #{"hash"          => microblock_hash(),
 %   "height"        => pos_integer(),
 %   "pof_hash"      => proof_of_fraud_hash(),
@@ -139,7 +146,9 @@
 %   "time"          => non_neg_integer(),
 %   "txs_hash"      => block_tx_hash(),
 %   "version"       => 1}.
+% </pre>
 -type transaction()         :: #{string() => term()}.
+% <pre>
 % #{"block_hash"    => microblock_hash(),
 %   "block_height"  => pos_integer(),
 %   "hash"          => tx_hash(),
@@ -158,16 +167,22 @@
 %         "type"        => string(),
 %         "version"     => pos_integer(),
 %         "vm_version"  => pos_integer()}}
+% </pre>
 -type generation()          :: #{string() => term()}.
+% <pre>
 % #{"key_block"     => keyblock(),
 %   "micro_blocks"  => [microblock_hash()]}.
+% </pre>
 -type account()             :: #{string() => term()}.
+% <pre>
 % #{"balance" => non_neg_integer(),
 %   "id"      => account_id(),
 %   "kind"    => "basic",
 %   "nonce"   => pos_integer(),
 %   "payable" => true}.
+% </pre>
 -type contract_data()       :: #{string() => term()}.
+% <pre>
 % #{"abi_version " => pos_integer(),
 %   "active"       => boolean(),
 %   "deposit"      => non_neg_integer(),
@@ -175,12 +190,16 @@
 %   "owner_id"     => account_id() | contract_id(),
 %   "referrer_ids" => [],
 %   "vm_version"   => pos_integer()}.
+% </pre>
 -type name_info()           :: #{string() => term()}.
+% <pre>
 % #{"id"       => name_hash(),
 %   "owner"    => account_id(),
 %   "pointers" => [],
 %   "ttl"      => non_neg_integer()}.
+% </pre>
 -type status()              :: #{string() => term()}.
+% <pre>
 % #{"difficulty"                 => non_neg_integer(),
 %   "genesis_key_block_hash"     => keyblock_hash(),
 %   "listening"                  => boolean(),
@@ -198,7 +217,7 @@
 %   "syncing"                    => boolean(),
 %   "top_block_height"           => non_neg_integer(),
 %   "top_key_block_hash"         => keyblock_hash()}.
-
+% </pre>
 
 
 
@@ -246,7 +265,7 @@ ae_nodes() ->
 %% this may need to expand depending on how much query load your application generates.
 %% The Vanillae manager will load balance by round-robin distribution.
 
-ae_nodes(List) ->
+ae_nodes(List) when is_list(List) ->
     vanillae_man:ae_nodes(List).
 
 
@@ -275,25 +294,29 @@ timeout(MS) ->
 -spec top_height() -> {ok, Height} | {error, Reason}
     when Height :: pos_integer(),
          Reason :: ae_error().
+%% @doc
+%% Retrieve the current height of the chain.
+%%
+%% NOTE:
+%% This will return the currently synced height, which may be different than the
+%% actual current top of the entire chain if the node being queried is still syncing
+%% (has not yet caught up with the chain).
 
 top_height() ->
     case top_block() of
-        {ok, #{"micro_block" := #{"height" := Height}}} -> {ok, Height};
-        {ok, #{"key_block"   := #{"height" := Height}}} -> {ok, Height};
-        Error                                           -> Error
+        {ok, #{"height" := Height}} -> {ok, Height};
+        Error                       -> Error
     end.
 
 
 -spec top_block() -> {ok, TopBlock} | {error, Reason}
-    when TopBlock :: #{Type := Block},
-         Type     :: string(), % "key_block" | "micro_block"
-         Block    :: keyblock() | microblock_header(),
+    when TopBlock :: microblock_header(),
          Reason   :: ae_error().
 %% @doc
 %% Returns the current block height as an integer.
 
 top_block() ->
-    request("/v3/blocks/top").
+    request("/v3/headers/top").
 
 
 -spec kb_current() -> {ok, CurrentBlock} | {error, Reason}
@@ -573,6 +596,9 @@ dry_run(TX) ->
          Accounts :: [pubkey()],
          Result   :: term(),  % FIXME
          Reason   :: term().  % FIXME
+%% @doc
+%% Execute a read-only transaction on the chain at the current height with the
+%% supplied accounts.
 
 dry_run(TX, Accounts) ->
     case kb_current_hash() of
@@ -697,6 +723,8 @@ contract(ID) ->
     when ID       :: contract_id(),
          Bytecode :: contract_byte_array(),
          Reason   :: ae_error() | string().
+%% @doc
+%% Retrieve the code of a contract as represented on chain.
 
 contract_code(ID) ->
     case request(["/v3/contracts/", ID, "/code"]) of
@@ -710,6 +738,8 @@ contract_code(ID) ->
     when ID       :: contract_id(),
          Bytecode :: contract_byte_array(),
          Reason   :: ae_error() | string().
+%% @doc
+%% Retrieve the POI of a contract stored on chain.
 
 contract_poi(ID) ->
     request(["/v3/contracts/", ID, "/poi"]).
@@ -827,7 +857,7 @@ contract_create(CreatorID, Path, InitArgs) ->
 -spec contract_create(CreatorID, Nonce,
                       Amount, Gas, GasPrice, Fee,
                       Path, InitArgs) -> Result
-    when CreatorID :: unicode:chardata(),
+    when CreatorID :: pubkey(),
          Nonce     :: pos_integer(),
          Amount    :: non_neg_integer(),
          Gas       :: pos_integer(),
@@ -850,7 +880,8 @@ contract_create(CreatorID, Path, InitArgs) ->
 %%   <b>CreatorID:</b>
 %%   This is the <em>public</em> key of the entity who will be posting the contract
 %%   to the chain.
-%%   The key must be encoded as a binary string prefixed with <<"ak_">>.
+%%   The key must be encoded as a string prefixed with `"ak_"' (or `<<"ak_">>' in the
+%%   case of a binary string, which is also acceptable).
 %%   The returned call will still need to be signed by the caller's <em>private</em>
 %%   key.
 %%  </li>
@@ -941,7 +972,7 @@ contract_create(CreatorID, Path, InitArgs) ->
 %%   according to the function's spec, and represented as strings (that is, an integer
 %%   argument of `10' must be cast to the textual representation `"10"').
 %%  </li>
-%% '''
+%% </ul>
 %% As should be obvious from the above description, it is pretty helpful to have a
 %% source copy of the contract you intend to call so that you can re-generate the ACI
 %% if you do not already have a copy, and can check the spec of a function before
@@ -1150,7 +1181,8 @@ contract_call(CallerID, Gas, AACI, ConID, Fun, Args) ->
 %%  <li>
 %%   <b>CallerID:</b>
 %%   This is the <em>public</em> key of the entity making the contract call.
-%%   The key must be encoded as a binary string prefixed with <<"ak_">>.
+%%   The key must be encoded as a string prefixed with `"ak_"' (or `<<"ak_">>' in the
+%%   case of a binary string, which is also acceptable).
 %%   The returned call will still need to be signed by the caller's <em>private</em>
 %%   key.
 %%  </li>
@@ -1241,7 +1273,7 @@ contract_call(CallerID, Gas, AACI, ConID, Fun, Args) ->
 %%   according to the function's spec, and represented as strings (that is, an integer
 %%   argument of `10' must be cast to the textual representation `"10"').
 %%  </li>
-%% '''
+%% </ul>
 %% As should be obvious from the above description, it is pretty helpful to have a
 %% source copy of the contract you intend to call so that you can re-generate the ACI
 %% if you do not already have a copy, and can check the spec of a function before
@@ -1335,7 +1367,8 @@ prepare_aaci(ACI) ->
     Specs = simplify_specs(SpecDefs, #{}, Types),
     {aaci, Name, Specs, Types}.
 
-simplify_contract_types([], Types) -> Types;
+simplify_contract_types([], Types) ->
+    Types;
 simplify_contract_types([Next | Rest], Types) ->
     TypeDefs = maps:get(typedefs, Next),
     NameBin = maps:get(name, Next),
@@ -1351,7 +1384,8 @@ simplify_contract_types([Next | Rest], Types) ->
     Types4 = simplify_typedefs(TypeDefs, Types3, Name ++ "."),
     simplify_contract_types(Rest, Types4).
 
-simplify_typedefs([], Types, _NamePrefix) -> Types;
+simplify_typedefs([], Types, _NamePrefix) ->
+    Types;
 simplify_typedefs([Next | Rest], Types, NamePrefix) ->
     #{name := NameBin, vars := ParamDefs, typedef := T} = Next,
     Name = NamePrefix ++ binary_to_list(NameBin),
@@ -1360,7 +1394,8 @@ simplify_typedefs([Next | Rest], Types, NamePrefix) ->
     NewTypes = maps:put(Name, {Params, Type}, Types),
     simplify_typedefs(Rest, NewTypes, NamePrefix).
 
-simplify_specs([], Specs, _Types) -> Specs;
+simplify_specs([], Specs, _Types) ->
+    Specs;
 simplify_specs([Next | Rest], Specs, Types) ->
     #{name := NameBin, arguments := ArgDefs, returns := ResultDef} = Next,
     Name = binary_to_list(NameBin),
@@ -1444,9 +1479,9 @@ opaque_type_name(Name)           -> binary_to_list(Name).
 flatten_opaque_type(T, Types) ->
     case normalize_opaque_type(T, Types) of
         {ok, AlreadyNormalized, NOpaque, NExpanded} ->
-            flatten_opaque_type2(T, AlreadyNormalized, NOpaque, NExpanded,
-                                 Types);
-        Error -> Error
+            flatten_opaque_type2(T, AlreadyNormalized, NOpaque, NExpanded, Types);
+        Error ->
+            Error
     end.
 
 flatten_opaque_type2(T, AlreadyNormalized, NOpaque, NExpanded, Types) ->
@@ -1456,13 +1491,14 @@ flatten_opaque_type2(T, AlreadyNormalized, NOpaque, NExpanded, Types) ->
                 true -> {ok, {T, already_normalized, Flat}};
                 false -> {ok, {T, NOpaque, Flat}}
             end;
-        Error -> Error
+        Error ->
+            Error
     end.
 
 flatten_opaque_types([T | Rest], Types, Acc) ->
     case flatten_opaque_type(T, Types) of
         {ok, Type} -> flatten_opaque_types(Rest, Types, [Type | Acc]);
-        Error -> Error
+        Error      -> Error
     end;
 flatten_opaque_types([], _Types, Acc) ->
     {ok, lists:reverse(Acc)}.
@@ -1470,16 +1506,15 @@ flatten_opaque_types([], _Types, Acc) ->
 flatten_opaque_bindings([{Name, T} | Rest], Types, Acc) ->
     case flatten_opaque_type(T, Types) of
         {ok, Type} -> flatten_opaque_bindings(Rest, Types, [{Name, Type} | Acc]);
-        Error -> Error
+        Error      -> Error
     end;
 flatten_opaque_bindings([], _Types, Acc) ->
     {ok, lists:reverse(Acc)}.
 
 flatten_opaque_variants([{Name, Elems} | Rest], Types, Acc) ->
     case flatten_opaque_types(Elems, Types, []) of
-        {ok, ElemsFlat} ->
-            flatten_opaque_variants(Rest, Types, [{Name, ElemsFlat} | Acc]);
-        Error -> Error
+        {ok, ElemsFlat} -> flatten_opaque_variants(Rest, Types, [{Name, ElemsFlat} | Acc]);
+        Error           -> Error
     end;
 flatten_opaque_variants([], _Types, Acc) ->
     {ok, lists:reverse(Acc)}.
@@ -1489,23 +1524,23 @@ flatten_normalized_type(PrimitiveType, _Types) when is_atom(PrimitiveType) ->
 flatten_normalized_type({variant, VariantsOpaque}, Types) ->
     case flatten_opaque_variants(VariantsOpaque, Types, []) of
         {ok, Variants} -> {ok, {variant, Variants}};
-        Error -> Error
+        Error          -> Error
     end;
 flatten_normalized_type({record, FieldsOpaque}, Types) ->
     case flatten_opaque_bindings(FieldsOpaque, Types, []) of
         {ok, Fields} -> {ok, {record, Fields}};
-        Error -> Error
+        Error        -> Error
     end;
 flatten_normalized_type({T, ElemsOpaque}, Types) ->
     case flatten_opaque_types(ElemsOpaque, Types, []) of
         {ok, Elems} -> {ok, {T, Elems}};
-        Error -> Error
+        Error       -> Error
     end.
 
 normalize_opaque_type(T, Types) ->
     case type_is_expanded(T) of
         false -> normalize_opaque_type(T, Types, true);
-        true -> {ok, true, T, T}
+        true  -> {ok, true, T, T}
     end.
 
 % FIXME detect infinite loops
@@ -1520,26 +1555,32 @@ normalize_opaque_type(T, Types, IsFirst) when is_list(T) ->
 normalize_opaque_type({T, TypeArgs}, Types, IsFirst) when is_list(T) ->
     case maps:find(T, Types) of
         %{error, invalid_aci}; % FIXME more info
-        error -> {ok, IsFirst, {T, TypeArgs}, {unknown_type, TypeArgs}};
+        error ->
+            {ok, IsFirst, {T, TypeArgs}, {unknown_type, TypeArgs}};
         {ok, {TypeParamNames, Definition}} ->
             Bindings = lists:zip(TypeParamNames, TypeArgs),
             normalize_opaque_type2(T, TypeArgs, Types, IsFirst, Bindings, Definition)
     end.
 
 normalize_opaque_type2(T, TypeArgs, Types, IsFirst, Bindings, Definition) ->
-    SubResult = case Bindings of
-        [] -> {ok, Definition};
-        _ -> substitute_opaque_type(Bindings, Definition)
-    end,
+    SubResult =
+        case Bindings of
+            [] -> {ok, Definition};
+            _  -> substitute_opaque_type(Bindings, Definition)
+        end,
     case SubResult of
         % Type names were already normalized if they were ADTs or records,
         % since for those connectives the name is considered part of the type.
-        {ok, NextT = {variant, _}} -> {ok, IsFirst, {T, TypeArgs}, NextT};
-        {ok, NextT = {record, _}} -> {ok, IsFirst, {T, TypeArgs}, NextT};
+        {ok, NextT = {variant, _}} ->
+            {ok, IsFirst, {T, TypeArgs}, NextT};
+        {ok, NextT = {record, _}} ->
+            {ok, IsFirst, {T, TypeArgs}, NextT};
         % Everything else has to be substituted down to a built-in connective
         % to be considered normalized.
-        {ok, NextT} -> normalize_opaque_type3(NextT, Types);
-        Error -> Error
+        {ok, NextT} ->
+            normalize_opaque_type3(NextT, Types);
+        Error ->
+            Error
     end.
 
 % while this does look like normalize_opaque_type/2, it sets IsFirst to false
@@ -1548,34 +1589,34 @@ normalize_opaque_type2(T, TypeArgs, Types, IsFirst, Bindings, Definition) ->
 normalize_opaque_type3(NextT, Types) ->
     case type_is_expanded(NextT) of
         false -> normalize_opaque_type(NextT, Types, false);
-        true -> {ok, false, NextT, NextT}
+        true  -> {ok, false, NextT, NextT}
     end.
 
 % Strings indicate names that should be substituted. Atoms indicate built in
 % types, which don't need to be expanded, except for option.
-type_is_expanded({option, _}) -> false;
-type_is_expanded(X) when is_atom(X) -> true;
+type_is_expanded({option, _})            -> false;
+type_is_expanded(X) when is_atom(X)      -> true;
 type_is_expanded({X, _}) when is_atom(X) -> true;
-type_is_expanded(_) -> false.
+type_is_expanded(_)                      -> false.
 
 % Skip traversal if there is nothing to substitute. This will often be the
 % most common case.
 substitute_opaque_type(Bindings, {var, VarName}) ->
     case lists:keyfind(VarName, 1, Bindings) of
-        false -> {error, invalid_aci};
+        false        -> {error, invalid_aci};
         {_, TypeArg} -> {ok, TypeArg}
     end;
 substitute_opaque_type(Bindings, {Connective, Args}) ->
     case substitute_opaque_types(Bindings, Args, []) of
         {ok, Result} -> {ok, {Connective, Result}};
-        Error -> Error
+        Error        -> Error
     end;
 substitute_opaque_type(_Bindings, Type) -> {ok, Type}.
 
 substitute_opaque_types(Bindings, [Next | Rest], Acc) ->
     case substitute_opaque_type(Bindings, Next) of
         {ok, Result} -> substitute_opaque_types(Bindings, Rest, [Result | Acc]);
-        Error -> Error
+        Error        -> Error
     end;
 substitute_opaque_types(_Bindings, [], Acc) ->
     {ok, lists:reverse(Acc)}.
@@ -1702,9 +1743,11 @@ coerce({O, N, {record, MemberTypes}}, {tuple, Tuple}, from_fate) ->
 coerce({O, N, {unknown_type, _}}, Data, _) ->
     case N of
         already_normalized ->
-            io:format("Warning: Unknown type ~p. Using term ~p as is.~n", [O, Data]);
+            Message = "Warning: Unknown type ~p. Using term ~p as is.~n",
+            io:format(Message, [O, Data]);
         _ ->
-            io:format("Warning: Unknown type ~p (i.e. ~p). Using term ~p as is.~n", [O, N, Data])
+            Message = "Warning: Unknown type ~p (i.e. ~p). Using term ~p as is.~n",
+            io:format(Message, [O, N, Data])
     end,
     {ok, Data};
 coerce({O, N, _}, Data, from_fate) ->
@@ -1740,7 +1783,8 @@ coerce_map(KeyType, ValType, Remaining, Direction, Good, Broken) ->
     case maps:next(Remaining) of
         {K, V, RemainingAfter} ->
             coerce_map2(KeyType, ValType, RemainingAfter, Direction, Good, Broken, K, V);
-        none -> coerce_map_finish(Good, Broken)
+        none ->
+            coerce_map_finish(Good, Broken)
     end.
 
 coerce_map2(KeyType, ValType, Remaining, Direction, Good, Broken, K, V) ->
@@ -1771,7 +1815,8 @@ coerce_map_finish(_, Broken) ->
 
 lookup_variant(Name, Variants) -> lookup_variant(Name, Variants, 0).
 
-lookup_variant(Name, [{Name, Terms} | _], Tag) -> {Tag, Terms};
+lookup_variant(Name, [{Name, Terms} | _], Tag) ->
+    {Tag, Terms};
 lookup_variant(Name, [_ | Rest], Tag) ->
     lookup_variant(Name, Rest, Tag + 1);
 lookup_variant(_Name, [], _Tag) ->
@@ -1823,7 +1868,8 @@ coerce_tuple_elements(Types, Terms, Direction, Tag) ->
 
 coerce_tuple_elements([Type | Types], [Term | Terms], Direction, Tag, Index, Good, Broken) ->
     case coerce(Type, Term, Direction) of
-        {ok, Value} -> coerce_tuple_elements(Types, Terms, Direction, Tag, Index + 1, [Value | Good], Broken);
+        {ok, Value} ->
+            coerce_tuple_elements(Types, Terms, Direction, Tag, Index + 1, [Value | Good], Broken);
         {error, Errors} ->
             Wrapped = wrap_errors({Tag, Index}, Errors),
             coerce_tuple_elements(Types, Terms, Direction, Tag, Index + 1, Good, [Wrapped | Broken])
@@ -1843,7 +1889,8 @@ coerce_map_to_record(O, N, MemberTypes, Map) ->
             case coerce_zipped_bindings(Zipped, to_fate, field) of
                 {ok, Converted} ->
                     {ok, {tuple, list_to_tuple(Converted)}};
-                Errors -> Errors
+                Errors ->
+                    Errors
             end;
         {error, {missing_fields, Missing}} ->
             single_error({missing_fields, O, N, Missing});
@@ -1866,7 +1913,8 @@ coerce_record_to_map(O, N, MemberTypes, Tuple) ->
             single_error({record_too_few_terms, O, N, Tuple});
         {error, too_many_terms} ->
             single_error({record_too_many_terms, O, N, Tuple});
-        Errors -> Errors
+        Errors ->
+            Errors
     end.
 
 zip_record_fields(Fields, Map) ->
@@ -1961,6 +2009,21 @@ encode_call_data2(ArgDef, Fun, Args) ->
         Errors -> Errors
     end.
 
+
+-spec verify_signature(Sig, Message, PubKey) -> Result
+    when Sig     :: binary(),
+         Message :: iodata(),
+         PubKey  :: pubkey(),
+         Result  :: {ok, Outcome :: boolean()}
+                  | {error, Reason :: term()}.
+%% @doc
+%% Verify a message signature given the signature, the message that was signed, and the
+%% public half of the key that was used to sign.
+%%
+%% The result of a complete signature check is a boolean value return in an `{ok, Outcome}'
+%% tuple, and any `{error, Reason}' return value is an indication that something about the
+%% check failed before verification was able to pass or fail (bad key encoding or similar).
+
 verify_signature(Sig, Message, PubKey) ->
     case aeser_api_encoder:decode(PubKey) of
         {account_pubkey, PK} -> verify_signature2(Sig, Message, PK);
@@ -1983,7 +2046,7 @@ verify_signature2(Sig, Message, PK) ->
     Smashed = iolist_to_binary([PSize, Prefix, MSize, Message]),
     {ok, Hashed} = eblake2:blake2b(32, Smashed),
     Signature = <<(binary_to_integer(Sig, 16)):(64 * 8)>>,
-    Result = enacl:sign_verify_detached(Signature, Hashed, PK),
+    Result = ecu_eddsa:sign_verify_detached(Signature, Hashed, PK),
     {ok, Result}.
 
 
@@ -2052,24 +2115,35 @@ eu(N, Size) ->
 
 
 -spec start() -> ok | {error, Reason :: term()}.
+%% @doc
+%% Public function for manually starting the Vanillae application.
+%%
+%% NOTE:
+%% To start it as a subordinate service within your own supervision tree rather than
+%% as a peer Erlang application within your node, add the vanillae_sup to your own
+%% supervision tree.
 
 start() ->
     application:start(vanillae).
 
 
 -spec stop() -> ok | {error, Reason :: term()}.
+%% @doc
+%% Public function for manually stopping the Vanillae application.
 
 stop() ->
     application:stop(vanillae).
 
 
 -spec start(normal, term()) -> {ok, pid()}.
+%% @private
 
 start(normal, _Args) ->
     vanillae_sup:start_link().
 
 
 -spec stop(term()) -> ok.
+%% @private
 
 stop(_State) ->
     ok.

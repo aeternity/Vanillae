@@ -1,4 +1,4 @@
-%%% @doc
+%%% @private
 %%% Vanillae Erlang Aeternity application supervisor
 %%%
 %%% The very top level supervisor in the system. It only has one service branch: the
@@ -9,7 +9,7 @@
 %%% @end
 
 -module(vanillae_sup).
--vsn("0.2.0").
+-vsn("0.3.1").
 -behaviour(supervisor).
 -author("Craig Everett <zxq9@zxq9.com>").
 -copyright("Craig Everett <zxq9@zxq9.com>").

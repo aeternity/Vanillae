@@ -1,4 +1,4 @@
-%%% @doc
+%%% @private
 %%% Vanillae Request Manager for Erlang
 %%%
 %%% This process is responsible for remembering the configured nodes and dispatching
@@ -9,7 +9,7 @@
 %%% @end
 
 -module(vanillae_man).
--vsn("0.2.0").
+-vsn("0.3.1").
 -behavior(gen_server).
 -author("Craig Everett <ceverett@tsuriai.jp>").
 -copyright("Craig Everett <ceverett@tsuriai.jp>").
