@@ -9,7 +9,7 @@
 %%% @end
 
 -module(vanillae_sup).
--vsn("0.3.1").
+-vsn("0.3.2").
 -behaviour(supervisor).
 -author("Craig Everett <zxq9@zxq9.com>").
 -copyright("Craig Everett <zxq9@zxq9.com>").

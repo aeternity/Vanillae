@@ -2,7 +2,8 @@
 {author,"Craig Everett"}.
 {c_email,"ceverett@tsuriai.jp"}.
 {copyright,"Craig Everett"}.
-{deps,[{"otpr","aebytecode",{3,2,1}},
+{deps,[{"otpr","ec_utils",{1,0,0}},
+       {"otpr","aebytecode",{3,2,1}},
        {"otpr","aesophia",{7,1,2}},
        {"otpr","aeserialization",{0,1,0}},
        {"otpr","zj",{1,1,0}},
@@ -14,7 +15,7 @@
 {license,"MIT"}.
 {modules,[]}.
 {name,"Vanillae for Erlang"}.
-{package_id,{"otpr","vanillae",{0,3,1}}}.
+{package_id,{"otpr","vanillae",{0,3,2}}}.
 {prefix,"v"}.
 {repo_url,"https://github.com/aeternity/Vanillae"}.
 {tags,[]}.
