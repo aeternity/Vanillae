@@ -359,9 +359,14 @@ msg_sign
     let confirm_window = await browser.windows.create({url  : '../pages/msg_confirm.html',
                                                        type : 'popup'});
     console.log('b');
+    console.log(confirm_window.tabs);
     // @ts-ignore shut the fuck up
     let tabid : number = confirm_window.tabs[0].id;
     console.log('tabid', tabid);
+
+    // stupid hack because otherwise the message gets sent before the listener in the page script is created
+    await sleep(500);
+    console.log('slept');
 
     let result = await browser.tabs.sendMessage(tabid, {msg_str : msg_str});
     console.log('result', result);
@@ -769,3 +774,17 @@ bi_s2i
 
     return {keypairs: i_keypairs};
 }
+
+
+
+/**
+ * Hack from stack overflow somewhere to sleep for the given number of ms
+ */
+async function
+sleep
+    (ms: number)
+    : Promise<void>
+{
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+

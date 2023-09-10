@@ -29,3 +29,9 @@ background script
     - raseev requests
     - send responses back to page
 - 
+
+----
+vdk general lib
+
+sleep
+bulrtot
