@@ -6,6 +6,8 @@ Public Domain
 
 ## building
 
+requires [jex](../../utils/jex/)
+
 ```
 jex dwim+
 ```

@@ -2,8 +2,9 @@
 
 do not use this library
 
-
 ## building
+
+requires [jex](../../utils/jex/)
 
 ```
 jex install

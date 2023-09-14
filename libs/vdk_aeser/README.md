@@ -5,6 +5,8 @@ Serialization/deserialization routines for AE data. For instance, read a
 
 ## building
 
+requires [jex](../../utils/jex/)
+
 ```
 jex install
 ```
