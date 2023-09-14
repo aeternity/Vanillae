@@ -319,6 +319,8 @@ bi_msg_handler_content
         case "message.sign":
             console.log('jr bg content message handler message sign');
             let msg_str : string = msg.data.params.message;
+            // TODO: need to break here on whether the msg signature was good
+            // (signed) or bad (not)
             let resultt = await msg_sign(msg_str, secret_key)
             return w2a_ok(resultt);
 
@@ -354,31 +356,42 @@ msg_sign
      secret_key : Uint8Array)
     : Promise<{signature : string}>
 {
-    console.log('a');
     // does the user want to sign the message
     let confirm_window = await browser.windows.create({url  : '../pages/msg_confirm.html',
                                                        type : 'popup'});
-    console.log('b');
-    console.log(confirm_window.tabs);
+    //console.log(confirm_window.tabs);
+
     // @ts-ignore shut the fuck up
     let tabid : number = confirm_window.tabs[0].id;
-    console.log('tabid', tabid);
+    //console.log('tabid', tabid);
 
     // stupid hack because otherwise the message gets sent before the listener in the page script is created
-    await sleep(500);
+    await sleep(200);
     console.log('slept');
 
-    let result = await browser.tabs.sendMessage(tabid, {msg_str : msg_str});
+    let result: 'good' | 'bad'
+            = await browser.tabs.sendMessage(tabid, {msg_str : msg_str});
+    //
     console.log('result', result);
 
-    // use nacl detached signatures
-    // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L141-L143
-    // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L160-L167
-    let hashed_salted_msg : Uint8Array = vdk_aecrypt.hash_and_salt_msg(msg_str);
-    // @ts-ignore yes nacl is stupid
-    let signature         : Uint8Array = nacl.sign.detached(hashed_salted_msg, secret_key);
-    let signature_str     : string     = vdk_binary.bytes_to_hex_str(signature);
-    return {signature: signature_str};
+    // close the popup
+    browser.tabs.remove(tabid);
+
+    // if confirm
+    if
+    (result === 'good') {
+        // use nacl detached signatures
+        // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L141-L143
+        // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L160-L167
+        let hashed_salted_msg : Uint8Array = vdk_aecrypt.hash_and_salt_msg(msg_str);
+        // @ts-ignore yes nacl is stupid
+        let signature         : Uint8Array = nacl.sign.detached(hashed_salted_msg, secret_key);
+        let signature_str     : string     = vdk_binary.bytes_to_hex_str(signature);
+        return {signature: signature_str};
+    }
+    else {
+        return {
+    }
 }
 
 
