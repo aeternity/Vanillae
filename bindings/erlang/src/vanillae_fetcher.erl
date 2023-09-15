@@ -211,7 +211,7 @@ read_hval(_, Received, _, _, _) ->
 
 
 slowly_connect(Node, {get, Path}, From, Timeout) ->
-    HttpOptions = [{connection_timeout, 3000}, {timeout, Timeout}],
+    HttpOptions = [{connect_timeout, 3000}, {timeout, Timeout}],
     URL = lists:flatten(url(Node, Path)),
     Request = {URL, []},
     Result =
@@ -222,7 +222,7 @@ slowly_connect(Node, {get, Path}, From, Timeout) ->
         end,
     gen_server:reply(From, Result);
 slowly_connect(Node, {post, Path, Payload}, From, Timeout) ->
-    HttpOptions = [{connection_timeout, 3000}, {timeout, Timeout}],
+    HttpOptions = [{connect_timeout, 3000}, {timeout, Timeout}],
     URL = lists:flatten(url(Node, Path)),
     Request = {URL, [], "application/json", Payload},
     Result =
