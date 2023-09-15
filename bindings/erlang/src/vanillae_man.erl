@@ -17,6 +17,7 @@
 
 %% Admin functions
 -export([network_id/0, network_id/1,
+         tls/0,        tls/1,
          ae_nodes/0,   ae_nodes/1,
          timeout/0,    timeout/1]).
 
@@ -44,6 +45,7 @@
 
 -record(s,
         {network_id = "ae_mainnet" :: string(),
+         tls        = false        :: boolean(),
          ae_nodes   = {[], []}     :: {[vanillae:ae_node()], [vanillae:ae_node()]},
          fetchers   = []           :: [#fetcher{}],
          timeout    = 5000         :: pos_integer()}).
@@ -67,6 +69,18 @@ network_id() ->
 
 network_id(Name) ->
     gen_server:cast(?MODULE, {network_id, Name}).
+
+
+-spec tls() -> boolean().
+
+tls() ->
+    gen_server:call(?MODULE, tls).
+
+
+-spec tls(boolean()) -> ok.
+
+tls(Boolean) ->
+    gen_server:cast(?MODULE, {tls, Boolean}).
 
 
 -spec ae_nodes() -> Used
@@ -150,6 +164,8 @@ handle_call({request, Request}, From, State) ->
     {noreply, NewState};
 handle_call(network_id, _, State = #s{network_id = Name}) ->
     {reply, Name, State};
+handle_call(tls, _, State = #s{tls = TLS}) ->
+    {reply, TLS, State};
 handle_call(ae_nodes, _, State = #s{ae_nodes = {Wait, Used}}) ->
     Nodes = lists:append(Wait, Used),
     {reply, Nodes, State};
@@ -162,6 +178,9 @@ handle_call(Unexpected, From, State) ->
 
 handle_cast({network_id, Name}, State) ->
     {noreply, State#s{network_id = Name}};
+handle_cast({tls, Boolean}, State) ->
+    NewState = do_tls(Boolean, State),
+    {noreply, NewState};
 handle_cast({ae_nodes, []}, State) ->
     {noreply, State#s{ae_nodes = none}};
 handle_cast({ae_nodes, ToUse}, State) ->
@@ -220,16 +239,42 @@ terminate(_, _) ->
 
 %%% Doer Functions
 
+do_tls(true, State) ->
+    ok = ssl:start(),
+    State#s{tls = true};
+do_tls(false, State) ->
+    State#s{tls = false};
+do_tls(_, State) ->
+    State.
+
+
 do_request(_, From, State = #s{ae_nodes = {[], []}}) ->
     ok = gen_server:reply(From, {error, no_nodes}),
     State;
 do_request(Request,
            From,
-           State = #s{fetchers = Fetchers,
+           State = #s{tls      = false,
+                      fetchers = Fetchers,
                       ae_nodes = {[Node | Rest], Used},
                       timeout  = Timeout}) ->
     Now = erlang:system_time(nanosecond),
     Fetcher = fun() -> vanillae_fetcher:connect(Node, Request, From, Timeout) end,
+    {PID, Mon} = spawn_monitor(Fetcher),
+    New = #fetcher{pid  = PID,
+                   mon  = Mon,
+                   time = Now,
+                   node = Node,
+                   from = From,
+                   req  = Request},
+    State#s{fetchers = [New | Fetchers], ae_nodes = {Rest, [Node | Used]}};
+do_request(Request,
+           From,
+           State = #s{tls      = true,
+                      fetchers = Fetchers,
+                      ae_nodes = {[Node | Rest], Used},
+                      timeout  = Timeout}) ->
+    Now = erlang:system_time(nanosecond),
+    Fetcher = fun() -> vanillae_fetcher:slowly_connect(Node, Request, From, Timeout) end,
     {PID, Mon} = spawn_monitor(Fetcher),
     New = #fetcher{pid  = PID,
                    mon  = Mon,
