@@ -1,7 +1,7 @@
 %%% @private
 
 -module(vanillae_fetcher).
--vsn("0.4.0").
+-vsn("0.4.1").
 -author("Craig Everett <ceverett@tsuriai.jp>").
 -copyright("Craig Everett <ceverett@tsuriai.jp>").
 -license("MIT").
