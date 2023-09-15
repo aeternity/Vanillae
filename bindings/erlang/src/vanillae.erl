@@ -1372,10 +1372,7 @@ prepare_contract(File) ->
     end.
 
 prepare_aaci(ACI) ->
-    % NOTE this will also pick up the main contract; as a result the main
-    % contract extraction later on shouldn't bother with typedefs.
-    Contracts = [ContractDef || #{contract := ContractDef} <- ACI],
-    Types = simplify_contract_types(Contracts, #{}),
+    Types = lists:foldl(fun prepare_namespace_types/2, #{}, ACI),
 
     [{NameBin, SpecDefs}] =
         [{N, F}
@@ -1386,22 +1383,29 @@ prepare_aaci(ACI) ->
     Specs = simplify_specs(SpecDefs, #{}, Types),
     {aaci, Name, Specs, Types}.
 
-simplify_contract_types([], Types) ->
-    Types;
-simplify_contract_types([Next | Rest], Types) ->
-    TypeDefs = maps:get(typedefs, Next),
-    NameBin = maps:get(name, Next),
+prepare_namespace_types(#{namespace := NS}, Types) ->
+    prepare_namespace_types2(NS, false, Types);
+prepare_namespace_types(#{contract := NS}, Types) ->
+    prepare_namespace_types2(NS, true, Types).
+
+prepare_namespace_types2(NS, IsContract, Types) ->
+    TypeDefs = maps:get(typedefs, NS),
+    NameBin = maps:get(name, NS),
     Name = binary_to_list(NameBin),
-    Types2 = maps:put(Name, {[], contract}, Types),
-    Types3 = case maps:find(state, Next) of
+    Types2 = case IsContract of
+                 true ->
+                     maps:put(Name, {[], contract}, Types);
+                 false ->
+                     Types
+             end,
+    Types3 = case maps:find(state, NS) of
                  {ok, StateDefACI} ->
                      StateDefOpaque = opaque_type([], StateDefACI),
                      maps:put(Name ++ ".state", {[], StateDefOpaque}, Types2);
                  error ->
                      Types2
              end,
-    Types4 = simplify_typedefs(TypeDefs, Types3, Name ++ "."),
-    simplify_contract_types(Rest, Types4).
+    simplify_typedefs(TypeDefs, Types3, Name ++ ".").
 
 simplify_typedefs([], Types, _NamePrefix) ->
     Types;
