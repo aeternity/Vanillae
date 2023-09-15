@@ -26,7 +26,7 @@
 %%% @end
 
 -module(vanillae).
--vsn("0.3.1").
+-vsn("0.4.1").
 -behavior(application).
 -author("Craig Everett <ceverett@tsuriai.jp>").
 -copyright("Craig Everett <ceverett@tsuriai.jp>").
@@ -35,6 +35,7 @@
 % Get/Set admin functions.
 -export([network_id/0, network_id/1,
          ae_nodes/0,   ae_nodes/1,
+         tls/0,        tls/1,
          timeout/0,    timeout/1]).
 
 % AE node JSON query interface functions
@@ -267,6 +268,24 @@ ae_nodes() ->
 
 ae_nodes(List) when is_list(List) ->
     vanillae_man:ae_nodes(List).
+
+
+-spec tls() -> boolean().
+%% @doc
+%% Check whether TLS is in use.
+
+tls() ->
+    vanillae_man:tls().
+
+
+-spec tls(boolean()) -> ok.
+%% @doc
+%% Set TLS true or false. That's what a boolean is, by the way, `true' or `false'.
+%% This is a condescending comment. That means I am talking down to you.
+
+tls(Boolean) ->
+    vanillae_man:tls(Boolean).
+
 
 
 -spec timeout() -> Timeout

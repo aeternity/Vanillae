@@ -1,12 +1,12 @@
 %%% @private
 
 -module(vanillae_fetcher).
--vsn("0.3.1").
+-vsn("0.4.1").
 -author("Craig Everett <ceverett@tsuriai.jp>").
 -copyright("Craig Everett <ceverett@tsuriai.jp>").
 -license("MIT").
 
--export([connect/4]).
+-export([connect/4, slowly_connect/4]).
 
 -include("$zx_include/zx_logger.hrl").
 
@@ -208,3 +208,33 @@ read_hval(Socket, <<>>, Val, Key, Headers) ->
 read_hval(_, Received, _, _, _) ->
     log(info, "~p Headers died at: ~p", [?LINE, Received]),
     {error, headers}.
+
+
+slowly_connect(Node, {get, Path}, From, Timeout) ->
+    HttpOptions = [{connect_timeout, 3000}, {timeout, Timeout}],
+    URL = lists:flatten(url(Node, Path)),
+    Request = {URL, []},
+    Result =
+        case httpc:request(get, Request, HttpOptions, []) of
+            {ok, {{_, 200, _}, _, JSON}} -> zj:decode(JSON);
+            {ok, {{_, BAD, _}, _, _}}    -> {error, BAD};
+            BAD                          -> {error, BAD}
+        end,
+    gen_server:reply(From, Result);
+slowly_connect(Node, {post, Path, Payload}, From, Timeout) ->
+    HttpOptions = [{connect_timeout, 3000}, {timeout, Timeout}],
+    URL = lists:flatten(url(Node, Path)),
+    Request = {URL, [], "application/json", Payload},
+    Result =
+        case httpc:request(post, Request, HttpOptions, []) of
+            {ok, {{_, 200, _}, _, JSON}} -> zj:decode(JSON);
+            {ok, {{_, BAD, _}, _, _}}    -> {error, BAD};
+            BAD                          -> {error, BAD}
+        end,
+    gen_server:reply(From, Result).
+
+
+url({Node, Port}, Path) when is_list(Node) ->
+    ["https://", Node, ":", integer_to_list(Port), Path];
+url({Node, Port}, Path) when is_tuple(Node) ->
+    ["https://", inet:ntoa(Node), ":", integer_to_list(Port), Path].
