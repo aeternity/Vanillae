@@ -52,7 +52,7 @@
 
 
 import * as awcp        from './jex_include/local-awcp-0.2.3/dist/awcp.js';
-import * as vdk_aecrypt from './jex_include/local-vdk_aecrypt-0.1.0/dist/vdk_aecrypt.js';
+import * as vdk_aecrypt from './jex_include/local-vdk_aecrypt-0.1.1/dist/vdk_aecrypt.js';
 import * as vdk_aeser   from './jex_include/local-vdk_aeser-0.1.0/dist/vdk_aeser.js';
 import * as vdk_binary  from './jex_include/local-vdk_binary-0.1.0/dist/vdk_binary.js';
 
@@ -390,7 +390,8 @@ msg_sign
         return {signature: signature_str};
     }
     else {
-        return {
+        // @ts-ignore i just want things to compile FIXME
+        return 'go please yourself';
     }
 }
 
