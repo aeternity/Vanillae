@@ -321,17 +321,27 @@ bi_msg_handler_content
             let msg_str : string = msg.data.params.message;
             // TODO: need to break here on whether the msg signature was good
             // (signed) or bad (not)
-            let resultt = await msg_sign(msg_str, secret_key)
-            return w2a_ok(resultt);
+            let resultt = await msg_sign(msg_str, secret_key);
+            if (resultt.result === 'good') {
+                return w2a_ok({signature: resultt.signature});
+            }
+            else {
+                return w2a_err(awcp.ERROR_CODE_RpcRejectedByUserError, "you're not pretty enough");
+            }
 
         // right now just sign tx
         case "transaction.sign":
             console.log('jr bg content message handler transaction sign');
             let tx_str : string = msg.data.params.tx;
             console.log('transaction: ', tx_str);
-            let result          = await tx_sign(tx_str, secret_key)
-            console.log('signed transaction: ', result.signedTransaction);
-            return w2a_ok(result);
+            let result = await tx_sign(tx_str, secret_key)
+            return w2a_ok({signedTransaction: result.signedTransaction});
+            //if (result.result === 'good') {
+            //    return w2a_ok({signedTransaction: result.signedTransaction});
+            //}
+            //else {
+            //    return w2a_err(awcp.ERROR_CODE_RpcRejectedByUserError, "you will never be pretty enough");
+            //}
 
         // default is NYI
         default:
@@ -354,7 +364,10 @@ async function
 msg_sign
     (msg_str    : string,
      secret_key : Uint8Array)
-    : Promise<{signature : string}>
+    : Promise< {result    : 'good',
+                signature : string}
+             | {result    : 'bad'}
+             >
 {
     // does the user want to sign the message
     let confirm_window = await browser.windows.create({url  : '../pages/msg_confirm.html',
@@ -387,10 +400,11 @@ msg_sign
         // @ts-ignore yes nacl is stupid
         let signature         : Uint8Array = nacl.sign.detached(hashed_salted_msg, secret_key);
         let signature_str     : string     = vdk_binary.bytes_to_hex_str(signature);
-        return {signature: signature_str};
+        return {result    : 'good',
+                signature : signature_str};
     }
     else {
-        return {
+        return {result : 'bad'};
     }
 }
 
