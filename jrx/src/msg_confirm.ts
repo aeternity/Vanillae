@@ -1,17 +1,34 @@
 /**
  * Page script for "confirm sign message" popup window 
+ *
+ * For some reason getting "duplicate function implementation" errors from TSC
+ * if I give these functions normal names
+ *
+ * Getting this error on both this file and tx_confirm.ts
+ *
+ * For some reason changing the names only in this file gets rid of the errors
+ * in both files.
+ *
+ * No idea what the fuck is going on and I can almost guarantee I don't want to
+ * know.
+ *
+ * Everything about this language is painful. You know I think a lot. I wonder
+ * why everything is stupid. In any individual case, you can understand the
+ * chain of incentives for why thing X is stupid. But the majority of things
+ * should not be stupid. The stupid should be the exception. Instead the world
+ * runs on the short bus tech stack.
  */
 
 
-main();
+maine();
 
 
 async function
-main
+maine
     ()
     : Promise<void>
 {
-    console.log('msg_confirm main');
+    console.log('msg_confirm maine');
 
     let result : '' | 'good' | 'bad'
                = '';
@@ -55,7 +72,7 @@ main
         (result === '') {
             // if haven't timed out yet
             if (n <= n_max) {
-                await sleep(5);
+                await sleepy(5);
                 n = n + 1;
             }
             // if timed out
@@ -81,7 +98,7 @@ main
  * Hack from stack overflow somewhere to sleep for the given number of ms
  */
 async function
-sleep
+sleepy
     (ms: number)
     : Promise<void>
 {

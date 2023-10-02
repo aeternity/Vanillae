@@ -29,7 +29,8 @@ main
 
 
     type bg_msg
-        = {msg_str : string};
+        = {tx_str  : string,
+           tx_data : object};
 
     async function listener
         (msg           : bg_msg,
@@ -38,8 +39,10 @@ main
         : Promise<'good' | 'bad'>
     {
         console.log('listener triggered', msg);
-        console.log('msg_str:', msg.msg_str);
-        document.getElementById('message')!.innerHTML = msg.msg_str;
+        console.log('tx_str:', msg.tx_str);
+        console.log('tx_data:', msg.tx_data);
+        document.getElementById('tx-base64')!.innerHTML = msg.tx_str;
+        document.getElementById('tx-decomposed')!.innerHTML = JSON.stringify(msg.tx_data, undefined, 4);
 
         // every 5 ms check
         // timeout of 10 minutes = 10*60 secs * 20 iterations = 
@@ -51,6 +54,12 @@ main
         let n     = 1;
         let n_max = 30*SEC;
 
+        // result starts as neutral
+        // if user clicks good, result will be updated to 'good'
+        // if user clicks bad, result will be updated to 'bad'
+        // if user doesn't click in 30 seconds, default to 'bad'
+        // this has the effect of sitting and waiting until the user clicks a button
+        // with a timeout as a backstop
         while
         (result === '') {
             // if haven't timed out yet
