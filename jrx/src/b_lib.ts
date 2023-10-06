@@ -321,17 +321,33 @@ bi_msg_handler_content
             let msg_str : string = msg.data.params.message;
             // TODO: need to break here on whether the msg signature was good
             // (signed) or bad (not)
-            let resultt = await msg_sign(msg_str, secret_key)
-            return w2a_ok(resultt);
+            let resultt = await msg_sign(msg_str, secret_key);
+            if (resultt.result === 'good') {
+                return w2a_ok({signature: resultt.signature});
+            }
+            else {
+                return w2a_err(awcp.ERROR_CODE_RpcRejectedByUserError, "you're not pretty enough");
+            }
 
         // right now just sign tx
         case "transaction.sign":
             console.log('jr bg content message handler transaction sign');
             let tx_str : string = msg.data.params.tx;
             console.log('transaction: ', tx_str);
-            let result          = await tx_sign(tx_str, secret_key)
-            console.log('signed transaction: ', result.signedTransaction);
-            return w2a_ok(result);
+            let result = await tx_sign(tx_str, secret_key)
+            if
+            ('good' === result.result) {
+                return w2a_ok({signedTransaction: result.signedTransaction});
+            }
+            else {
+                return w2a_err(awcp.ERROR_CODE_RpcRejectedByUserError, "your not pretty enough");
+            }
+            //if (result.result === 'good') {
+            //    return w2a_ok({signedTransaction: result.signedTransaction});
+            //}
+            //else {
+            //    return w2a_err(awcp.ERROR_CODE_RpcRejectedByUserError, "you will never be pretty enough");
+            //}
 
         // default is NYI
         default:
@@ -354,7 +370,10 @@ async function
 msg_sign
     (msg_str    : string,
      secret_key : Uint8Array)
-    : Promise<{signature : string}>
+    : Promise< {result    : 'good',
+                signature : string}
+             | {result    : 'bad'}
+             >
 {
     // does the user want to sign the message
     let confirm_window = await browser.windows.create({url  : '../pages/msg_confirm.html',
@@ -387,11 +406,11 @@ msg_sign
         // @ts-ignore yes nacl is stupid
         let signature         : Uint8Array = nacl.sign.detached(hashed_salted_msg, secret_key);
         let signature_str     : string     = vdk_binary.bytes_to_hex_str(signature);
-        return {signature: signature_str};
+        return {result    : 'good',
+                signature : signature_str};
     }
     else {
-        // @ts-ignore i just want things to compile FIXME
-        return 'go please yourself';
+        return {result : 'bad'};
     }
 }
 
@@ -411,32 +430,66 @@ async function
 tx_sign
     (tx_str    : string,
      secret_key : Uint8Array)
-    : Promise<{signedTransaction : string}>
+    : Promise< {result            : 'good',
+                signedTransaction : string}
+             | {result : 'bad'}
+             >
 {
+    // does the user want to sign the message
+    let confirm_window = await browser.windows.create({url  : '../pages/tx_confirm.html',
+                                                       type : 'popup'});
+
+    // @ts-ignore shut the fuck up
+    let tabid : number = confirm_window.tabs[0].id;
+
+    // stupid hack because otherwise the message gets sent before the listener in the page script is created
+    await sleep(200);
+
     // debug: show tx
     let mansplained_tx  : object     = await vdk_aeser.mansplain(tx_str);
     console.log('mansplained_tx,', mansplained_tx);
 
+    type browser_send_data = {tx_str  : string,
+                              tx_data : object};
 
-    let tx_bytes        : Uint8Array = (await vdk_aeser.unbaseNcheck(tx_str)).bytes;
-    // thank you ulf
-    // https://github.com/aeternity/protocol/tree/fd179822fc70241e79cbef7636625cf344a08109/consensus#transaction-signature
-    // we sign <<NetworkId, SerializedObject>>
-    // SerializedObject can either be the object or the hash of the object
-    // let's stick with hash for now
-    let network_id      : Uint8Array = vdk_binary.encode_utf8('ae_uat');
-    // let tx_hash_bytes   : Uint8Array = hash(tx_bytes);
-    let sign_data       : Uint8Array = vdk_binary.bytes_concat(network_id, tx_bytes);
-    // @ts-ignore yes nacl is stupid
-    let signature       : Uint8Array = nacl.sign.detached(sign_data, secret_key);
-    let signed_tx_bytes : Uint8Array = vdk_aeser.signed_tx([signature], tx_bytes);
-    let signed_tx_str   : string     = await vdk_aeser.baseNcheck('tx', signed_tx_bytes);
+    let result: 'good' | 'bad'
+            = await browser.tabs.sendMessage(tabid,
+                                             {tx_str  : tx_str,
+                                              tx_data : mansplained_tx});
 
-    // debugging
-    let mansplained_stx : object     = await vdk_aeser.mansplain(signed_tx_str);
-    console.log('mansplained signed tx:', mansplained_stx);
 
-    return {signedTransaction: signed_tx_str};
+    console.log('result', result);
+
+    // close the popup
+    browser.tabs.remove(tabid);
+    // if we're supposed to sign the tx
+    if
+    ('good' === result) {
+        let tx_bytes        : Uint8Array = (await vdk_aeser.unbaseNcheck(tx_str)).bytes;
+        // thank you ulf
+        // https://github.com/aeternity/protocol/tree/fd179822fc70241e79cbef7636625cf344a08109/consensus#transaction-signature
+        // we sign <<NetworkId, SerializedObject>>
+        // SerializedObject can either be the object or the hash of the object
+        // let's stick with hash for now
+        let network_id      : Uint8Array = vdk_binary.encode_utf8('ae_uat');
+        // let tx_hash_bytes   : Uint8Array = hash(tx_bytes);
+        let sign_data       : Uint8Array = vdk_binary.bytes_concat(network_id, tx_bytes);
+        // @ts-ignore yes nacl is stupid
+        let signature       : Uint8Array = nacl.sign.detached(sign_data, secret_key);
+        let signed_tx_bytes : Uint8Array = vdk_aeser.signed_tx([signature], tx_bytes);
+        let signed_tx_str   : string     = await vdk_aeser.baseNcheck('tx', signed_tx_bytes);
+        // debugging
+        let mansplained_stx : object     = await vdk_aeser.mansplain(signed_tx_str);
+        console.log('mansplained signed tx:', mansplained_stx);
+        return {result            : 'good',
+                signedTransaction : signed_tx_str};
+    }
+    // if user rejected the tx
+    else {
+        return {result : 'bad'};
+    }
+
+
 }
 
 /**

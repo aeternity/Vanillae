@@ -1,34 +1,17 @@
 /**
  * Page script for "confirm sign message" popup window 
- *
- * For some reason getting "duplicate function implementation" errors from TSC
- * if I give these functions normal names
- *
- * Getting this error on both this file and tx_confirm.ts
- *
- * For some reason changing the names only in this file gets rid of the errors
- * in both files.
- *
- * No idea what the fuck is going on and I can almost guarantee I don't want to
- * know.
- *
- * Everything about this language is painful. You know I think a lot. I wonder
- * why everything is stupid. In any individual case, you can understand the
- * chain of incentives for why thing X is stupid. But the majority of things
- * should not be stupid. The stupid should be the exception. Instead the world
- * runs on the short bus tech stack.
  */
 
 
-maine();
+main();
 
 
 async function
-maine
+main
     ()
     : Promise<void>
 {
-    console.log('msg_confirm maine');
+    console.log('msg_confirm main');
 
     let result : '' | 'good' | 'bad'
                = '';
@@ -46,7 +29,8 @@ maine
 
 
     type bg_msg
-        = {msg_str : string};
+        = {tx_str  : string,
+           tx_data : object};
 
     async function listener
         (msg           : bg_msg,
@@ -55,8 +39,10 @@ maine
         : Promise<'good' | 'bad'>
     {
         console.log('listener triggered', msg);
-        console.log('msg_str:', msg.msg_str);
-        document.getElementById('message')!.innerHTML = msg.msg_str;
+        console.log('tx_str:', msg.tx_str);
+        console.log('tx_data:', msg.tx_data);
+        document.getElementById('tx-base64')!.innerHTML = msg.tx_str;
+        document.getElementById('tx-decomposed')!.innerHTML = JSON.stringify(msg.tx_data, undefined, 4);
 
         // every 5 ms check
         // timeout of 10 minutes = 10*60 secs * 20 iterations = 
@@ -68,11 +54,17 @@ maine
         let n     = 1;
         let n_max = 30*SEC;
 
+        // result starts as neutral
+        // if user clicks good, result will be updated to 'good'
+        // if user clicks bad, result will be updated to 'bad'
+        // if user doesn't click in 30 seconds, default to 'bad'
+        // this has the effect of sitting and waiting until the user clicks a button
+        // with a timeout as a backstop
         while
         (result === '') {
             // if haven't timed out yet
             if (n <= n_max) {
-                await sleepy(5);
+                await sleep(5);
                 n = n + 1;
             }
             // if timed out
@@ -98,7 +90,7 @@ maine
  * Hack from stack overflow somewhere to sleep for the given number of ms
  */
 async function
-sleepy
+sleep
     (ms: number)
     : Promise<void>
 {
