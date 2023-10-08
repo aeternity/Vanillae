@@ -52,7 +52,7 @@
 
 
 import * as awcp        from './jex_include/local-awcp-0.2.3/dist/awcp.js';
-import * as vdk_aecrypt from './jex_include/local-vdk_aecrypt-0.1.1/dist/vdk_aecrypt.js';
+import * as vdk_aecrypt from './jex_include/local-vdk_aecrypt-0.1.2/dist/vdk_aecrypt.js';
 import * as vdk_aeser   from './jex_include/local-vdk_aeser-0.1.0/dist/vdk_aeser.js';
 import * as vdk_binary  from './jex_include/local-vdk_binary-0.1.0/dist/vdk_binary.js';
 
@@ -402,7 +402,9 @@ msg_sign
         // use nacl detached signatures
         // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L141-L143
         // https://github.com/aeternity/aepp-sdk-js/blob/5df22dd297abebc0607710793a7234e6761570d4/src/utils/crypto.ts#L160-L167
+        //console.error('hi 1');
         let hashed_salted_msg : Uint8Array = vdk_aecrypt.hash_and_salt_msg(msg_str);
+        //console.error('hi 2');
         // @ts-ignore yes nacl is stupid
         let signature         : Uint8Array = nacl.sign.detached(hashed_salted_msg, secret_key);
         let signature_str     : string     = vdk_binary.bytes_to_hex_str(signature);

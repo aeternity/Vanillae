@@ -4,6 +4,6 @@
 {version, "0.1.0"}.
 {deps, ["local-tweetnacl-1.0.3",
         "local-awcp-0.2.3",
-        "local-vdk_aecrypt-0.1.1",
+        "local-vdk_aecrypt-0.1.2",
         "local-vdk_aeser-0.1.0",
         "local-vdk_binary-0.1.0"]}.

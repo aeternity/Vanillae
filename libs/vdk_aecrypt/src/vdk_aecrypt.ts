@@ -119,6 +119,7 @@ hash
     (data_bytes : Uint8Array)
     : Uint8Array
 {
+    // console.error('hash!');
     return blake2b.blake2b(data_bytes,      // bytes to hash
                            undefined,       // key (optional)
                            32);             // resulting byte length

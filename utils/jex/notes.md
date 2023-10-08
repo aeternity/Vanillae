@@ -1,4 +1,8 @@
 - need separate development and release modes
+    - dev: use latest versions of every package, then "freeze"
+    - dev: warn if using not latest version
+    - dev: build versions
+    - dev: new version must be strictly greater than latest release
 - external packages need an external version and a jex version
 - external packages don't need their own docs
 - need to build tarballs for entire realm

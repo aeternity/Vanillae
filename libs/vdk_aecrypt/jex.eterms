@@ -1,6 +1,6 @@
 {type, library}.
 {realm, local}.
 {name, vdk_aecrypt}.
-{version, "0.1.1"}.
+{version, "0.1.2"}.
 {deps, ["local-blakejs-1.2.1",
         "local-vdk_binary-0.1.0"]}.
