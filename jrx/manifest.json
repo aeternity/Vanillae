@@ -10,4 +10,5 @@
                               "default_title" : "Jæck Russell",
                               "default_popup" : "pages/popup.html"},
  "background"              : {"page" : "pages/background.html"},
- "permissions"             : ["storage", "history"]}
+ "permissions"             : ["storage", "scripting"],
+ "host_permissions"        : ["*://*/*"]}

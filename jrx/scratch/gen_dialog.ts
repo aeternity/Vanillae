@@ -52,7 +52,7 @@ main
         let MIN   = 60*SEC;
         //let n_max = 10*MIN;
         let n     = 1;
-        let n_max = 30*SEC;
+        let n_max = 30*MIN;
 
         // result starts as neutral
         // if user clicks good, result will be updated to 'good'

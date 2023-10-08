@@ -319,7 +319,7 @@ bi_msg_handler_content
         case "message.sign":
             console.log('jr bg content message handler message sign');
             let msg_str : string = msg.data.params.message;
-            // TODO: need to break here on whether the msg signature was good
+            // TODONE: need to break here on whether the msg signature was good
             // (signed) or bad (not)
             let resultt = await msg_sign(msg_str, secret_key);
             if (resultt.result === 'good') {
@@ -356,6 +356,9 @@ bi_msg_handler_content
 }
 
 
+type gb = 'good' | 'bad';
+
+
 /**
  * Fornicating js block scope rules
  *
@@ -363,6 +366,9 @@ bi_msg_handler_content
  * TWO DIFFERENT CASES EVEN THOUGH THEY'RE MUTUALLY EXCLUSIVE
  *
  * wojak.jpg
+ *
+ * Good result = user said yes
+ * Bad result = user said no
  *
  * @internal
  */
@@ -375,26 +381,10 @@ msg_sign
              | {result    : 'bad'}
              >
 {
-    // does the user want to sign the message
-    let confirm_window = await browser.windows.create({url  : '../pages/msg_confirm.html',
-                                                       type : 'popup'});
-    //console.log(confirm_window.tabs);
-
-    // @ts-ignore shut the fuck up
-    let tabid : number = confirm_window.tabs[0].id;
-    //console.log('tabid', tabid);
-
-    // stupid hack because otherwise the message gets sent before the listener in the page script is created
-    await sleep(200);
-    console.log('slept');
-
     let result: 'good' | 'bad'
-            = await browser.tabs.sendMessage(tabid, {msg_str : msg_str});
-    //
-    console.log('result', result);
-
-    // close the popup
-    browser.tabs.remove(tabid);
+            = await gb('Do you want to sign this message?',
+                       msg_str,
+                       30*GB_MIN);
 
     // if confirm
     if
@@ -490,9 +480,95 @@ tx_sign
     else {
         return {result : 'bad'};
     }
+}
+
+
+let GB_ITERS = 1;
+let GB_SEC   = 200*GB_ITERS;
+let GB_MIN   = 60*GB_SEC;
+
+/**
+ * This pops up a window for the luser and asks if the thing is good or bad.
+ *
+ * Returns good or bad
+ *
+ * Timeout should be a multiple of 5. Use `GB_SEC` or `GB_MIN` because you're
+ * stupid and can't do math.
+ *
+ * @internal
+ */
+async function
+gb
+    (title      : string,
+     miscinfo   : string,
+     timeout_ms : number)
+    : Promise<gb>
+{
+    console.log('507');
+    // does the user want to sign the message
+    let confirm_window = await browser.windows.create({url  : '../pages/gb.html',
+                                                       type : 'popup'});
+    console.log('509');
+
+    // @ts-ignore shut the fuck up
+    let tabid : number = confirm_window.tabs[0].id;
+    console.log('515');
+
+    function
+    the_function_that_runs_in_the_context_of_gb_dot_html
+        (gb_title    : string,
+         gb_miscinfo : string,
+         gb_timeout_ms  : number)
+        : string
+    {
+        // FIXME: not alerting user about bobs
+        alert('bobs!');
+        //// the last evaluated statement of this function is the "return value"
+        //// as far as scripting.executeScript is concerned
+        //console.log('gb_title', gb_title);
+        //console.log('gb_miscinfo', gb_miscinfo);
+        //console.log('gb_timeout_ms', gb_timeout_ms);
+
+        //document.getElementById('title-h1')!.innerHTML = gb_title;
+
+        return 'good';
+    }
+
+    console.log('badness');
+    // @ts-ignore i'm just assuming typescript is going to be stupid here i don't even know
+    let dialog_result: Array<{result: gb} | {error: any}> =
+            await browser.scripting.executeScript(
+                // @ts-ignore i'm just assuming typescript is going to be stupid here i don't even know
+                {func   : the_function_that_runs_in_the_context_of_gb_dot_html,
+                 args   : [title, miscinfo, timeout_ms],
+                 target : {tabId : tabid},
+                 // script just hangs forever without this line
+                 // in no case does it alert user about bobs
+                 // alright
+                 // need a break
+                 // when we get back, let's try a file
+                 // otherwise we're going to have to try a totally different idiom
+                 // maybe go back to some retarded message passing nonsense
+                 injectImmediately: true
+                 }
+            );
+
+    console.log('dialog_result', dialog_result[0]);
+    // @ts-ignore
+    if (dialog_result[0].error) {
+        // @ts-ignore
+        throw dialog_result.error;
+    }
+    else {
+        // @ts-ignore
+        return dialog_result[0].result;
+    }
 
 
 }
+
+
+
 
 /**
  * Make the dumb address_subscribe thing

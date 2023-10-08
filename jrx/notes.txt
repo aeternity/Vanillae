@@ -1,3 +1,10 @@
+TODO
+- manifest v3
+- mansplaining better
+- factor out "show a popup window"
+- show correct pubkey on popup
+- seed oil recovery
+
 MODEL
 
 popup.html/popup.js
