@@ -3,6 +3,14 @@
 This is a browser extension wallet for the Aeternity payment network.  It is
 meant to work in the latest versions of Firefox and Chromium.
 
+## Building
+
+Requires [jex](../utils/jex).
+
+```
+jex dwim-
+```
+
 ## How it works
 
 You may want to read about how [AWCP](../libs/awcp/src/awcp.ts) and
