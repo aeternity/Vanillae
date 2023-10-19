@@ -9,7 +9,7 @@
 %%% @end
 
 -module(jex).
--vsn("0.1.0").
+-vsn("0.2.0").
 -export([start/1]).
 -compile([export_all, nowarn_export_all]).
 
@@ -64,10 +64,18 @@ help_screen() ->
      "\n"
      "PORCELAIN COMMANDS:\n"
      "  dwim-                   build project but don't make a release (init, clean, pull, build)\n"
+     "      -w, --weak              (on `jex build` step) continue building even if tsc fails\n"
+     "      -f, --force             (on `jex build` step) use cp -rf instead of cp -r\n"
      "  dwim+                   build and make a minimal release (init, clean, pull, build, mindist, push)\n"
+     "      -w, --weak              (on `jex build` step) continue building even if tsc fails\n"
+     "      -f, --force             (on `jex build` step) use cp -rf instead of cp -r\n"
      "  dwim++                  build and make a full release (init, clean, pull, build, mindist, push, mkdocs, pushdocs)\n"
+     "      -w, --weak              (on `jex build` step) continue building even if tsc fails\n"
+     "      -f, --force             (on `jex build` step) use cp -rf instead of cp -r\n"
      "  install                 synonym for dwim++\n"
-     "  install [TARBALL_PATH]  install the given package\n"
+     "      -w, --weak              (on `jex build` step) continue building even if tsc fails\n"
+     "      -f, --force             (on `jex build` step) use cp -rf instead of cp -r\n"
+     "  extinstall TARGZ_PATH   install a prebuilt jex package\n"
      "  ls                      list installed packages\n"
      "  viewdocs [PKG [PORT]]   view package docs for PKG in browser\n"
      "  get_mindist [PKG]       get the mindist tarball for an installed package\n"
@@ -110,11 +118,11 @@ help_screen() ->
 
 
 %% Porcelain
-dispatch(["dwim-"])                        -> dwim(minus);
-dispatch(["dwim+"])                        -> dwim(plus);
-dispatch(["dwim++"])                       -> dwim(plus_plus);
-dispatch(["install"])                      -> install();
-dispatch(["install", Path])                -> install(Path);
+dispatch(["dwim-" | BuildOpts])            -> dwim(minus, BuildOpts);
+dispatch(["dwim+" | BuildOpts])            -> dwim(plus, BuildOpts);
+dispatch(["dwim++" | BuildOpts])           -> dwim(plus_plus, BuildOpts);
+dispatch(["install" | BuildOpts])          -> install(BuildOpts);
+dispatch(["extinstall", Path])             -> extinstall(Path);
 dispatch(["ls"])                           -> ls();
 dispatch(["viewdocs"])                     -> viewdocs();
 dispatch(["viewdocs", Pkg])                -> viewdocs(Pkg);
@@ -166,23 +174,25 @@ man() ->
 
 
 %%-----------------------------------------------------------------------------
-%% jex dwim
+%% jex dwim(-|+|++) / jex install
 %%-----------------------------------------------------------------------------
 
-dwim(minus) ->
+dwim(minus, BuildOpts) ->
     init(),
     clean(),
     pull(),
-    build([]);
-dwim(plus) ->
-    dwim(minus),
+    build(BuildOpts);
+dwim(plus, BuildOpts) ->
+    dwim(minus, BuildOpts),
     mindist([]),
     push();
-dwim(plus_plus) ->
-    dwim(plus),
+dwim(plus_plus, BuildOpts) ->
+    dwim(plus, BuildOpts),
     mkdocs(),
     pushdocs().
 
+install(BuildOpts) ->
+    dwim(plus_plus, BuildOpts).
 
 %%-----------------------------------------------------------------------------
 %% jex cfgbarf
@@ -676,13 +686,11 @@ srsly_readme_path() ->
 
 
 %%-----------------------------------------------------------------------------
-%% jex install TARBALL_PATH
+%% jex extinstall TARBALL_PATH
 %%-----------------------------------------------------------------------------
 
-install() ->
-    dwim(plus_plus).
 
-install(TarballPath) ->
+extinstall(TarballPath) ->
     case file_exists(TarballPath) of
         false -> error({file_dne, TarballPath});
         true  -> install2(TarballPath)
