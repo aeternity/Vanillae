@@ -495,6 +495,40 @@ let GB_MIN   = 60*GB_SEC;
  * Timeout should be a multiple of 5. Use `GB_SEC` or `GB_MIN` because you're
  * stupid and can't do math.
  *
+ * # Why this is stupid
+ *
+ * Ok super important thing: there's a very stupid idiom in here for talking to
+ * the good/bad popup window. This is not because I am stupid. This is because
+ * web browsers are stupid.
+ *
+ * We cannot just spawn a window and then start talking to it. The problem is
+ * that this isn't Erlang where the process has a mailbox and we can count on
+ * the messages being delivered there and then being there when the process
+ * initiates a `raseev`.
+ *
+ * Instead the good/bad popup-window process has to spawn *and then listen for
+ * messages*, and if we send a message before it's listening, tough, it just
+ * doesn't get there.
+ *
+ * First instinct was of course to just wait for however many milliseconds for
+ * the popup window to spawn before sending it messages. But 200ms was not
+ * enough time for this approach to work on my beast of a machine. Given that
+ * our users are going to be running JR on normal machines, this approach is
+ * simply infeasible.
+ *
+ * Instead after much denial and error, I found the approach where the good/bad page script
+ * initiates a connection works consistently and is idiomatically sane, at
+ * least in relative terms. In this case, we are using the Port abstraction
+ * rather than the "one-off" connection thing that Mozilla says is low class.
+ * It is better in this case so that we don't have to deal with process-level
+ * global state in this function.
+ *
+ * If we wanted to interleave that nonsense into the global raseev loop at the
+ * top of this file, we would have to basically have some registry of pages
+ * we're trying to talk to, and then have some message queue that pairs each
+ * message from a script with whomever is trying to listen to it.  That's
+ * doable but I would prefer not to create global state if it's unnecessary.
+ *
  * @internal
  */
 async function
@@ -504,69 +538,47 @@ gb
      timeout_ms : number)
     : Promise<gb>
 {
-    console.log('507');
+    // we're going to make an unresolved result first
+    // write our code to handle messages from the popup window
+    // which updates this variable
+    // once this variable is updated with resolved: true
+    // then the entire function returns
+    let the_result : {resolved : false}
+                   | {resolved : true,
+                      result   : gb}
+                   = {resolved : false};
+    // this is a closure that talks to the popup window from this context
+    // it updates the_result when it gets something back from the user
+    let port_talker_toer_lambda =
+            function(port : browser.runtime.Port) {
+                // @ts-ignore bad type info in the typedefs
+                port.postMessage({title      : title,
+                                  miscinfo   : miscinfo,
+                                  timeout_ms : timeout_ms});
+
+                // oh my god
+                // nested lambdas
+                // i think we've reached peak js
+                let result_handler =
+                        function(result_from_gb_popup_window : gb) {
+                            // the message will either be good or bad
+                            the_result = {resolved : true,
+                                          result   : result_from_gb_popup_window};
+                        };
+                // @ts-ignore types from github are wrong
+                port.onMessage.addListener(result_handler);
+            }
+    browser.runtime.onConnect.addListener(port_talker_toer_lambda);
+
     // does the user want to sign the message
     let confirm_window = await browser.windows.create({url  : '../pages/gb.html',
                                                        type : 'popup'});
-    console.log('509');
 
     // @ts-ignore shut the fuck up
-    let tabid : number = confirm_window.tabs[0].id;
-    console.log('515');
+    // let tabid : number = confirm_window.tabs[0].id;
 
-    function
-    the_function_that_runs_in_the_context_of_gb_dot_html
-        (gb_title    : string,
-         gb_miscinfo : string,
-         gb_timeout_ms  : number)
-        : string
-    {
-        // FIXME: not alerting user about bobs
-        alert('bobs!');
-        //// the last evaluated statement of this function is the "return value"
-        //// as far as scripting.executeScript is concerned
-        //console.log('gb_title', gb_title);
-        //console.log('gb_miscinfo', gb_miscinfo);
-        //console.log('gb_timeout_ms', gb_timeout_ms);
-
-        //document.getElementById('title-h1')!.innerHTML = gb_title;
-
-        return 'good';
-    }
-
-    console.log('badness');
-    // @ts-ignore i'm just assuming typescript is going to be stupid here i don't even know
-    let dialog_result: Array<{result: gb} | {error: any}> =
-            await browser.scripting.executeScript(
-                // @ts-ignore i'm just assuming typescript is going to be stupid here i don't even know
-                {func   : the_function_that_runs_in_the_context_of_gb_dot_html,
-                 args   : [title, miscinfo, timeout_ms],
-                 target : {tabId : tabid},
-                 // script just hangs forever without this line
-                 // in no case does it alert user about bobs
-                 // alright
-                 // need a break
-                 // when we get back, let's try a file
-                 // otherwise we're going to have to try a totally different idiom
-                 // maybe go back to some retarded message passing nonsense
-                 injectImmediately: true
-                 }
-            );
-
-    console.log('dialog_result', dialog_result[0]);
-    // @ts-ignore
-    if (dialog_result[0].error) {
-        // @ts-ignore
-        throw dialog_result.error;
-    }
-    else {
-        // @ts-ignore
-        return dialog_result[0].result;
-    }
-
-
+    return 'bad';
 }
-
 
 
 
