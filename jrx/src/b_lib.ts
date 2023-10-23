@@ -326,7 +326,7 @@ bi_msg_handler_content
                 return w2a_ok({signature: resultt.signature});
             }
             else {
-                return w2a_err(awcp.ERROR_CODE_RpcRejectedByUserError, "you're not pretty enough");
+                return w2a_err(awcp.ERROR_CODE_RpcRejectedByUserError, "User either rejected message signature request or did not confirm within 30 minutes of popup window shown.");
             }
 
         // right now just sign tx
@@ -483,17 +483,18 @@ tx_sign
 }
 
 
-let GB_ITERS = 1;
-let GB_SEC   = 200*GB_ITERS;
-let GB_MIN   = 60*GB_SEC;
+let GB_ITER_MS = 5;             // [MS / ITER] 5 ms every 1 iteration
+let GB_ITERS   = 1;
+let GB_SEC     = 200*GB_ITERS;  // [ITER]; 1iter / 5ms = 200iter / sec
+let GB_MIN     = 60*GB_SEC;     // [ITER]
 
 /**
  * This pops up a window for the luser and asks if the thing is good or bad.
  *
  * Returns good or bad
  *
- * Timeout should be a multiple of 5. Use `GB_SEC` or `GB_MIN` because you're
- * stupid and can't do math.
+ * Timeout is in "iterations"; 1 iteration is 5 milliseconds. Use `GB_SEC` and
+ * `GB_MIN` to get those units.
  *
  * # Why this is stupid
  *
@@ -533,11 +534,15 @@ let GB_MIN   = 60*GB_SEC;
  */
 async function
 gb
-    (title      : string,
-     miscinfo   : string,
-     timeout_ms : number)
+    (title         : string,
+     miscinfo      : string,
+     timeout_iters : number)
     : Promise<gb>
 {
+    // TODO: the thread model here is a bit dubious... it's not 100% clear that
+    // we're always going to be talking to the correct window. Do some
+    // experiments.
+
     // we're going to make an unresolved result first
     // write our code to handle messages from the popup window
     // which updates this variable
@@ -553,14 +558,14 @@ gb
             function(port : browser.runtime.Port) {
                 // @ts-ignore bad type info in the typedefs
                 port.postMessage({title      : title,
-                                  miscinfo   : miscinfo,
-                                  timeout_ms : timeout_ms});
+                                  miscinfo   : miscinfo});
 
                 // oh my god
                 // nested lambdas
                 // i think we've reached peak js
                 let result_handler =
                         function(result_from_gb_popup_window : gb) {
+                            console.error('RESULT FROM POPUP WINDOW!!!!', result_from_gb_popup_window);
                             // the message will either be good or bad
                             the_result = {resolved : true,
                                           result   : result_from_gb_popup_window};
@@ -575,9 +580,40 @@ gb
                                                        type : 'popup'});
 
     // @ts-ignore shut the fuck up
-    // let tabid : number = confirm_window.tabs[0].id;
+    let tabid : number = confirm_window.tabs[0].id;
 
-    return 'bad';
+    let this_iter_i1 : number = 1;
+    let max_iters    : number = timeout_iters;
+
+    // poor man's for loop because I just don't care
+    // sleep for 5 milliseconds until resolved
+    // this loop is guaranteed to terminate
+    // and at its termination, the_result will have resolved:true
+    while (!(the_result.resolved)) {
+        // if we've timed out, time out
+        if (this_iter_i1 > max_iters) {
+            // the result is resolved and it's bad
+            the_result = {resolved: true, result: 'bad'};
+        }
+        // in this case, we haven't timed out yet
+        else {
+            // so we simply increase the iteration
+            this_iter_i1 = this_iter_i1 + 1;
+            // sleep
+            await sleep(GB_ITER_MS);
+        }
+    }
+
+    // at this point, the_result is resolved:true
+    // we know that the_result.result exists
+    // typescript does not know that
+
+    // close the tab
+    browser.tabs.remove(tabid);
+
+    // return the result
+    // @ts-ignore i know this exists because I am jesus
+    return the_result.result;
 }
 
 

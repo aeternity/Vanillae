@@ -6,12 +6,14 @@ async function main() {
     let port = browser.runtime.connect();
     // wait for a message
     port.onMessage.addListener(
-        function({title, miscinfo, timeout_ms}) {
+        function({title, miscinfo}) {
             console.log('title', title);
             console.log('miscinfo', miscinfo);
-            console.log('timeout_ms', timeout_ms);
             document.getElementById('title-h1').innerHTML = title;
             document.getElementById('miscinfo').innerHTML = miscinfo;
+
+            document.getElementById('good').onclick = function() { port.postMessage('good'); };
+            document.getElementById('bad').onclick = function() { port.postMessage('bad'); };
         }
     );
 }
