@@ -308,17 +308,81 @@ mansplain_str
 }
 
 
+/**
+ * Full list of human readable objects we can return
+ */
+type mansplained_obj =
+        mansplained_spendtx;
 
 /**
- * Take apart some API-encoded data and show its component parts
- *
- * For debugging purposes
+ * `payload` will be in Erlang binary notation: either `<<"hainana">>` or
+ * `<<42, 11, 22, ...>>`
+ */
+type mansplained_spendtx
+    = {otag      : 12,
+       stag      : 'Spend transaction',
+       version   : 1,
+       sender    : string,
+       recipient : string,
+       amount    : BigInt,
+       fee       : BigInt,
+       ttl       : BigInt,
+       nonce     : BigInt,
+       payload   : string};
+
+/**
+ * Take apart some API-encoded data and show its component parts into
+ * "human-readable" format. What that will look like strongly depends on
+ * subjective taste on my part.
  */
 async function
 mansplain
     (api_str : string)
-    : Promise<object>
+    : Promise< {ok : true , result : mansplained_obj}
+             | {ok : false, error  : string}
+             >
 {
+    // TODO: I am mentally checked out and am in mental goo quicksand land
+    // right now. The next task is taking specifically API strings of spends,
+    // and putting them into that human readable format.
+    //
+    // Probably the task after that is doing so with the various contract
+    // things
+    //
+    // Eventually we want to get everything here covered:
+    // https://github.com/aeternity/protocol/blob/master/serializations.md
+    //
+    // Really only the transaction types... hmm. Ok maybe that's the source of
+    // mental goo is that really only we want transactions and not ALL API
+    // data.  And there's many levels here. Ok the mental goo needs to just dry
+    // and I can't touch it. I'm leaving. Out of mental stamina.
+    //
+    // ok so make tx_... readable specifically for spends
+    // need to warn about GA transactions
+    //
+    // um like eventually we actually want to return structured data back to
+    // the caller. like the thing is the caller wants to make, like he doesn't
+    // want strings. like not one big string. the thing with that like for
+    // instance he wants to provide a link on a spend to the account of the guy
+    // being paid on aescan or whatever. fuck you. you get my point.
+    //
+    // so maybe mansplain_str is not good, we should like... ok but in b_lib...
+    // the thing is we're going to eventually need a way to create that popup
+    // with like more structure than just sending it a string... so like I
+    // don't know is there a way to create like structured HTML nodes in JS
+    // that aren't attached to anything and send them across tabs as
+    // messages??? I don't know... probably don't want to know the answer.
+    //
+    // anyway i think mansplain_str should be deleted and moved to b_lib...
+    //
+    // ok so but our task for now is to create the nice pretty structured data
+    // for spends, and that's really not that hard.
+    //
+    // ok let's make the task smaller rather than bigger
+    //
+    // i will do that next time I sit down... am mentally checked out. am going
+    // to go lift heavy things because goo brain.
+
     let prefix : string
 
     let x = await unbaseNcheck(api_str);
