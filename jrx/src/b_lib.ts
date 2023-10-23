@@ -348,7 +348,7 @@ bi_msg_handler_content
                 return w2a_ok({signedTransaction: result.signedTransaction});
             }
             else {
-                return w2a_err(awcp.ERROR_CODE_RpcRejectedByUserError, "your not pretty enough");
+                return w2a_err(awcp.ERROR_CODE_RpcRejectedByUserError, "User either rejected transaction signature request or dit not confirm within 30 minutes of popup window shown.");
             }
             //if (result.result === 'good') {
             //    return w2a_ok({signedTransaction: result.signedTransaction});
