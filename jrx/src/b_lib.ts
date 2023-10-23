@@ -53,7 +53,7 @@
 
 import * as awcp        from './jex_include/local-awcp-0.2.3/dist/awcp.js';
 import * as vdk_aecrypt from './jex_include/local-vdk_aecrypt-0.1.2/dist/vdk_aecrypt.js';
-import * as vdk_aeser   from './jex_include/local-vdk_aeser-0.1.0/dist/vdk_aeser.js';
+import * as vdk_aeser   from './jex_include/local-vdk_aeser-0.1.1/dist/vdk_aeser.js';
 import * as vdk_binary  from './jex_include/local-vdk_binary-0.1.0/dist/vdk_binary.js';
 
 
@@ -69,6 +69,14 @@ export {
     b_main
 };
 
+// INTERNAL CONSTANTS ALL IN ONE PLACE
+let GB_ITER_MS = 5;             // [MS / ITER] 5 ms every 1 iteration
+let GB_ITERS   = 1;
+let GB_SEC     = 200*GB_ITERS;  // [ITER]; 1iter / 5ms = 200iter / sec
+let GB_MIN     = 60*GB_SEC;     // [ITER]
+
+let MSG_SIGN_TIMEOUT = 30*GB_MIN;
+let TX_SIGN_TIMEOUT  = 30*GB_MIN;
 
 
 //=============================================================================
@@ -381,12 +389,10 @@ msg_sign
              | {result    : 'bad'}
              >
 {
-    let result: 'good' | 'bad'
-            = await gb('Do you want to sign this message?',
-                       msg_str,
-                       30*GB_MIN);
+    let result : gb = await gb('Do you want to sign this message?', msg_str, MSG_SIGN_TIMEOUT);
 
-    // if confirm
+    // if the user wants us to sign the transaction, return the signed transaction
+    // confirm
     if
     (result === 'good') {
         // use nacl detached signatures
@@ -401,6 +407,7 @@ msg_sign
         return {result    : 'good',
                 signature : signature_str};
     }
+    // otherwise don't
     else {
         return {result : 'bad'};
     }
@@ -420,41 +427,19 @@ msg_sign
  */
 async function
 tx_sign
-    (tx_str    : string,
+    (tx_str     : string,
      secret_key : Uint8Array)
     : Promise< {result            : 'good',
                 signedTransaction : string}
              | {result : 'bad'}
              >
 {
-    // does the user want to sign the message
-    let confirm_window = await browser.windows.create({url  : '../pages/tx_confirm.html',
-                                                       type : 'popup'});
+    let mansplained_tx : string = await vdk_aeser.mansplain_str(tx_str);
+    let result         : gb     = await gb('Do you want to sign this transaction?',
+                                           mansplained_tx,
+                                           TX_SIGN_TIMEOUT);
 
-    // @ts-ignore shut the fuck up
-    let tabid : number = confirm_window.tabs[0].id;
-
-    // stupid hack because otherwise the message gets sent before the listener in the page script is created
-    await sleep(200);
-
-    // debug: show tx
-    let mansplained_tx  : object     = await vdk_aeser.mansplain(tx_str);
-    console.log('mansplained_tx,', mansplained_tx);
-
-    type browser_send_data = {tx_str  : string,
-                              tx_data : object};
-
-    let result: 'good' | 'bad'
-            = await browser.tabs.sendMessage(tabid,
-                                             {tx_str  : tx_str,
-                                              tx_data : mansplained_tx});
-
-
-    console.log('result', result);
-
-    // close the popup
-    browser.tabs.remove(tabid);
-    // if we're supposed to sign the tx
+    // if we're supposed to sign the tx, then sign it
     if
     ('good' === result) {
         let tx_bytes        : Uint8Array = (await vdk_aeser.unbaseNcheck(tx_str)).bytes;
@@ -463,6 +448,7 @@ tx_sign
         // we sign <<NetworkId, SerializedObject>>
         // SerializedObject can either be the object or the hash of the object
         // let's stick with hash for now
+        // FIXME: get network id from application state
         let network_id      : Uint8Array = vdk_binary.encode_utf8('ae_uat');
         // let tx_hash_bytes   : Uint8Array = hash(tx_bytes);
         let sign_data       : Uint8Array = vdk_binary.bytes_concat(network_id, tx_bytes);
@@ -483,10 +469,7 @@ tx_sign
 }
 
 
-let GB_ITER_MS = 5;             // [MS / ITER] 5 ms every 1 iteration
-let GB_ITERS   = 1;
-let GB_SEC     = 200*GB_ITERS;  // [ITER]; 1iter / 5ms = 200iter / sec
-let GB_MIN     = 60*GB_SEC;     // [ITER]
+
 
 /**
  * This pops up a window for the luser and asks if the thing is good or bad.

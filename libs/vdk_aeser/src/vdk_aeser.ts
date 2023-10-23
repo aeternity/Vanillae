@@ -22,7 +22,8 @@ export {
     unbaseNcheck,
     baseNcheck,
     signed_tx,
-    mansplain
+    mansplain,
+    mansplain_str
 }
 
 export type {
@@ -291,6 +292,24 @@ signed_tx
 
 
 /**
+ * Take apart some API-encoded data and return a string that explains it to the
+ * user.
+ *
+ * Mostly for the "confirm transaction" popup
+ */
+async function
+mansplain_str
+    (api_str : string)
+    : Promise<string>
+{
+    let mansplained_obj : object = await mansplain(api_str)
+
+    return JSON.stringify(mansplained_obj, undefined, 4);
+}
+
+
+
+/**
  * Take apart some API-encoded data and show its component parts
  *
  * For debugging purposes
@@ -312,6 +331,7 @@ mansplain
     return {check_passed : check_passed,
             data         : mansplained_data};
 }
+
 
 
 /**
