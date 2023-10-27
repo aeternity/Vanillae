@@ -16,19 +16,23 @@ import * as vdk_rlp from './jex_include/local-vdk_rlp-0.1.0/dist/vdk_rlp.js';
 
 
 export {
+    OTAG_SPEND,
     pubkey2ak_str,
     add_check_bytes,
     shasha4,
     unbaseNcheck,
     baseNcheck,
     signed_tx,
-    mansplain,
-    mansplain_str
+    mansplain
 }
 
 export type {
     baseNchecked
 }
+
+
+// constants
+let OTAG_SPEND = 12;
 
 
 
@@ -308,11 +312,14 @@ mansplain_str
 }
 
 
+
 /**
  * Full list of human readable objects we can return
  */
 type mansplained_obj =
         mansplained_spendtx;
+
+
 
 /**
  * `payload` will be in Erlang binary notation: either `<<"hainana">>` or
@@ -329,6 +336,8 @@ type mansplained_spendtx
        ttl       : BigInt,
        nonce     : BigInt,
        payload   : string};
+
+
 
 /**
  * Take apart some API-encoded data and show its component parts into
@@ -388,12 +397,127 @@ mansplain
     let x = await unbaseNcheck(api_str);
 
     let check_passed : boolean    = x.check_passed;
-    let data_bytes   : Uint8Array = x.bytes;
+    if (!check_passed) {
+        return {ok    : false,
+                error : 'checksum failed on unbaseNcheck'};
+    }
+    else {
+        // check passed
+        let data_bytes   : Uint8Array = x.bytes;
 
-    let mansplained_data : object = mansplain_bytes(data_bytes);
+        // next have to see if it's a spend or not
+        let mansplained_data : object = mansplain_bytes(data_bytes);
 
-    return {check_passed : check_passed,
-            data         : mansplained_data};
+            {
+                "0": 12
+            },
+            {
+                "0": 1
+            },
+            {
+                "0": 1,
+                "1": 199,
+                "2": 87,
+                "3": 122,
+                "4": 131,
+                "5": 42,
+                "6": 148,
+                "7": 174,
+                "8": 177,
+                "9": 41,
+                "10": 181,
+                "11": 156,
+                "12": 160,
+                "13": 161,
+                "14": 116,
+                "15": 22,
+                "16": 108,
+                "17": 49,
+                "18": 103,
+                "19": 95,
+                "20": 46,
+                "21": 104,
+                "22": 208,
+                "23": 34,
+                "24": 183,
+                "25": 71,
+                "26": 0,
+                "27": 205,
+                "28": 184,
+                "29": 79,
+                "30": 238,
+                "31": 28,
+                "32": 142
+            },
+            {
+                "0": 1,
+                "1": 123,
+                "2": 102,
+                "3": 230,
+                "4": 195,
+                "5": 5,
+                "6": 7,
+                "7": 8,
+                "8": 54,
+                "9": 228,
+                "10": 233,
+                "11": 121,
+                "12": 32,
+                "13": 82,
+                "14": 61,
+                "15": 195,
+                "16": 234,
+                "17": 89,
+                "18": 203,
+                "19": 191,
+                "20": 216,
+                "21": 108,
+                "22": 88,
+                "23": 186,
+                "24": 7,
+                "25": 3,
+                "26": 234,
+                "27": 139,
+                "28": 205,
+                "29": 10,
+                "30": 184,
+                "31": 167,
+                "32": 108
+            },
+            {
+                "0": 10
+            },
+            {
+                "0": 15,
+                "1": 71,
+                "2": 142,
+                "3": 8,
+                "4": 64,
+                "5": 0
+            },
+            {
+                "0": 0
+            },
+            {
+                "0": 1
+            },
+            {
+                "0": 104,
+                "1": 97,
+                "2": 105,
+                "3": 110,
+                "4": 97,
+                "5": 110,
+                "6": 97
+            }
+        ],
+        "remainder": {}
+    }
+}
+
+        return {check_passed : check_passed,
+                data         : mansplained_data};
+    }
 }
 
 
@@ -404,7 +528,55 @@ mansplain
 function
 mansplain_bytes
     (data_bytes : Uint8Array)
-    : object
+    : {ok : true,  result : mansplained_obj}
+    | {ok : false, error  : string}
 {
-    return vdk_rlp.decode(data_bytes);
+    type rlpdata      = Uint8Array | Array<rlpdata>;
+    type decode_data  = {decoded_data : rlpdata,
+                         remainder    : Uint8Array};
+
+    let rlp_decode_data : decode_data = vdk_rlp.decode(data_bytes);
+
+    // make sure we decoded everything
+    if (0 !== remainder.length) {
+        return {ok            : false,
+                error         : 'mansplain_bytes: trailing data on rlp decode',
+                data_bytes    : data_bytes,
+                decoded_data  : decoded_data};
+    }
+    // if we did indeed decode everything, next make sure we decoded an array
+    // and not a binary
+    else if (x.decoded_data instanceof Uint8Array) {
+        return {ok           : false,
+                error        : 'mansplain_bytes: rlp decoded a binary, was expecting to decode an array',
+                data_bytes   : data_bytes,
+                decoded_data : decoded_data};
+    }
+    // alright this language is simply too insane to sanity check
+    // everything... I see why Metin likes that parser-assertion library. Zod
+    // I think it was called.  This is the type of situation where it's super
+    // useful.
+    else {
+        // so fields are
+        // [otag, version, ...fields]
+        // @ts-ignore I know it's an array
+        let fields : Array<rlpdata> = x.decoded_data;
+
+        let otag       : number            = fields[0][0];
+        let vsn        : number            = fields[1][0];
+        let fields_raw : Array<Uint8Array> = fields.slice(2);
+        // dispatch based on the otag
+        switch (otag) {
+            case OTAG_SPEND:
+                return mansplain_spendtx_fields(otag, vsn, fields_raw);
+            default:
+                return {ok              : false,
+                        error           : 'mansplain_bytes: error while mansplaining Aeternity object: either invalid object tag or (more likely) not yet implemented',
+                        otag            : otag,
+                        vsn             : vsn,
+                        data_bytes      : data_bytes,
+                        rlp_decode_data : rlp_decode_data,
+                        ref             : 'https://github.com/aeternity/protocol/blob/fd179822fc70241e79cbef7636625cf344a08109/serializations.md#table-of-object-tags'};
+        }
+    }
 }
