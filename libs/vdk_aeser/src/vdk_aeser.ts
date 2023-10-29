@@ -322,12 +322,12 @@ type mansplained_obj =
 
 
 /**
- * `payload` will be in Erlang binary notation: either `<<"hainana">>` or
- * `<<42, 11, 22, ...>>`
+ * `payload` will be in Erlang binary notation: either (for instance)
+ * `<<"hainana">>` or `<<42, 11, 22, ...>>`
  */
 type mansplained_spendtx
     = {otag      : 12,
-       stag      : 'Spend transaction',
+       stag      : 'SpendTx',
        version   : 1,
        sender    : string,
        recipient : string,
@@ -347,9 +347,8 @@ type mansplained_spendtx
 async function
 mansplain
     (api_str : string)
-    : Promise< {ok : true , result : mansplained_obj}
-             | {ok : false, error  : string}
-             >
+    : Promise< {ok : true,  result : mansplained_obj}
+             | {ok : false, error  : string}>
 {
     // TODO: I am mentally checked out and am in mental goo quicksand land
     // right now. The next task is taking specifically API strings of spends,
@@ -391,172 +390,58 @@ mansplain
     //
     // i will do that next time I sit down... am mentally checked out. am going
     // to go lift heavy things because goo brain.
-
-    let prefix : string
-
     let x = await unbaseNcheck(api_str);
 
-    let check_passed : boolean    = x.check_passed;
-    if (!check_passed) {
+    if
+    (!(x.check_passed))
         return {ok    : false,
                 error : 'checksum failed on unbaseNcheck'};
-    }
-    else {
-        // check passed
-        let data_bytes   : Uint8Array = x.bytes;
-
-        // next have to see if it's a spend or not
-        let mansplained_data : object = mansplain_bytes(data_bytes);
-
-            {
-                "0": 12
-            },
-            {
-                "0": 1
-            },
-            {
-                "0": 1,
-                "1": 199,
-                "2": 87,
-                "3": 122,
-                "4": 131,
-                "5": 42,
-                "6": 148,
-                "7": 174,
-                "8": 177,
-                "9": 41,
-                "10": 181,
-                "11": 156,
-                "12": 160,
-                "13": 161,
-                "14": 116,
-                "15": 22,
-                "16": 108,
-                "17": 49,
-                "18": 103,
-                "19": 95,
-                "20": 46,
-                "21": 104,
-                "22": 208,
-                "23": 34,
-                "24": 183,
-                "25": 71,
-                "26": 0,
-                "27": 205,
-                "28": 184,
-                "29": 79,
-                "30": 238,
-                "31": 28,
-                "32": 142
-            },
-            {
-                "0": 1,
-                "1": 123,
-                "2": 102,
-                "3": 230,
-                "4": 195,
-                "5": 5,
-                "6": 7,
-                "7": 8,
-                "8": 54,
-                "9": 228,
-                "10": 233,
-                "11": 121,
-                "12": 32,
-                "13": 82,
-                "14": 61,
-                "15": 195,
-                "16": 234,
-                "17": 89,
-                "18": 203,
-                "19": 191,
-                "20": 216,
-                "21": 108,
-                "22": 88,
-                "23": 186,
-                "24": 7,
-                "25": 3,
-                "26": 234,
-                "27": 139,
-                "28": 205,
-                "29": 10,
-                "30": 184,
-                "31": 167,
-                "32": 108
-            },
-            {
-                "0": 10
-            },
-            {
-                "0": 15,
-                "1": 71,
-                "2": 142,
-                "3": 8,
-                "4": 64,
-                "5": 0
-            },
-            {
-                "0": 0
-            },
-            {
-                "0": 1
-            },
-            {
-                "0": 104,
-                "1": 97,
-                "2": 105,
-                "3": 110,
-                "4": 97,
-                "5": 110,
-                "6": 97
-            }
-        ],
-        "remainder": {}
-    }
+    else
+        return await mansplain_bytes(x.bytes);
 }
 
-        return {check_passed : check_passed,
-                data         : mansplained_data};
-    }
-}
+
+
+type rlpdata      = Uint8Array | Array<rlpdata>;
+type decode_data  = {decoded_data : rlpdata,
+                     remainder    : Uint8Array};
 
 
 
 /**
  * Take RLP encoded bytes and mansplain them
+ *
+ * @internal
  */
-function
+async function
 mansplain_bytes
     (data_bytes : Uint8Array)
-    : {ok : true,  result : mansplained_obj}
-    | {ok : false, error  : string}
+    : Promise< {ok : true,  result : mansplained_obj}
+             | {ok : false, error  : string}>
 {
-    type rlpdata      = Uint8Array | Array<rlpdata>;
-    type decode_data  = {decoded_data : rlpdata,
-                         remainder    : Uint8Array};
 
     let rlp_decode_data : decode_data = vdk_rlp.decode(data_bytes);
-
     // make sure we decoded everything
-    if (0 !== remainder.length) {
+    if
+    (0 !== remainder.length)
         return {ok            : false,
                 error         : 'mansplain_bytes: trailing data on rlp decode',
                 data_bytes    : data_bytes,
                 decoded_data  : decoded_data};
-    }
     // if we did indeed decode everything, next make sure we decoded an array
     // and not a binary
-    else if (x.decoded_data instanceof Uint8Array) {
+    else if
+    (x.decoded_data instanceof Uint8Array)
         return {ok           : false,
                 error        : 'mansplain_bytes: rlp decoded a binary, was expecting to decode an array',
                 data_bytes   : data_bytes,
                 decoded_data : decoded_data};
-    }
     // alright this language is simply too insane to sanity check
     // everything... I see why Metin likes that parser-assertion library. Zod
     // I think it was called.  This is the type of situation where it's super
     // useful.
-    else {
+    else
+    {
         // so fields are
         // [otag, version, ...fields]
         // @ts-ignore I know it's an array
@@ -566,17 +451,147 @@ mansplain_bytes
         let vsn        : number            = fields[1][0];
         let fields_raw : Array<Uint8Array> = fields.slice(2);
         // dispatch based on the otag
-        switch (otag) {
-            case OTAG_SPEND:
-                return mansplain_spendtx_fields(otag, vsn, fields_raw);
-            default:
-                return {ok              : false,
-                        error           : 'mansplain_bytes: error while mansplaining Aeternity object: either invalid object tag or (more likely) not yet implemented',
-                        otag            : otag,
-                        vsn             : vsn,
-                        data_bytes      : data_bytes,
-                        rlp_decode_data : rlp_decode_data,
-                        ref             : 'https://github.com/aeternity/protocol/blob/fd179822fc70241e79cbef7636625cf344a08109/serializations.md#table-of-object-tags'};
+        return await mansplain_dispatch(otag, vsn, fields_raw);
+    }
+}
+
+
+
+/**
+ * Figure out which type of thing this is, and send it to the appropriate function
+ *
+ * Also makes sure that version/tag is supported
+ *
+ * @internal
+ */
+async function
+mansplain_dispatch
+    (otag       : number,
+     vsn        : number,
+     fields_raw : Array<rlpdata>)
+    : Promise< {ok : true,  result : mansplained_obj}
+             | {ok : false, error  : string}>
+{
+    if
+    (is_spend(otag, vsn))
+        return await mansplain_spendtx_fields(fields_raw);
+    else
+        return {ok              : false,
+                error           : 'mansplain_dispatch: error while mansplaining Aeternity object: either invalid object/version tag combo or (more likely) not yet implemented',
+                otag            : otag,
+                vsn             : vsn,
+                fields_raw      : fields_raw,
+                ref             : 'https://github.com/aeternity/protocol/blob/fd179822fc70241e79cbef7636625cf344a08109/serializations.md#table-of-object-tags'};
+}
+
+
+
+/**
+ * Return true if it is a supported spendtx
+ *
+ * In general we might support multiple versions
+ *
+ * @internal
+ */
+function
+is_spend
+    (otag : number,
+     vsn  : number)
+    : boolean
+{
+    return ((otag === OTAG_SPEND) && (vsn === 1));
+}
+
+
+
+/**
+ * Mansplain RLP-decoded spendtx fields
+ *
+ * Hmm... You know, zod is a really really good idea
+ *
+ * I think on the net it is a positive
+ *
+ * The issues in this case are
+ * 1. I don't know how to package it with jex
+ * 2. This is inviting AWS problems where I end up writing my entire codebase
+ * up against some library that I don't trust, and it's very very hard to
+ * divorce myself from that---frankly it would be a full rewrite---if I ever
+ * want to do that.
+ *
+ * @internal
+ */
+async function
+mansplain_spendtx_fields
+    (fields : Array<Uint8Array>)
+    : {ok : true,  result : mansplained_spendtx}
+    | {ok : false, error  : string}
+{
+    // spend fields
+    // Ref:  https://github.com/aeternity/protocol/blob/fd179822fc70241e79cbef7636625cf344a08109/serializations.md#spend-transaction
+    // at this point we know
+    return {otag      : OTAG_SPEND,
+            stag      : 'SpendTx',
+            vsn       : 1,
+            sender    : await id2apistr(fields[0]),            // <sender>    :: id()
+            recipient : await id2apistr(fields[1]),            // <recipient> :: id()
+            amount    : vdk_binary.bytes_to_bigint(fields[2]), // <amount>    :: int()
+            fee       : vdk_binary.bytes_to_bigint(fields[3]), // <fee>       :: int()
+            ttl       : vdk_binary.bytes_to_bigint(fields[4]), // <ttl>       :: int()
+            nonce     : vdk_binary.bytes_to_bigint(fields[5]), // <nonce>     :: int()
+            payload   : erlangify_binary(fields[6])};          // <payload>   :: binary()
+}
+
+
+
+/**
+ * Print a binary in Erlang notation
+ *
+ * @internal
+ */
+function
+erlangify_binary
+    (bytes : Uint8Array)
+    : string
+{
+    // so stupid but I love it
+    function bytestr(n: number): string {
+        return n + '';
+    }
+
+    // mmm
+    // special case if
+    // ok the issue is fucking interspersing commas
+    // so annoying
+    // ok so let's just make code that's obviously correct and don't try to overthink it
+    // 0 bytes = empty string
+    if
+    (0 === bytes.length)
+        return '<<>>'
+    // 1 byte = just the first byte
+    else if
+    (1 === bytes.length) {
+        return '<<' + bytestr(bytes[0]) + '>>';
+    }
+    // at least 2 bytes = grab first byte
+    else {
+        let first_byte : number = bytes[0];
+        let result_acc : string = '<<'  + bytestr(first_byte);
+
+        // put commas at the beginning of every one starting with the second
+        // byte
+        for (let this_i0 = 1;
+                 this_i0 < bytes.length;
+                 ++this_i0)
+        {
+            let this_byte : number = bytes[i0];
+
+            result_acc += ', ';
+            result_acc += bytestr(this_byte);
         }
+
+        // add trailing >>
+        result_acc += '>>';
+
+        return result_acc;
     }
 }
