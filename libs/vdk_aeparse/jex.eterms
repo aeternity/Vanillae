@@ -1,7 +1,7 @@
 {type, library}.
 {realm, local}.
-{name, vdk_aeser}.
-{version, "0.1.1"}.
+{name, vdk_aeparse}.
+{version, "0.1.2"}.
 {deps, ["local-vdk_base58-0.1.0",
         "local-vdk_base64-0.1.0",
         "local-vdk_rlp-0.1.0",

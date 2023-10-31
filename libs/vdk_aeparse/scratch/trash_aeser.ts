@@ -4,6 +4,7 @@
  * Refs:
  * 1. https://github.com/aeternity/protocol/blob/master/node/api/api_encoding.md
  * 2. https://github.com/aeternity/protocol/blob/master/serializations.md
+ * 3. https://github.com/colinhacks/zod/blob/481c9ba1932203777f6fe9497bb2a8a1d33c620e/README.md#basic-usage
  *
  * @module
  */
@@ -12,7 +13,7 @@
 import * as vdk_base58 from './jex_include/local-vdk_base58-0.1.0/dist/vdk_base58.js';
 import * as vdk_base64 from './jex_include/local-vdk_base64-0.1.0/dist/vdk_base64.js';
 import * as vdk_binary from './jex_include/local-vdk_binary-0.1.0/dist/vdk_binary.js';
-import * as vdk_rlp from './jex_include/local-vdk_rlp-0.1.0/dist/vdk_rlp.js';
+import * as vdk_rlp    from './jex_include/local-vdk_rlp-0.1.0/dist/vdk_rlp.js';
 
 
 export {
@@ -492,14 +493,17 @@ mansplain_dispatch
 /**
  * Return true if it is a supported spendtx
  *
+ * - object 
+ *
  * In general we might support multiple versions
  *
  * @internal
  */
 function
 is_spend
-    (otag : number,
-     vsn  : number)
+    (otag       : number,
+     vsn        : number,
+     fields_raw : Array<rlpdata>)
     : boolean
 {
     return ((otag === OTAG_SPEND) && (vsn === 1));
