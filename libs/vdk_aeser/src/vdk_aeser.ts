@@ -23,7 +23,8 @@ export {
     unbaseNcheck,
     baseNcheck,
     signed_tx,
-    mansplain
+    mansplain,
+    erlangify_binary
 }
 
 export type {
@@ -416,36 +417,38 @@ type decode_data  = {decoded_data : rlpdata,
 async function
 mansplain_bytes
     (data_bytes : Uint8Array)
-    : Promise< {ok : true,  result : mansplained_obj}
-             | {ok : false, error  : string}>
+    : Promise< {ok     : true,
+                result : mansplained_obj}
+             | {ok        : false,
+                error     : string,
+                miscinfo? : any}>
 {
 
-    let rlp_decode_data : decode_data = vdk_rlp.decode(data_bytes);
+    let x : decode_data = vdk_rlp.decode(data_bytes);
     // make sure we decoded everything
     if
-    (0 !== remainder.length)
-        return {ok            : false,
-                error         : 'mansplain_bytes: trailing data on rlp decode',
-                data_bytes    : data_bytes,
-                decoded_data  : decoded_data};
+    (0 !== x.remainder.length)
+        return {ok       : false,
+                error    : 'mansplain_bytes: trailing data on rlp decode',
+                miscinfo : {data_bytes    : data_bytes,
+                            decoded_data  : x.decoded_data}};
     // if we did indeed decode everything, next make sure we decoded an array
     // and not a binary
     else if
     (x.decoded_data instanceof Uint8Array)
-        return {ok           : false,
-                error        : 'mansplain_bytes: rlp decoded a binary, was expecting to decode an array',
-                data_bytes   : data_bytes,
-                decoded_data : decoded_data};
+        return {ok       : false,
+                error    : 'mansplain_bytes: rlp decoded a binary, was expecting to decode an array',
+                miscinfo : {data_bytes   : data_bytes,
+                            decoded_data : x.decoded_data}};
     // alright this language is simply too insane to sanity check
     // everything... I see why Metin likes that parser-assertion library. Zod
     // I think it was called.  This is the type of situation where it's super
     // useful.
-    else
-    {
+    else {
         // so fields are
         // [otag, version, ...fields]
         // @ts-ignore I know it's an array
-        let fields : Array<rlpdata> = x.decoded_data;
+        let fields : Array<Uint8Array> = x.decoded_data;
 
         let otag       : number            = fields[0][0];
         let vsn        : number            = fields[1][0];
