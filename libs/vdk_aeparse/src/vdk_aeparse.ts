@@ -18,10 +18,33 @@ import * as z          from './zod_3_22_4.js';
 
 
 export {
-    // AE constants
-    AE_OTAG_SPEND,
-    // zod parsers for AE types
+    // AE object numerical tags
+    AE_OBJ_NTAG_SPEND,
+    // AE object string tags
+    AE_OBJ_STAG_SPEND,
+    // AE ID numerical tags
+    AE_ID_NTAG_ACCOUNT,
+    AE_ID_NTAG_NAME,
+    AE_ID_NTAG_COMMITMENT,
+    AE_ID_NTAG_ORACLE,
+    AE_ID_NTAG_CONTRACT,
+    AE_ID_NTAG_CHANNEL,
+    // AE ID string tags
+    AE_ID_STAG_ACCOUNT,
+    AE_ID_STAG_NAME,
+    AE_ID_STAG_COMMITMENT,
+    AE_ID_STAG_ORACLE,
+    AE_ID_STAG_CONTRACT,
+    AE_ID_STAG_CHANNEL,
+    // zod parsers for AE idents
     AEz_id,
+    AEz_id_account,
+    AEz_id_name,
+    AEz_id_commitment,
+    AEz_id_oracle,
+    AEz_id_contract,
+    AEz_id_channel,
+    AEz_idhash,
     AEz_SpendTx,
     // zod parsers for Erlang types
     ERLz_non_neg_integer,
@@ -65,6 +88,39 @@ export type {
 //
 // anyway, I think what I'm going to do is make this into my data validation
 // library
+
+// entire chain
+// string -> tx_... -> base58check -> rlp decoded -> each field
+
+
+/**
+ * This is the entire parser from an API string to an AEz_SpendTx
+ *
+ * za = asynchronous parser
+ */
+let AEza_SpendTx_apistr
+    = z.string()
+       .startsWith('tx_')
+       // the ... of tx_... is a length which is a multiple of 4
+       // my head hurts... i need to give this a day or two and come back to this
+       .transform(isBase64Checked)
+
+
+
+/**
+ * Returns `true` if this is a `xy_...` string where the `...` is base64
+ * encoded and the check bytes are added properly
+ *
+ * @internal
+ */
+async function isBase64Str(str: string, zodContext)
+{
+    // `tx_...` -> `...`
+    let base64_chars : string     = str.slice(3);
+    // problem here is sunk cost which is that base64 just crashes if it gets invalid input
+    // and the thing with zod is it wants to consume all the errors
+    let bytes        : Uint8Array = vdk_base64.decode(base64_chars);
+}
 
 
 
@@ -130,7 +186,7 @@ let AEz_id
 let AEz_id_account
     = z.object({id_ntag : z.literal(AE_ID_NTAG_ACCOUNT),
                 id_stag : z.literal(AE_ID_STAG_ACCOUNT),
-                id_hash : AEz_id_hash});
+                id_hash : AEz_idhash});
 
 
 
@@ -142,7 +198,7 @@ let AEz_id_account
 let AEz_id_name
     = z.object({id_ntag : z.literal(AE_ID_NTAG_NAME),
                 id_stag : z.literal(AE_ID_STAG_NAME),
-                id_hash : AEz_id_hash});
+                id_hash : AEz_idhash});
 
 
 
@@ -154,7 +210,7 @@ let AEz_id_name
 let AEz_id_oracle
     = z.object({id_ntag : z.literal(AE_ID_NTAG_ORACLE),
                 id_stag : z.literal(AE_ID_STAG_ORACLE),
-                id_hash : AEz_id_hash});
+                id_hash : AEz_idhash});
 
 
 
@@ -166,7 +222,7 @@ let AEz_id_oracle
 let AEz_id_contract
     = z.object({id_ntag : z.literal(AE_ID_NTAG_CONTRACT),
                 id_stag : z.literal(AE_ID_STAG_CONTRACT),
-                id_hash : AEz_id_hash});
+                id_hash : AEz_idhash});
 
 
 
@@ -178,7 +234,7 @@ let AEz_id_contract
 let AEz_id_channel
     = z.object({id_ntag : z.literal(AE_ID_NTAG_CHANNEL),
                 id_stag : z.literal(AE_ID_STAG_CHANNEL),
-                id_hash : AEz_id_hash});
+                id_hash : AEz_idhash});
 
 
 
@@ -190,7 +246,7 @@ let AEz_id_channel
  *
  * Ref: https://github.com/aeternity/protocol/blob/fd179822fc70241e79cbef7636625cf344a08109/serializations.md#the-id-type
  */
-let AEz_id_hash
+let AEz_idhash
     = ERLz_binary.length(32);
 
 
