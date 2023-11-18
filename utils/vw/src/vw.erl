@@ -32,16 +32,17 @@ main(_)                    -> help().
 help() ->
     io:format("~ts", [help_screen()]).
 
+
 help_screen() ->
     ["vw: vanillae wallet\n"
      "USAGE: vw COMMAND [ARGS]\n"
      "This is a simple command line Aeternity wallet (work in progress)\n"
      "\n"
      "COMMANDS\n"
-     "  mansplain APISTR    decompose the AE object and display it in a human-readable form\n"
-     "      -e, --example: give an example\n"
-     "      Example: vw mansplain tx\n"
+     "  mansplain APISTR    decompose the AE object and display it in a human-readable awk/grep/etc-friendly form\n"
+     "      -e, --examples      give some example call/return sequences\n"
     ].
+
 
 
 
@@ -50,18 +51,28 @@ help_screen() ->
 %% @private
 
 mansplain(["-e"]) ->
-    mansplain(["--example"]);
-mansplain(["--example"]) ->
-    mansplain([example_unsigned_tx_apistr()]);
+    mansplain(["--examples"]);
+mansplain(["--examples"]) ->
+    ShowExample =
+        fun(ExStr) ->
+            io:format("$ vw mansplain ~ts~n", [ExStr]),
+            mansplain([ExStr]),
+            io:format("~n", [])
+        end,
+    lists:foreach(ShowExample, examples());
 mansplain(["tx_" ++ Base64Data]) ->
     {ok, TxBytes}   = vw_bnc:unbase64check(Base64Data),
     {RLPData, <<>>} = vrlp:decode(TxBytes),
     TaggedFields    = rlp2proplist(RLPData),
     display_tagged_fields(TaggedFields).
 
-example_unsigned_tx_apistr() ->
-    "tx_+LUrAaEBzZdh1MDoqUeB7A/dvSoARg6L/nLK94Po8YYSBwtGkhMBoQWPFvtl5SACr++edEMrwJzoQp7/Tu6vJ3vxsdi9P5O+hQOGteYg9IAAAACCTiCEO5rKALhaKxH1lAXbW58AoM2XYdTA6KlHgewP3b0qAEYOi/5yyveD6PGGEgcLRpITAJ8AoM2XYdTA6KlHgewP3b0qAEYOi/5yyveD6PGGEgcLRpITOG+JA72RPmwd8//AoZ9UjA==".
 
+examples() ->
+    [ %% signed contract call
+      "tx_+P8LAfhCuEBI0/elGvAObpwCvWBzCKU+xywg5ReHRaUEzgqilLANO3ZaivIIIEXn4meC1qdnuhND52z2/xfL56hnksCbr/0MuLf4tSsBoQHNl2HUwOipR4HsD929KgBGDov+csr3g+jxhhIHC0aSEwGhBY8W+2XlIAKv7550QyvAnOhCnv9O7q8ne/Gx2L0/k76FA4a15iD0gAAAAIJOIIQ7msoAuForEfWUBdtbnwCgzZdh1MDoqUeB7A/dvSoARg6L/nLK94Po8YYSBwtGkhMAnwCgzZdh1MDoqUeB7A/dvSoARg6L/nLK94Po8YYSBwtGkhM4b4kDvZE+bB3z/8C+FIYl"
+      %% corresponding unsigned contract call TX
+    , "tx_+LUrAaEBzZdh1MDoqUeB7A/dvSoARg6L/nLK94Po8YYSBwtGkhMBoQWPFvtl5SACr++edEMrwJzoQp7/Tu6vJ3vxsdi9P5O+hQOGteYg9IAAAACCTiCEO5rKALhaKxH1lAXbW58AoM2XYdTA6KlHgewP3b0qAEYOi/5yyveD6PGGEgcLRpITAJ8AoM2XYdTA6KlHgewP3b0qAEYOi/5yyveD6PGGEgcLRpITOG+JA72RPmwd8//AoZ9UjA=="
+    ].
 
 
 -spec display_tagged_fields(TaggedFields) -> ok
@@ -152,15 +163,26 @@ max_tag_length([], Result) ->
 %% Ref: https://github.com/aeternity/protocol/blob/fd179822fc70241e79cbef7636625cf344a08109/serializations.md#binary-serialization
 
 rlp2proplist([TagBytes, VsnBytes | Fields]) ->
-    TagInt = decode_int(TagBytes),
-    VsnInt = decode_int(VsnBytes),
+    TagInt = binary:decode_unsigned(TagBytes),
+    VsnInt = binary:decode_unsigned(VsnBytes),
     rlp2proplist(TagInt, VsnInt, Fields).
 
 
 %% Ref: https://github.com/aeternity/protocol/blob/fd179822fc70241e79cbef7636625cf344a08109/serializations.md#table-of-object-tags
+-define(OTAG_SignedTx, 11).
 -define(OTAG_ContractCallTx, 43).
 
 
+%% SignedTx version 1
+%% Ref: https://github.com/aeternity/protocol/blob/fd179822fc70241e79cbef7636625cf344a08109/serializations.md#signed-transaction
+rlp2proplist(?OTAG_SignedTx, 1, Fields) ->
+    [Signatures_list, %% [ <signatures>  :: [binary()]
+     Tx_bytes]        %% , <transaction> :: binary()
+        = Fields,
+    [{object_type , "SignedTx"},
+     {vsn         , "1"},
+     {signatures  , vw_sv:signatures(Signatures_list)},
+     {transaction , vw_sv:transaction(Tx_bytes)}];
 %% ContractCallTx version 1
 %% Ref: https://github.com/aeternity/protocol/blob/fd179822fc70241e79cbef7636625cf344a08109/serializations.md#contract-call-transaction
 rlp2proplist(?OTAG_ContractCallTx, 1, Fields) ->
@@ -177,68 +199,13 @@ rlp2proplist(?OTAG_ContractCallTx, 1, Fields) ->
         = Fields,
     [{object_type, "ContractCallTx"},
      {vsn        , "1"},
-     {caller     , strview_id(CallerId_bytes)},
-     {nonce      , strview_int(Nonce_bytes)},
-     {contract   , strview_id(ContractId_bytes)},
-     {abi_version, strview_int(ABIVersion_bytes)},
-     {fee        , strview_int(Fee_bytes)},
-     {ttl        , strview_int(TTL_bytes)},
-     {amount     , strview_int(Amount_bytes)},
-     {gas        , strview_int(Gas_bytes)},
-     {gas_price  , strview_int(GasPrice_bytes)},
-     {call_data  , strview_contract_bytes(CallData_bytes)}].
-
-
-
-%%=============================================================================
-%% strview functions: take data and get a one-line string representation
-%%=============================================================================
-
-
--spec strview_id(AE_id) -> iolist()
-    when AE_id :: binary().
-%% @private
-%% mansplain an id = show the ak_... nonsense
-%% Ref: https://github.com/aeternity/protocol/blob/fd179822fc70241e79cbef7636625cf344a08109/serializations.md#the-id-type
-
-strview_id(<<Tag, IdBytes:32/bytes>>) ->
-    PrefixStr = prefix(Tag),
-    IdStr     = vw_bnc:base58checked(IdBytes),
-    PrefixStr ++ "_" ++ IdStr.
-
-
-%% Ref: https://github.com/aeternity/protocol/blob/fd179822fc70241e79cbef7636625cf344a08109/serializations.md#the-id-type
-prefix(1) -> "ak";
-prefix(2) -> "nm";
-prefix(3) -> "cm";
-prefix(4) -> "ok";
-prefix(5) -> "ct";
-prefix(6) -> "ch".
-
-
-
--spec strview_int(IntBytes) -> iolist()
-    when IntBytes :: binary().
-%% @private
-%% Take the bytes that encode an integer and format the integer
-
-strview_int(IntBytes) ->
-    integer_to_list(decode_int(IntBytes)).
-
-
-
--spec strview_contract_bytes(ContractBytes) -> iolist()
-    when ContractBytes :: binary().
-%% @private
-%% Take a byte array and base64 encode it with the cb_... prefix
-
-strview_contract_bytes(ContractBytes) ->
-    ["cb_", vw_bnc:base64checked(ContractBytes)].
-
-
-
-%% Decode functions
-
-%% Take a bytestring and parse it as an int
-decode_int(Bytes) ->
-    binary:decode_unsigned(Bytes).
+     {caller     , vw_sv:id(CallerId_bytes)},
+     {nonce      , vw_sv:int(Nonce_bytes)},
+     {contract   , vw_sv:id(ContractId_bytes)},
+     {abi_version, vw_sv:int(ABIVersion_bytes)},
+     {fee        , vw_sv:int(Fee_bytes)},
+     {ttl        , vw_sv:int(TTL_bytes)},
+     {amount     , vw_sv:int(Amount_bytes)},
+     {gas        , vw_sv:int(Gas_bytes)},
+     {gas_price  , vw_sv:int(GasPrice_bytes)},
+     {call_data  , vw_sv:contract_bytes(CallData_bytes)}].
