@@ -1629,12 +1629,39 @@ substitute_opaque_type(Bindings, {var, VarName}) ->
         false        -> {error, invalid_aci};
         {_, TypeArg} -> {ok, TypeArg}
     end;
+substitute_opaque_type(Bindings, {variant, Args}) ->
+    case substitute_variant_types(Bindings, Args, []) of
+        {ok, Result} -> {ok, {variant, Result}};
+        Error        -> Error
+    end;
+substitute_opaque_type(Bindings, {record, Args}) ->
+    case substitute_record_types(Bindings, Args, []) of
+        {ok, Result} -> {ok, {record, Result}};
+        Error        -> Error
+    end;
 substitute_opaque_type(Bindings, {Connective, Args}) ->
     case substitute_opaque_types(Bindings, Args, []) of
         {ok, Result} -> {ok, {Connective, Result}};
         Error        -> Error
     end;
-substitute_opaque_type(_Bindings, Type) -> {ok, Type}.
+substitute_opaque_type(_Bindings, Type) ->
+    {ok, Type}.
+
+substitute_variant_types(Bindings, [{VariantName, Elements} | Rest], Acc) ->
+    case substitute_opaque_types(Bindings, Elements, []) of
+        {ok, Result} -> substitute_variant_types(Bindings, Rest, [{VariantName, Result} | Acc]);
+        Error        -> Error
+    end;
+substitute_variant_types(_Bindings, [], Acc) ->
+    {ok, lists:reverse(Acc)}.
+
+substitute_record_types(Bindings, [{ElementName, Type} | Rest], Acc) ->
+    case substitute_opaque_type(Bindings, Type) of
+        {ok, Result} -> substitute_record_types(Bindings, Rest, [{ElementName, Result} | Acc]);
+        Error        -> Error
+    end;
+substitute_record_types(_Bindings, [], Acc) ->
+    {ok, lists:reverse(Acc)}.
 
 substitute_opaque_types(Bindings, [Next | Rest], Acc) ->
     case substitute_opaque_type(Bindings, Next) of
